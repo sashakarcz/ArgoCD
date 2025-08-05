@@ -260,6 +260,7 @@ spec:
       labels:
         app: jellyfin
     spec:
+      # Pod-level security context
       securityContext:
         fsGroup: 105
         supplementalGroups: [44, 105]
@@ -276,11 +277,12 @@ spec:
           value: "/transcode"
         - name: LIBVA_DRIVER_NAME
           value: "iHD"
-        securityContext: # <--- THIS IS THE CORRECT LOCATION
+        # Container-level security context
+        securityContext:
           privileged: true
         resources:
           limits:
-            gpu.intel.com/i915: 1 # Intel GPU resource request is the primary scheduling constraint
+            gpu.intel.com/i915: 1
             cpu: 12000m
             memory: 12Gi
           requests:
