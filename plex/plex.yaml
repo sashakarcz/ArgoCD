@@ -288,16 +288,7 @@ spec:
       labels:
         app: plex
     spec:
-      # Node affinity to pin to specific node (equivalent to your constraint)
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - talos-e9h-vxe # Replace with your preferred node
+      # Removed node affinity as it's not needed
       
       # Security context for hardware access
       securityContext:
@@ -378,8 +369,8 @@ spec:
         - name: plex-new-music
           mountPath: /new/Music
           readOnly: true
-        - name: scratch
-          mountPath: /tmp
+        - name: plex-transcode # Volume mount for transcoding
+          mountPath: /tmp # Mount to /tmp for Plex transcoding
         - name: dev-dri
           mountPath: /dev/dri
       
@@ -414,10 +405,10 @@ spec:
       - name: plex-new-music
         persistentVolumeClaim:
           claimName: plex-new-music-pvc
-      - name: scratch
-        hostPath:
-          path: /tmp/plex-transcode
-          type: DirectoryOrCreate
+      - name: plex-transcode # Ramdisk volume for transcoding
+        emptyDir:
+          medium: Memory
+          sizeLimit: 10Gi # 10GB limit for the ramdisk
       - name: dev-dri
         hostPath:
           path: /dev/dri
