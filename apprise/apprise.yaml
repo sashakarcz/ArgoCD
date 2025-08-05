@@ -85,10 +85,8 @@ spec:
       labels:
         app: apprise
     spec:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+      # Remove the restrictive security context that was causing issues
+      # The Apprise container needs to run setup tasks as root initially
       containers:
       - name: apprise
         image: caronc/apprise:latest
@@ -101,6 +99,9 @@ spec:
           value: "1000"
         - name: TZ
           value: "America/Chicago"
+        # Add this to ensure the container can create necessary directories
+        - name: APPRISE_ATTACH_SIZE
+          value: "200"  # Max attachment size in MB
         resources:
           requests:
             cpu: 100m
@@ -112,7 +113,7 @@ spec:
         - name: apprise-config
           mountPath: /config
         - name: apprise-attachments
-          mountPath: /attachments
+          mountPath: /attach  # Container expects /attach, not /attachments
         livenessProbe:
           httpGet:
             path: /
