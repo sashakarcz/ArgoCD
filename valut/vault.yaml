@@ -1,0 +1,223 @@
+# Kubernetes Manifests for Vault
+
+---
+# Namespace for Vault services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+
+---
+# Persistent Volume for Vault Data
+# Corresponds to Nomad volume "vault-data"
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vault-data-pv
+spec:
+  capacity:
+    storage: 10Gi # Defaulting to 10Gi, adjust as needed
+  accessModes:
+    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+  persistentVolumeReclaimPolicy: Retain # Retain data on PV deletion
+  storageClassName: "nfs-csi" # Assuming you have an NFS CSI StorageClass named "nfs-csi"
+  csi:
+    driver: nfs.csi.k8s.io # Ensure your NFS CSI driver is installed
+    volumeHandle: "vault-data" # Unique identifier for the CSI driver
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/vault/data"
+      # mountPermissions: "0" # This is usually handled by fsGroup or pod security context in K8s
+  mountOptions:
+    - "nfsvers=3" # From Nomad mount_flags "vers=3"
+    - "nolock"    # From Nomad mount_flags "nolock"
+    - "timeo=30"  # From Nomad mount_flags "timeo=30"
+    - "intr"      # From Nomad mount_flags "intr"
+    - "_netdev"   # From Nomad mount_flags "_netdev"
+  volumeMode: Filesystem
+
+---
+# Persistent Volume for Vault File Storage
+# Corresponds to Nomad volume "vault-file"
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vault-file-pv
+spec:
+  capacity:
+    storage: 10Gi # Defaulting to 10Gi, adjust as needed
+  accessModes:
+    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+  persistentVolumeReclaimPolicy: Retain # Retain data on PV deletion
+  storageClassName: "nfs-csi" # Assuming you have an NFS CSI StorageClass named "nfs-csi"
+  csi:
+    driver: nfs.csi.k8s.io # Ensure your NFS CSI driver is installed
+    volumeHandle: "vault-file" # Unique identifier for the CSI driver
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/vault/data/file"
+      # mountPermissions: "0" # This is usually handled by fsGroup or pod security context in K8s
+  mountOptions:
+    - "nfsvers=3"
+    - "nolock"
+    - "timeo=30"
+    - "intr"
+    - "_netdev"
+  volumeMode: Filesystem
+
+---
+# Persistent Volume Claim for Vault Data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-data-pvc
+  namespace: vault
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi # Must match or be less than PV capacity
+  volumeName: vault-data-pv # Binds to the specific PV
+  storageClassName: "nfs-csi" # Must match the PV's storageClassName
+
+---
+# Persistent Volume Claim for Vault File Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-file-pvc
+  namespace: vault
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi # Must match or be less than PV capacity
+  volumeName: vault-file-pv # Binds to the specific PV
+  storageClassName: "nfs-csi" # Must match the PV's storageClassName
+
+---
+# Vault Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  replicas: 1 # Corresponds to Nomad's "count = 1"
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      securityContext:
+        # It's common for Vault to run as root or a specific user.
+        # Adjust PUID/PGID if needed, but for /vault and /vault/file mounts
+        # ensure permissions are correct on the NFS share itself.
+        # fsGroup: 0 # Uncomment if you need root ownership for mounted volumes
+      containers:
+      - name: vault
+        image: hashicorp/vault:latest
+        command: ["vault"]
+        args: ["server", "-config=/vault/config/vault.hcl"] # Mount config via ConfigMap later
+        ports:
+        - containerPort: 8200
+          name: http
+          protocol: TCP
+        env:
+        - name: TZ
+          value: "America/Chicago"
+        - name: VAULT_ADDR
+          value: "http://127.0.0.1:8200" # Inside the pod, refer to localhost
+        - name: VAULT_API_ADDR
+          value: "http://$(POD_IP):8200" # Use POD_IP for API address
+        - name: VAULT_CLUSTER_ADDR
+          value: "http://$(POD_IP):8201" # For HA, if you add more replicas later
+        resources:
+          requests:
+            cpu: "1000m" # 1 CPU core
+            memory: "1024Mi" # 1 GiB
+          limits:
+            cpu: "1000m" # 1 CPU core
+            memory: "1024Mi" # 1 GiB
+        volumeMounts:
+        - name: vault-data-storage
+          mountPath: "/vault" # Mount vault-data to /vault
+          readOnly: false
+        - name: vault-file-storage
+          mountPath: "/vault/file" # Mount vault-file to /vault/file
+          readOnly: false
+        # You'll likely need a ConfigMap for vault.hcl
+        # - name: vault-config
+        #   mountPath: "/vault/config/vault.hcl"
+        #   subPath: "vault.hcl"
+      volumes:
+      - name: vault-data-storage
+        persistentVolumeClaim:
+          claimName: vault-data-pvc
+      - name: vault-file-storage
+        persistentVolumeClaim:
+          claimName: vault-file-pvc
+      # - name: vault-config # Uncomment if using ConfigMap for config
+      #   configMap:
+      #     name: vault-config-map
+      serviceAccountName: default # Or a dedicated service account for Vault
+
+---
+# Vault Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  selector:
+    app: vault
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8200
+      targetPort: 8200
+    - name: cluster # For HA, if you add more replicas later
+      protocol: TCP
+      port: 8201
+      targetPort: 8201
+  type: ClusterIP # Use ClusterIP for internal access, expose via Ingress
+
+---
+# Vault Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-ingress
+  namespace: vault
+  annotations:
+    # Nginx Ingress Controller annotations
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Important for Nginx to talk to Vault
+    # Cert-Manager annotations
+    cert-manager.io/cluster-issuer: "letsencrypt-prod" # or your specific ClusterIssuer name
+spec:
+  ingressClassName: nginx # Use the Nginx Ingress Controller
+  rules:
+  - host: vault.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vault
+            port:
+              number: 8200
+  tls: # Required for HTTPS
+  - hosts:
+    - vault.starnix.net
+    secretName: vault-tls-secret # Cert-manager will store the certificate here
