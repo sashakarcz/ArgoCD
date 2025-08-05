@@ -11,7 +11,6 @@ metadata:
 ---
 # 2. PersistentVolume (NFS)
 # Defines the NFS volume that holds the application's configuration.
-# This assumes the nfsofficial CSI driver is installed on your cluster.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -24,7 +23,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   nfs:
     server: "192.168.1.75"
-    share: "/mnt/Store/nomad/jellyseerr/config"
+    path: "/mnt/Store/nomad/jellyseerr/config"
 
 ---
 # 3. PersistentVolumeClaim
@@ -110,7 +109,7 @@ spec:
     - protocol: TCP
       port: 5055
       targetPort: 5055
-  type: ClusterIP # Changed from LoadBalancer to ClusterIP
+  type: ClusterIP
 
 ---
 # 6. Ingress with NGINX and Cert-Manager
