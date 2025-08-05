@@ -8,30 +8,8 @@ metadata:
   name: privatebin
 
 ---
-# Persistent Volume for PrivateBin Data (Longhorn)
-# This replaces your NFS volume for privatebin-data
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: privatebin-data-pv
-spec:
-  capacity:
-    storage: 10Gi # Defaulting to 10Gi, adjust as needed for your PrivateBin data
-  accessModes:
-    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
-  persistentVolumeReclaimPolicy: Retain # Retain data on PV deletion
-  storageClassName: "longhorn" # Use your Longhorn StorageClass
-  csi:
-    driver: driver.longhorn.io # Longhorn CSI driver
-    volumeHandle: "privatebin-data" # Unique identifier for the Longhorn volume
-    volumeAttributes:
-      numberOfReplicas: "3" # Ensure 3 replicas for high availability
-      # You can add other Longhorn-specific volume attributes here if needed,
-      # e.g., "dataLocality": "disabled" or "fsType": "ext4"
-  volumeMode: Filesystem
-
----
-# Persistent Volume Claim for PrivateBin Data
+# Persistent Volume Claim for PrivateBin Data (Dynamic Provisioning)
+# This will automatically create the Longhorn volume
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -39,12 +17,16 @@ metadata:
   namespace: privatebin
 spec:
   accessModes:
-    - ReadWriteMany # Must match the PV's accessModes
+    # ReadWriteMany is typically used for NFS, but Longhorn also supports it.
+    # For a single-replica PrivateBin, ReadWriteOnce might be sufficient
+    # if you don't need multiple pods to write to the same volume simultaneously.
+    # Keep ReadWriteMany if you might scale PrivateBin to multiple replicas later.
+    - ReadWriteMany
   resources:
     requests:
-      storage: 10Gi # Must match or be less than PV capacity
-  volumeName: privatebin-data-pv # Binds to the specific PV
-  storageClassName: "longhorn" # Must match the PV's storageClassName
+      storage: 10Gi # Adjust as needed for your PrivateBin data
+  storageClassName: "longhorn" # This tells Longhorn to dynamically provision the volume
+  # No volumeName here, as Longhorn will create the PV automatically
 
 ---
 # PrivateBin Deployment
