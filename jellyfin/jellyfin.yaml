@@ -260,11 +260,9 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # Removed the nodeSelector. Pod can now be scheduled on any node with a GPU.
       securityContext:
         fsGroup: 105
         supplementalGroups: [44, 105]
-        privileged: true
       containers:
       - name: jellyfin
         image: jellyfin/jellyfin
@@ -278,6 +276,8 @@ spec:
           value: "/transcode"
         - name: LIBVA_DRIVER_NAME
           value: "iHD"
+        securityContext: # <--- THIS IS THE CORRECT LOCATION
+          privileged: true
         resources:
           limits:
             gpu.intel.com/i915: 1 # Intel GPU resource request is the primary scheduling constraint
