@@ -1,0 +1,468 @@
+# Plex Migration to Kubernetes
+# This replaces your Nomad job with equivalent Kubernetes resources
+
+---
+# Namespace for media services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media
+
+---
+# Storage Class for NFS volumes (if not already created)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-client
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: "192.168.1.75"
+mountOptions:
+  - nfsvers=4
+  - timeo=30
+  - intr
+  - _netdev
+  - nolock
+
+---
+# Persistent Volumes for each NFS mount
+# Plex Config Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-config-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: plex-config
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/config/plex"  # Separate plex config
+      mountPermissions: "0755"
+
+---
+# TV Series Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-series-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-series
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/series"
+
+---
+# Movies Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-movies-pv
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-movies
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/movies"
+
+---
+# Old TV Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-old-tv-pv
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-old-tv
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/old-tv"
+
+---
+# Old Movies Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-old-movies-pv
+spec:
+  capacity:
+    storage: 300Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-old-movies
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/old-movies"
+
+---
+# Music Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-music-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-music
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/music"
+
+---
+# New Music Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: plex-new-music-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: jellyfin-new-music
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyfin/new-music"
+
+---
+# Persistent Volume Claims
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-config-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: plex-config-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-series-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 500Gi
+  volumeName: plex-series-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-movies-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 1Ti
+  volumeName: plex-movies-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-old-tv-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 200Gi
+  volumeName: plex-old-tv-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-old-movies-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 300Gi
+  volumeName: plex-old-movies-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-music-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: plex-music-pv
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-new-music-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: plex-new-music-pv
+
+---
+# Plex Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: media
+  labels:
+    app: plex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+    spec:
+      # Node affinity to pin to specific node (equivalent to your constraint)
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - talos-e9h-vxe  # Replace with your preferred node
+      
+      # Security context for hardware access
+      securityContext:
+        fsGroup: 1000
+        supplementalGroups: [44, 109]  # video and render groups for GPU access
+      
+      containers:
+      - name: plex
+        image: lscr.io/linuxserver/plex:amd64-1.41.9.9961-46083195d-ls274
+        
+        # Resource requests/limits
+        resources:
+          requests:
+            cpu: "4"
+            memory: "8Gi"
+          limits:
+            cpu: "8"
+            memory: "10Gi"
+            gpu.intel.com/i915: 1  # Intel GPU resource
+        
+        # Environment variables
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: VERSION
+          value: "docker"
+        - name: ADVERTISE_IP
+          value: "http://plex.starnix.net:443/"
+        - name: ALLOWED_NETWORKS
+          value: "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8"
+        - name: PLEX_CLAIM
+          value: "claim-Qayj1tb6ixx8Wy9pskpX"
+        
+        # Ports
+        ports:
+        - containerPort: 32400
+          name: http
+          protocol: TCP
+        
+        # Health check
+        livenessProbe:
+          httpGet:
+            path: /identity
+            port: 32400
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: /identity
+            port: 32400
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+        
+        # Volume mounts
+        volumeMounts:
+        - name: plex-config
+          mountPath: /config
+        - name: plex-series
+          mountPath: /tv
+          readOnly: true
+        - name: plex-movies
+          mountPath: /movies
+          readOnly: true
+        - name: plex-old-tv
+          mountPath: /old/tv
+          readOnly: true
+        - name: plex-old-movies
+          mountPath: /old/movies
+          readOnly: true
+        - name: plex-music
+          mountPath: /Music
+          readOnly: true
+        - name: plex-new-music
+          mountPath: /new/Music
+          readOnly: true
+        - name: scratch
+          mountPath: /tmp
+        - name: dev-dri
+          mountPath: /dev/dri
+        
+        # Security context for container
+        securityContext:
+          privileged: false  # Try without privileged first
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN  # For device access
+      
+      # Volumes
+      volumes:
+      - name: plex-config
+        persistentVolumeClaim:
+          claimName: plex-config-pvc
+      - name: plex-series
+        persistentVolumeClaim:
+          claimName: plex-series-pvc
+      - name: plex-movies
+        persistentVolumeClaim:
+          claimName: plex-movies-pvc
+      - name: plex-old-tv
+        persistentVolumeClaim:
+          claimName: plex-old-tv-pvc
+      - name: plex-old-movies
+        persistentVolumeClaim:
+          claimName: plex-old-movies-pvc
+      - name: plex-music
+        persistentVolumeClaim:
+          claimName: plex-music-pvc
+      - name: plex-new-music
+        persistentVolumeClaim:
+          claimName: plex-new-music-pvc
+      - name: scratch
+        hostPath:
+          path: /tmp/plex-transcode  # Local SSD scratch space
+          type: DirectoryOrCreate
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
+          type: Directory
+
+---
+# LoadBalancer Service for Plex (gets its own MetalLB IP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+  namespace: media
+  annotations:
+    # Optional: Request specific IP from MetalLB pool
+    # metallb.universe.tf/loadBalancerIPs: "192.168.1.204"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 32400
+    targetPort: 32400
+    protocol: TCP
+    name: plex-http
+  # Additional ports Plex might need
+  - port: 1900
+    targetPort: 1900
+    protocol: UDP
+    name: dlna-udp
+  - port: 3005
+    targetPort: 3005
+    protocol: TCP
+    name: plex-companion
+  - port: 5353
+    targetPort: 5353
+    protocol: UDP
+    name: bonjour-udp
+  - port: 8324
+    targetPort: 8324
+    protocol: TCP
+    name: roku-via-http
+  - port: 32410
+    targetPort: 32410
+    protocol: UDP
+    name: gdm-32410
+  - port: 32412
+    targetPort: 32412
+    protocol: UDP
+    name: gdm-32412
+  - port: 32413
+    targetPort: 32413
+    protocol: UDP
+    name: gdm-32413
+  - port: 32414
+    targetPort: 32414
+    protocol: UDP
+    name: gdm-32414
+  selector:
+    app: plex
+  # Keep client IP for proper access control
+  externalTrafficPolicy: Local
