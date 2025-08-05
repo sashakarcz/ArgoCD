@@ -20,9 +20,9 @@ metadata:
   name: jellyfin-config-pv
 spec:
   capacity:
-    storage: 5Gi # Assuming a reasonable size; adjust if needed
+    storage: 5Gi
   accessModes:
-    - ReadWriteOnce # Corresponds to Nomad's "single-node-writer"
+    - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   nfs:
     server: "192.168.1.75"
@@ -36,9 +36,9 @@ metadata:
   name: jellyfin-series-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
-    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
     server: "192.168.1.86"
@@ -52,7 +52,7 @@ metadata:
   name: jellyfin-movies-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
@@ -68,7 +68,7 @@ metadata:
   name: jellyfin-old-tv-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
@@ -84,7 +84,7 @@ metadata:
   name: jellyfin-old-movies-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
@@ -100,7 +100,7 @@ metadata:
   name: jellyfin-music-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
@@ -116,7 +116,7 @@ metadata:
   name: jellyfin-new-music-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust size for your media library
+    storage: 100Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
@@ -260,13 +260,11 @@ spec:
       labels:
         app: jellyfin
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: "nn.starnix.net"
+      # Removed the nodeSelector. Pod can now be scheduled on any node with a GPU.
       securityContext:
-        # fsGroup and supplementalGroups for device access, similar to Plex
-        fsGroup: 105 # Often the 'render' group ID
-        supplementalGroups: [44, 105] # Common IDs for 'video' and 'render' groups
-        privileged: true # Retained from Nomad spec, often needed for direct device access
+        fsGroup: 105
+        supplementalGroups: [44, 105]
+        privileged: true
       containers:
       - name: jellyfin
         image: jellyfin/jellyfin
@@ -282,7 +280,7 @@ spec:
           value: "iHD"
         resources:
           limits:
-            gpu.intel.com/i915: 1 # Intel GPU resource request
+            gpu.intel.com/i915: 1 # Intel GPU resource request is the primary scheduling constraint
             cpu: 12000m
             memory: 12Gi
           requests:
@@ -305,13 +303,13 @@ spec:
           mountPath: "/Music"
         - name: new-music-volume
           mountPath: "/new/Music"
-        - name: dev-dri # Mount for the Intel GPU device
+        - name: dev-dri
           mountPath: /dev/dri
       volumes:
       - name: scratch-volume
         emptyDir:
           medium: Memory
-          sizeLimit: 20Gi # Adjust this size based on your typical transcode workload
+          sizeLimit: 20Gi
       - name: config-volume
         persistentVolumeClaim:
           claimName: jellyfin-config-pvc
@@ -333,7 +331,7 @@ spec:
       - name: new-music-volume
         persistentVolumeClaim:
           claimName: jellyfin-new-music-pvc
-      - name: dev-dri # HostPath volume for /dev/dri
+      - name: dev-dri
         hostPath:
           path: /dev/dri
           type: Directory
@@ -349,8 +347,6 @@ metadata:
   labels:
     app: jellyfin
   annotations:
-    # MetalLB annotation to specify a static IP address
-    # MetalLB must be configured to use this IP
     metallb.universe.tf/loadBalancerIPs: "192.168.1.202"
 spec:
   selector:
