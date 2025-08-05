@@ -348,8 +348,7 @@ metadata:
   namespace: jellyfin
   labels:
     app: jellyfin
-  annotations:
-    metallb.universe.tf/loadBalancerIPs: "192.168.1.202"
+  # Removed the conflicting metallb.universe.tf/loadBalancerIPs annotation
 spec:
   selector:
     app: jellyfin
