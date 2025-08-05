@@ -1,0 +1,224 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apprise
+  labels:
+    name: apprise
+---
+# Apprise Config PersistentVolume (NFS)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: apprise-config-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/nomad/apprise/config
+---
+# Apprise Config PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: apprise-config
+  namespace: apprise
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: apprise-config-pv
+  storageClassName: ""
+---
+# Apprise Attachments PersistentVolume (NFS)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: apprise-attachments-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/nomad/apprise/attachments
+---
+# Apprise Attachments PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: apprise-attachments
+  namespace: apprise
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: apprise-attachments-pv
+  storageClassName: ""
+---
+# Apprise Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apprise
+  namespace: apprise
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Since using RWO volumes
+  selector:
+    matchLabels:
+      app: apprise
+  template:
+    metadata:
+      labels:
+        app: apprise
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: apprise
+        image: caronc/apprise:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Chicago"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 4Gi
+        volumeMounts:
+        - name: apprise-config
+          mountPath: /config
+        - name: apprise-attachments
+          mountPath: /attachments
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: apprise-config
+        persistentVolumeClaim:
+          claimName: apprise-config
+      - name: apprise-attachments
+        persistentVolumeClaim:
+          claimName: apprise-attachments
+---
+# Apprise Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: apprise
+  namespace: apprise
+spec:
+  selector:
+    app: apprise
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+---
+# Ingress for Apprise
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apprise-ingress
+  namespace: apprise
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Optional: Add file upload size limit if needed
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - apprise.starnix.net
+    secretName: apprise-tls-cert
+  rules:
+  - host: apprise.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: apprise
+            port:
+              number: 8000
+---
+# NetworkPolicy for Apprise (optional security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apprise-network-policy
+  namespace: apprise
+spec:
+  podSelector:
+    matchLabels:
+      app: apprise
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Allow DNS resolution
+  - ports:
+    - protocol: UDP
+      port: 53
+  # Allow HTTP/HTTPS for notifications
+  - ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+  # Allow SMTP for email notifications
+  - ports:
+    - protocol: TCP
+      port: 25
+    - protocol: TCP
+      port: 587
+    - protocol: TCP
+      port: 465
