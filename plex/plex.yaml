@@ -21,14 +21,15 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-config"
+  storageClassName: "nfs-plex-config" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: plex-config
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/config/plex"
-      mountPermissions: "0755"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # TV Series Volume
@@ -42,13 +43,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-series"
+  storageClassName: "nfs-plex-series" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-series
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/series"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # Movies Volume
@@ -62,13 +65,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-movies"
+  storageClassName: "nfs-plex-movies" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-movies
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/movies"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # Old TV Volume
@@ -82,13 +87,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-old-tv"
+  storageClassName: "nfs-plex-old-tv" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-old-tv
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/old-tv"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # Old Movies Volume
@@ -102,13 +109,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-old-movies"
+  storageClassName: "nfs-plex-old-movies" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-old-movies
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/old-movies"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # Music Volume
@@ -122,13 +131,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-music"
+  storageClassName: "nfs-plex-music" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-music
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/music"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # New Music Volume
@@ -142,13 +153,15 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: "nfs-plex-new-music"
+  storageClassName: "nfs-plex-new-music" # Added storageClassName
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-new-music
     volumeAttributes:
       server: "192.168.1.75"
       share: "/mnt/Store/nomad/jellyfin/new-music"
+  mountOptions: # Added mountOptions for nolock
+    - nolock
 
 ---
 # Persistent Volume Claims
@@ -164,7 +177,7 @@ spec:
     requests:
       storage: 10Gi
   volumeName: plex-config-pv
-  storageClassName: "nfs-plex-config"
+  storageClassName: "nfs-plex-config" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -179,7 +192,7 @@ spec:
     requests:
       storage: 500Gi
   volumeName: plex-series-pv
-  storageClassName: "nfs-plex-series"
+  storageClassName: "nfs-plex-series" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -194,7 +207,7 @@ spec:
     requests:
       storage: 1Ti
   volumeName: plex-movies-pv
-  storageClassName: "nfs-plex-movies"
+  storageClassName: "nfs-plex-movies" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -209,7 +222,7 @@ spec:
     requests:
       storage: 200Gi
   volumeName: plex-old-tv-pv
-  storageClassName: "nfs-plex-old-tv"
+  storageClassName: "nfs-plex-old-tv" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -224,7 +237,7 @@ spec:
     requests:
       storage: 300Gi
   volumeName: plex-old-movies-pv
-  storageClassName: "nfs-plex-old-movies"
+  storageClassName: "nfs-plex-old-movies" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -239,7 +252,7 @@ spec:
     requests:
       storage: 100Gi
   volumeName: plex-music-pv
-  storageClassName: "nfs-plex-music"
+  storageClassName: "nfs-plex-music" # Added storageClassName
 
 ---
 apiVersion: v1
@@ -254,7 +267,7 @@ spec:
     requests:
       storage: 50Gi
   volumeName: plex-new-music-pv
-  storageClassName: "nfs-plex-new-music"
+  storageClassName: "nfs-plex-new-music" # Added storageClassName
 
 ---
 # Plex Deployment
