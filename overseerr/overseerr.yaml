@@ -22,12 +22,9 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: nfsofficial
-    volumeHandle: overseerr-config
-    volumeAttributes:
-      server: "192.168.1.75"
-      share: "/mnt/Store/nomad/jellyseerr/config"
+  nfs:
+    server: "192.168.1.75"
+    share: "/mnt/Store/nomad/jellyseerr/config"
 
 ---
 # 3. PersistentVolumeClaim
