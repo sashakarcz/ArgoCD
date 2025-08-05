@@ -1,0 +1,156 @@
+# Kubernetes Manifests for PrivateBin
+
+---
+# Namespace for PrivateBin services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: privatebin
+
+---
+# Persistent Volume for PrivateBin Data (Longhorn)
+# This replaces your NFS volume for privatebin-data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: privatebin-data-pv
+spec:
+  capacity:
+    storage: 10Gi # Defaulting to 10Gi, adjust as needed for your PrivateBin data
+  accessModes:
+    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+  persistentVolumeReclaimPolicy: Retain # Retain data on PV deletion
+  storageClassName: "longhorn" # Use your Longhorn StorageClass
+  csi:
+    driver: driver.longhorn.io # Longhorn CSI driver
+    volumeHandle: "privatebin-data" # Unique identifier for the Longhorn volume
+    volumeAttributes:
+      numberOfReplicas: "3" # Ensure 3 replicas for high availability
+      # You can add other Longhorn-specific volume attributes here if needed,
+      # e.g., "dataLocality": "disabled" or "fsType": "ext4"
+  volumeMode: Filesystem
+
+---
+# Persistent Volume Claim for PrivateBin Data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: privatebin-data-pvc
+  namespace: privatebin
+spec:
+  accessModes:
+    - ReadWriteMany # Must match the PV's accessModes
+  resources:
+    requests:
+      storage: 10Gi # Must match or be less than PV capacity
+  volumeName: privatebin-data-pv # Binds to the specific PV
+  storageClassName: "longhorn" # Must match the PV's storageClassName
+
+---
+# PrivateBin Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privatebin
+  namespace: privatebin
+  labels:
+    app: privatebin
+spec:
+  replicas: 1 # Corresponds to Nomad's "count = 1"
+  selector:
+    matchLabels:
+      app: privatebin
+  template:
+    metadata:
+      labels:
+        app: privatebin
+    spec:
+      containers:
+      - name: privatebin
+        image: privatebin/nginx-fpm-alpine
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "1000m" # 1 CPU core (1000 MHz in Nomad)
+            memory: "1024Mi" # 1 GiB (1024 MB in Nomad)
+          limits:
+            cpu: "1000m"
+            memory: "1024Mi"
+        livenessProbe: # Health check from Nomad
+          httpGet:
+            path: / # PrivateBin serves on root path
+            port: 8080
+          initialDelaySeconds: 10 # Give the app time to start
+          periodSeconds: 10 # Check every 10 seconds
+          timeoutSeconds: 2 # Timeout after 2 seconds
+          failureThreshold: 3 # Mark as unhealthy after 3 failures
+        readinessProbe: # Health check from Nomad
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5 # Shorter delay for readiness
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 1 # Mark as unready quickly
+        volumeMounts:
+        - name: privatebin-data-storage
+          mountPath: "/srv/data" # Mount point for PrivateBin data
+          readOnly: false
+      volumes:
+      - name: privatebin-data-storage
+        persistentVolumeClaim:
+          claimName: privatebin-data-pvc # Link to the PVC
+      # You might need a ServiceAccount if you have specific RBAC requirements
+      serviceAccountName: default
+
+---
+# PrivateBin Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: privatebin
+  namespace: privatebin
+  labels:
+    app: privatebin
+spec:
+  selector:
+    app: privatebin
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080 # Service port
+      targetPort: 8080 # Container port
+  type: ClusterIP # Use ClusterIP for internal access, expose via Ingress
+
+---
+# PrivateBin Ingress (Nginx and Cert-Manager)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: privatebin-ingress
+  namespace: privatebin
+  annotations:
+    # Nginx Ingress Controller annotations
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Nginx talks HTTP to PrivateBin
+    # Cert-Manager annotations for TLS
+    cert-manager.io/cluster-issuer: "letsencrypt-prod" # Replace with your ClusterIssuer name
+spec:
+  ingressClassName: nginx # Use the Nginx Ingress Controller
+  rules:
+  - host: privatebin.service.starnix.net # Your desired hostname
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: privatebin
+            port:
+              number: 8080
+  tls: # Required for HTTPS
+  - hosts:
+    - privatebin.service.starnix.net
+    secretName: privatebin-tls-secret # Cert-Manager will store the certificate here
