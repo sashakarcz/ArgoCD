@@ -1,0 +1,150 @@
+---
+# 1. Namespace
+# A dedicated namespace for Overseerr resources.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: overseerr
+  labels:
+    name: overseerr
+
+---
+# 2. PersistentVolume (NFS)
+# Defines the NFS volume that holds the application's configuration.
+# This assumes the nfsofficial CSI driver is installed on your cluster.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: overseerr-config-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nfsofficial
+    volumeHandle: overseerr-config
+    volumeAttributes:
+      server: "192.168.1.75"
+      share: "/mnt/Store/nomad/jellyseerr/config"
+
+---
+# 3. PersistentVolumeClaim
+# A claim for the NFS volume, which the Overseerr pod will use.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: overseerr-config
+  namespace: overseerr
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: overseerr-config-pv
+  storageClassName: ""
+
+---
+# 4. Deployment
+# Manages the Overseerr application pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: overseerr
+  namespace: overseerr
+  labels:
+    app: overseerr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: overseerr
+  template:
+    metadata:
+      labels:
+        app: overseerr
+    spec:
+      containers:
+      - name: overseerr
+        image: sctx/overseerr:latest
+        ports:
+        - containerPort: 5055
+          name: http
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Chicago"
+        - name: OVERSEERR_RESET_ADMIN
+          value: "true"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 4Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+      volumes:
+      - name: config-volume
+        persistentVolumeClaim:
+          claimName: overseerr-config
+
+---
+# 5. Service
+# Exposes the Overseerr deployment internally to the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: overseerr-service
+  namespace: overseerr
+  labels:
+    app: overseerr
+spec:
+  selector:
+    app: overseerr
+  ports:
+    - protocol: TCP
+      port: 5055
+      targetPort: 5055
+  type: ClusterIP # Changed from LoadBalancer to ClusterIP
+
+---
+# 6. Ingress with NGINX and Cert-Manager
+# Configures external access and automates SSL with cert-manager.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: overseerr-ingress
+  namespace: overseerr
+  annotations:
+    # Use the cert-manager to automatically get a certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Ensure SSL is enabled and redirects HTTP to HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Specify the backend protocol
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - media.service.starnix.net
+    secretName: overseerr-tls-cert
+  rules:
+  - host: media.service.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: overseerr-service
+            port:
+              number: 5055
