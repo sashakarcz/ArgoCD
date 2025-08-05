@@ -1,5 +1,21 @@
 ---
-# 1. Namespace
+# 1. ConfigMap for Home Assistant Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-config
+  namespace: homeassistant
+data:
+  configuration.yaml: |
+    # Add your Home Assistant configurations here
+    # Example:
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 10.244.0.0/16 # This is the Pod CIDR range of your cluster.
+
+---
+# 2. Namespace
 # A dedicated namespace for Home Assistant resources.
 apiVersion: v1
 kind: Namespace
@@ -9,29 +25,29 @@ metadata:
     name: homeassistant
 
 ---
-# 2. PersistentVolume (NFS)
-# Defines the NFS volume that holds the application's configuration.
+# 3. PersistentVolume (NFS)
+# Defines the NFS volume that holds the application's storage.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: homeassistant-config-pv
 spec:
   capacity:
-    storage: 1Gi # Assuming a reasonable size; adjust if needed
+    storage: 1Gi
   accessModes:
-    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
     server: "192.168.1.75"
-    path: "/mnt/Store/nomad/homeassistant/config" # Path from your Nomad volume spec
+    path: "/mnt/Store/nomad/homeassistant/config"
 
 ---
-# 3. PersistentVolumeClaim
+# 4. PersistentVolumeClaim
 # A claim for the NFS volume, which the Home Assistant pod will use.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: homeassistant-config
+  name: homeassistant-config-pvc
   namespace: homeassistant
 spec:
   accessModes:
@@ -40,10 +56,10 @@ spec:
     requests:
       storage: 1Gi
   volumeName: homeassistant-config-pv
-  storageClassName: "" # Empty string to bind to the specific PV without a StorageClass
+  storageClassName: ""
 
 ---
-# 4. Deployment
+# 5. Deployment
 # Manages the Home Assistant application pod.
 apiVersion: apps/v1
 kind: Deployment
@@ -64,10 +80,10 @@ spec:
     spec:
       containers:
       - name: homeassistant
-        image: lscr.io/linuxserver/homeassistant:latest # Image from your Nomad spec
+        image: lscr.io/linuxserver/homeassistant:latest
         ports:
         - containerPort: 8123
-          name: http # Port exposed by the container
+          name: http
         env:
         - name: PUID
           value: "1000"
@@ -77,21 +93,27 @@ spec:
           value: "America/Chicago"
         resources:
           requests:
-            cpu: 200m # 2000 Nomad MHz is equivalent to 200m Kubernetes CPU
-            memory: 4Gi # 4096 Nomad MB is equivalent to 4Gi Kubernetes memory
+            cpu: 200m
+            memory: 4Gi
           limits:
-            cpu: 2000m # Setting a reasonable limit
+            cpu: 2000m
             memory: 4Gi
         volumeMounts:
         - name: config-volume
-          mountPath: /config # Mount path inside the container
+          mountPath: /config
+        - name: homeassistant-config
+          mountPath: /config/configuration.yaml
+          subPath: configuration.yaml
       volumes:
       - name: config-volume
         persistentVolumeClaim:
-          claimName: homeassistant-config
+          claimName: homeassistant-config-pvc
+      - name: homeassistant-config
+        configMap:
+          name: homeassistant-config
 
 ---
-# 5. Service
+# 6. Service
 # Exposes the Home Assistant deployment internally to the cluster.
 apiVersion: v1
 kind: Service
@@ -105,12 +127,12 @@ spec:
     app: homeassistant
   ports:
     - protocol: TCP
-      port: 8123 # Port the service listens on
-      targetPort: 8123 # Port of the pod to which the service forwards traffic
-  type: ClusterIP # Standard service type when using an Ingress
+      port: 8123
+      targetPort: 8123
+  type: ClusterIP
 
 ---
-# 6. Ingress with NGINX and Cert-Manager
+# 7. Ingress with NGINX and Cert-Manager
 # Configures external access and automates SSL with cert-manager.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -118,28 +140,24 @@ metadata:
   name: homeassistant-ingress
   namespace: homeassistant
   annotations:
-    # Use the cert-manager to automatically get a certificate
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # Ensure SSL is enabled and redirects HTTP to HTTPS
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # Specify the backend protocol (Home Assistant expects HTTP, Ingress handles SSL)
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    # Traefik's X-Forwarded-Proto is handled by nginx.ingress.kubernetes.io/backend-protocol
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
     - ha.service.starnix.net
-    secretName: homeassistant-tls-cert # cert-manager will create this secret
+    secretName: homeassistant-tls-cert
   rules:
   - host: ha.service.starnix.net
     http:
       paths:
-      - path: / # Route all traffic for the host
+      - path: /
         pathType: Prefix
         backend:
           service:
             name: homeassistant-service
             port:
-              number: 8123 # Target the service port
+              number: 8123
