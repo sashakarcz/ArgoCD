@@ -9,22 +9,6 @@ metadata:
   name: media
 
 ---
-# Storage Class for NFS volumes (if not already created)
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: nfs-client
-provisioner: nfs.csi.k8s.io
-parameters:
-  server: "192.168.1.75"
-mountOptions:
-  - nfsvers=4
-  - timeo=30
-  - intr
-  - _netdev
-  - nolock
-
----
 # Persistent Volumes for each NFS mount
 # Plex Config Volume
 apiVersion: v1
@@ -37,12 +21,13 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-config"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: plex-config
     volumeAttributes:
       server: "192.168.1.75"
-      share: "/mnt/Store/nomad/jellyfin/config/plex"  # Separate plex config
+      share: "/mnt/Store/nomad/jellyfin/config/plex"
       mountPermissions: "0755"
 
 ---
@@ -57,6 +42,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-series"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-series
@@ -76,6 +62,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-movies"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-movies
@@ -95,6 +82,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-old-tv"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-old-tv
@@ -114,6 +102,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-old-movies"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-old-movies
@@ -133,6 +122,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-music"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-music
@@ -152,6 +142,7 @@ spec:
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: "nfs-plex-new-music"
   csi:
     driver: nfs.csi.k8s.io
     volumeHandle: jellyfin-new-music
@@ -173,6 +164,7 @@ spec:
     requests:
       storage: 10Gi
   volumeName: plex-config-pv
+  storageClassName: "nfs-plex-config"
 
 ---
 apiVersion: v1
@@ -187,6 +179,7 @@ spec:
     requests:
       storage: 500Gi
   volumeName: plex-series-pv
+  storageClassName: "nfs-plex-series"
 
 ---
 apiVersion: v1
@@ -201,6 +194,7 @@ spec:
     requests:
       storage: 1Ti
   volumeName: plex-movies-pv
+  storageClassName: "nfs-plex-movies"
 
 ---
 apiVersion: v1
@@ -215,6 +209,7 @@ spec:
     requests:
       storage: 200Gi
   volumeName: plex-old-tv-pv
+  storageClassName: "nfs-plex-old-tv"
 
 ---
 apiVersion: v1
@@ -229,6 +224,7 @@ spec:
     requests:
       storage: 300Gi
   volumeName: plex-old-movies-pv
+  storageClassName: "nfs-plex-old-movies"
 
 ---
 apiVersion: v1
@@ -243,6 +239,7 @@ spec:
     requests:
       storage: 100Gi
   volumeName: plex-music-pv
+  storageClassName: "nfs-plex-music"
 
 ---
 apiVersion: v1
@@ -257,6 +254,7 @@ spec:
     requests:
       storage: 50Gi
   volumeName: plex-new-music-pv
+  storageClassName: "nfs-plex-new-music"
 
 ---
 # Plex Deployment
@@ -286,17 +284,17 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - talos-e9h-vxe  # Replace with your preferred node
+                - talos-e9h-vxe # Replace with your preferred node
       
       # Security context for hardware access
       securityContext:
         fsGroup: 1000
-        supplementalGroups: [44, 109]  # video and render groups for GPU access
+        supplementalGroups: [44, 109] # video and render groups for GPU access
       
       containers:
       - name: plex
         image: lscr.io/linuxserver/plex:amd64-1.41.9.9961-46083195d-ls274
-        
+      
         # Resource requests/limits
         resources:
           requests:
@@ -305,8 +303,8 @@ spec:
           limits:
             cpu: "8"
             memory: "10Gi"
-            gpu.intel.com/i915: 1  # Intel GPU resource
-        
+            gpu.intel.com/i915: 1 # Intel GPU resource
+      
         # Environment variables
         env:
         - name: PUID
@@ -321,13 +319,13 @@ spec:
           value: "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8"
         - name: PLEX_CLAIM
           value: "claim-Qayj1tb6ixx8Wy9pskpX"
-        
+      
         # Ports
         ports:
         - containerPort: 32400
           name: http
           protocol: TCP
-        
+      
         # Health check
         livenessProbe:
           httpGet:
@@ -336,7 +334,7 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 60
           timeoutSeconds: 10
-        
+      
         readinessProbe:
           httpGet:
             path: /identity
@@ -344,7 +342,7 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
-        
+      
         # Volume mounts
         volumeMounts:
         - name: plex-config
@@ -371,14 +369,14 @@ spec:
           mountPath: /tmp
         - name: dev-dri
           mountPath: /dev/dri
-        
+      
         # Security context for container
         securityContext:
-          privileged: false  # Try without privileged first
+          privileged: false
           allowPrivilegeEscalation: true
           capabilities:
             add:
-            - SYS_ADMIN  # For device access
+            - SYS_ADMIN
       
       # Volumes
       volumes:
@@ -405,7 +403,7 @@ spec:
           claimName: plex-new-music-pvc
       - name: scratch
         hostPath:
-          path: /tmp/plex-transcode  # Local SSD scratch space
+          path: /tmp/plex-transcode
           type: DirectoryOrCreate
       - name: dev-dri
         hostPath:
