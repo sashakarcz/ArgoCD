@@ -1,0 +1,130 @@
+---
+# 1. Namespace
+# A dedicated namespace for Librespeed resources.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: librespeed
+  labels:
+    name: librespeed
+
+---
+# 2. PersistentVolumeClaim (Longhorn)
+# This claim dynamically provisions a volume using the 'longhorn' storage class.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: librespeed-config-pvc
+  namespace: librespeed
+spec:
+  accessModes:
+    - ReadWriteMany # Corresponds to Nomad's "multi-node-multi-writer"
+  resources:
+    requests:
+      storage: 1Gi # A reasonable size for the configuration; adjust as needed
+  storageClassName: longhorn
+
+---
+# 3. Deployment
+# Manages the Librespeed application pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: librespeed
+  namespace: librespeed
+  labels:
+    app: librespeed
+spec:
+  replicas: 3 # Converted from Nomad's "count = 3"
+  selector:
+    matchLabels:
+      app: librespeed
+  template:
+    metadata:
+      labels:
+        app: librespeed
+    spec:
+      containers:
+      - name: librespeed
+        image: lscr.io/linuxserver/librespeed:latest
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Chicago"
+        - name: PASSWORD
+          value: "poopstain"
+        - name: CUSTOM_RESULTS
+          value: "true"
+        resources:
+          requests:
+            cpu: 600m # 600 Nomad MHz is equivalent to 600m Kubernetes CPU
+            memory: 1Gi # 1024 Nomad MB is equivalent to 1Gi Kubernetes memory
+          limits:
+            cpu: 600m
+            memory: 1Gi
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config # Mount path inside the container
+      volumes:
+      - name: config-volume
+        persistentVolumeClaim:
+          claimName: librespeed-config-pvc # The PVC to be claimed
+
+---
+# 4. Service
+# Exposes the Librespeed deployment internally to the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: librespeed-service
+  namespace: librespeed
+  labels:
+    app: librespeed
+spec:
+  selector:
+    app: librespeed
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+# 5. Ingress with NGINX and Cert-Manager
+# Configures external access and automates SSL with cert-manager.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: librespeed-ingress
+  namespace: librespeed
+  annotations:
+    # Use the cert-manager to automatically get a certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Ensure SSL is enabled and redirects HTTP to HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Specify the backend protocol
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - speed.starnix.net
+    secretName: librespeed-tls-cert # cert-manager will create this secret
+  rules:
+  - host: speed.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: librespeed-service
+            port:
+              number: 80
