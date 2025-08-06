@@ -64,7 +64,8 @@ spec:
     spec:
       containers:
       - name: overseerr
-        image: sctx/overseerr:latest
+        #image: sctx/overseerr:latest
+        fallenbagel/jellyseerr:latest
         ports:
         - containerPort: 5055
           name: http
