@@ -1,0 +1,314 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gatus
+  namespace: gatus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gatus-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "services", "endpoints"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list"]
+- nonResourceURLs: ["/healthz", "/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gatus-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gatus-reader
+subjects:
+- kind: ServiceAccount
+  name: gatus
+  namespace: gatus
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatus
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-config
+  namespace: gatus
+data:
+  config.yaml: |
+    ui: 
+      title: "Starnix Services"
+      header: "Starnix Services"
+
+    metrics: true
+
+    endpoints:
+      - name: "Radarr WebUI"
+        group: Jellyfin
+        url: "https://radarr.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Sonarr WebUI"
+        group: Jellyfin
+        url: "https://sonarr.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "SABNZB"
+        group: Jellyfin
+        url: "http://192.168.1.86:7881"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Overseer"
+        group: Jellyfin
+        url: "https://media.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Jellyfin WebUI"
+        group: Jellyfin
+        url: "https://jellyfin.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "FreeIPA LDAP"
+        group: FreeIPA
+        url: "tcp://ipa1.starnix.net:389"
+        interval: 30m
+        client:
+          timeout: 5s
+        conditions:
+          - "[CONNECTED] == true"
+      - name: "FreeIPA DNS"
+        group: FreeIPA
+        url: "tcp://ipa1.starnix.net:53"
+        interval: 1m
+        client:
+          timeout: 5s
+        conditions:
+          - "[CONNECTED] == true"
+      - name: "Mimir NFS Server"
+        group: Infrastructure
+        url: "tcp://mimir.starnix.net:111"
+        interval: 1m
+        client:
+          timeout: 5s
+        conditions:
+          - "[CONNECTED] == true"
+      - name: "PBX Service (Telephone)"
+        group: Infrastructure
+        url: "tcp://146.190.123.109:5060"
+        interval: 1m
+        client:
+          timeout: 5s
+        conditions:
+          - "[CONNECTED] == true"
+      - name: "Kubernetes API Server"
+        group: Kubernetes
+        url: "https://kubernetes.default.svc.cluster.local:443/healthz"
+        interval: 30s
+        client:
+          timeout: 10s
+          insecure: true
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Kubernetes Nodes"
+        group: Kubernetes
+        url: "https://kubernetes.default.svc.cluster.local:443/api/v1/nodes"
+        interval: 1m
+        client:
+          timeout: 10s
+          insecure: true
+        conditions:
+          - "[STATUS] == 200"
+      - name: "NGINX Ingress Controller"
+        group: Kubernetes
+        url: "http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80/healthz"
+        interval: 30s
+        client:
+          timeout: 5s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Cert-Manager"
+        group: Kubernetes
+        url: "http://cert-manager.cert-manager.svc.cluster.local:9402/metrics"
+        interval: 1m
+        client:
+          timeout: 5s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Longhorn Storage"
+        group: Kubernetes
+        url: "http://longhorn-frontend.longhorn-system.svc.cluster.local:80"
+        interval: 1m
+        client:
+          timeout: 10s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "bensonmasons.com"
+        group: Mercer
+        url: "https://bensonmasons.com"
+        interval: 30s
+        conditions:
+          - "[CERTIFICATE_EXPIRATION] > 240h"
+        alerts:
+          - type: slack
+            description: "healthcheck failed 3 times in a row"
+            send-on-resolved: true
+          - type: slack
+            failure-threshold: 5
+            description: "healthcheck failed 5 times in a row"
+            send-on-resolved: true
+      - name: "Matrix Chat"
+        group: Communication
+        url: "https://matrix.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Authentik SSO"
+        group: Authentication
+        url: "https://auth.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+
+    alerting:
+      slack:
+        webhook-url: "https://hooks.slack.com/services/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"
+
+    storage:
+      type: sqlite
+      path: /storage/data.db
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gatus-storage-pvc
+  namespace: gatus
+spec:
+  storageClassName: longhorn
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    app: gatus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gatus
+  template:
+    metadata:
+      labels:
+        app: gatus
+    spec:
+      serviceAccountName: gatus
+      containers:
+      - name: gatus
+        image: twinproduction/gatus:v5.17.0
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: gatus-config
+          mountPath: /config
+          readOnly: true
+        - name: gatus-storage
+          mountPath: /storage
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "600m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+        - name: GATUS_CONFIG_PATH
+          value: /config/config.yaml
+      volumes:
+      - name: gatus-config
+        configMap:
+          name: gatus-config
+      - name: gatus-storage
+        persistentVolumeClaim:
+          claimName: gatus-storage-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    app: gatus
+spec:
+  selector:
+    app: gatus
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gatus-ingress
+  namespace: gatus
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - status.starnix.net
+    secretName: gatus-tls
+  rules:
+  - host: status.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gatus
+            port:
+              number: 80
