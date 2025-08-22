@@ -1,4 +1,3 @@
-[sasha@selene k8s]$ cat metabase-deployment.yaml 
 ---
 apiVersion: v1
 kind: Namespace
