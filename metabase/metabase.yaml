@@ -1,0 +1,258 @@
+[sasha@selene k8s]$ cat metabase-deployment.yaml 
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metabase
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: metabase-postgres-data
+  namespace: metabase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: longhorn
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: metabase-data
+  namespace: metabase
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase-postgres
+  namespace: metabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase-postgres
+  template:
+    metadata:
+      labels:
+        app: metabase-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: metabase
+        - name: POSTGRES_USER
+          value: metabase
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: metabase-secrets
+              key: postgres-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - metabase
+            - -d
+            - metabase
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - metabase
+            - -d
+            - metabase
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: metabase-postgres-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metabase-postgres
+  namespace: metabase
+spec:
+  selector:
+    app: metabase-postgres
+  ports:
+  - port: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+  namespace: metabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:15-alpine
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h metabase-postgres -U metabase -d metabase; do
+            echo "Waiting for PostgreSQL..."
+            sleep 5
+          done
+      containers:
+      - name: metabase
+        image: metabase/metabase:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MB_DB_TYPE
+          value: postgres
+        - name: MB_DB_DBNAME
+          value: metabase
+        - name: MB_DB_PORT
+          value: "5432"
+        - name: MB_DB_USER
+          value: metabase
+        - name: MB_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: metabase-secrets
+              key: postgres-password
+        - name: MB_DB_HOST
+          value: metabase-postgres
+        - name: MB_SITE_URL
+          value: "https://metabase.starnix.net"
+        - name: JAVA_OPTS
+          value: "-Xmx2g"
+        volumeMounts:
+        - name: metabase-data
+          mountPath: /metabase-data
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 180
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: metabase-data
+        persistentVolumeClaim:
+          claimName: metabase-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metabase
+  namespace: metabase
+spec:
+  selector:
+    app: metabase
+  ports:
+  - port: 80
+    targetPort: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: metabase-ingress
+  namespace: metabase
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - metabase.starnix.net
+    secretName: metabase-tls
+  rules:
+  - host: metabase.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: metabase
+            port:
+              number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metabase-hpa
+  namespace: metabase
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metabase
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
