@@ -161,7 +161,7 @@ spec:
         - name: MB_DB_HOST
           value: metabase-postgres
         - name: MB_SITE_URL
-          value: "https://metabase.starnix.net"
+          value: "https://data.bairlabs.org"
         - name: JAVA_OPTS
           value: "-Xmx2g"
         volumeMounts:
