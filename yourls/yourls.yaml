@@ -285,6 +285,7 @@ spec:
   tls:
   - hosts:
     - go.starnix.net
+    - go
     secretName: yourls-tls
   rules:
   - host: go.starnix.net
@@ -385,6 +386,16 @@ spec:
     secretName: yourls-tls
   rules:
   - host: go.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: yourls-app
+            port:
+              number: 80
+  - host: go
     http:
       paths:
       - path: /
