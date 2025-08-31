@@ -2,6 +2,69 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: yourls-domain-redirect
+  namespace: yourls
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name go;
+        return 301 https://go.starnix.net$request_uri;
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yourls-domain-redirect
+  namespace: yourls
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yourls-domain-redirect
+  template:
+    metadata:
+      labels:
+        app: yourls-domain-redirect
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: yourls-domain-redirect
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yourls-domain-redirect
+  namespace: yourls
+spec:
+  selector:
+    app: yourls-domain-redirect
+  ports:
+  - port: 80
+    targetPort: 80
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: yourls-index
   namespace: yourls
 data:
@@ -285,7 +348,6 @@ spec:
   tls:
   - hosts:
     - go.starnix.net
-    - go
     secretName: yourls-tls
   rules:
   - host: go.starnix.net
@@ -402,7 +464,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: yourls-app
+            name: yourls-domain-redirect
             port:
               number: 80
 
