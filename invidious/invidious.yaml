@@ -231,11 +231,19 @@ spec:
         env:
         - name: INVIDIOUS_CONFIG_FILE
           value: /invidious/config/config.yml
-        - name: INVIDIOUS_DATABASE_URL
+        - name: INVIDIOUS_DB_USER
+          value: invidious
+        - name: INVIDIOUS_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: invidious-secrets
-              key: database-url
+              key: postgres-password
+        - name: INVIDIOUS_DB_HOST
+          value: postgres
+        - name: INVIDIOUS_DB_PORT
+          value: "5432"
+        - name: INVIDIOUS_DB_NAME
+          value: invidious
         volumeMounts:
         - name: invidious-config
           mountPath: /invidious/config
