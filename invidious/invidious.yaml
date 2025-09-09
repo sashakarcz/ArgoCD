@@ -272,9 +272,6 @@ spec:
           timeoutSeconds: 5
           failureThreshold: 5
       volumes:
-      - name: invidious-config
-        configMap:
-          name: invidious-config
       - name: init-scripts
         configMap:
           name: invidious-init
