@@ -123,8 +123,6 @@ data:
         client:
           timeout: 10s
           insecure: true
-        conditions:
-          - "[STATUS] == 200"
       - name: "Kubernetes Nodes"
         group: Kubernetes
         url: "https://kubernetes.default.svc.cluster.local:443/api/v1/nodes"
@@ -132,32 +130,24 @@ data:
         client:
           timeout: 10s
           insecure: true
-        conditions:
-          - "[STATUS] == 200"
       - name: "NGINX Ingress Controller"
         group: Kubernetes
         url: "http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80/healthz"
         interval: 30s
         client:
           timeout: 5s
-        conditions:
-          - "[STATUS] == 200"
       - name: "Cert-Manager"
         group: Kubernetes
         url: "http://cert-manager.cert-manager.svc.cluster.local:9402/metrics"
         interval: 1m
         client:
           timeout: 5s
-        conditions:
-          - "[STATUS] == 200"
       - name: "Longhorn Storage"
         group: Kubernetes
         url: "http://longhorn-frontend.longhorn-system.svc.cluster.local:80"
         interval: 1m
         client:
           timeout: 10s
-        conditions:
-          - "[STATUS] == 200"
       - name: "bensonmasons.com"
         group: Mercer
         url: "https://bensonmasons.com"
