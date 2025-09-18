@@ -1,0 +1,139 @@
+---
+# 1. Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mqtt
+  labels:
+    name: mqtt
+
+---
+# 2. ConfigMap for Mosquitto configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: mqtt
+data:
+  mosquitto.conf: |
+    # Basic Mosquitto configuration
+    listener 1883 0.0.0.0
+    allow_anonymous true
+    
+    # Persistence
+    persistence true
+    persistence_location /mosquitto/data/
+    
+    # Logging
+    log_dest stdout
+    log_type error
+    log_type warning
+    log_type notice
+    log_type information
+    
+    # Connection logging
+    connection_messages true
+    
+    # WebSocket support (optional)
+    listener 9001 0.0.0.0
+    protocol websockets
+
+---
+# 3. PersistentVolumeClaim (Longhorn)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mqtt-data-pvc
+  namespace: mqtt
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: longhorn
+
+---
+# 4. Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: mqtt
+  labels:
+    app: mosquitto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      containers:
+      - name: mosquitto
+        image: eclipse-mosquitto:2.0.18
+        ports:
+        - containerPort: 1883
+          name: mqtt
+          protocol: TCP
+        - containerPort: 9001
+          name: websockets
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config-volume
+          mountPath: /mosquitto/config
+          readOnly: true
+        - name: data-volume
+          mountPath: /mosquitto/data
+        livenessProbe:
+          tcpSocket:
+            port: 1883
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 1883
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: mosquitto-config
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: mqtt-data-pvc
+
+---
+# 5. Service with MetalLB LoadBalancer
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto-service
+  namespace: mqtt
+  labels:
+    app: mosquitto
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 192.168.1.203
+spec:
+  type: LoadBalancer
+  selector:
+    app: mosquitto
+  ports:
+    - name: mqtt
+      protocol: TCP
+      port: 1883
+      targetPort: 1883
+    - name: websockets
+      protocol: TCP
+      port: 9001
+      targetPort: 9001
