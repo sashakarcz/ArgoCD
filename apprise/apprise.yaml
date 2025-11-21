@@ -159,14 +159,13 @@ metadata:
   name: apprise-ingress
   namespace: apprise
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.com/force-ssl-redirect: "true"
+    nginx.com/backend-protocol: "HTTP"
+    nginx.com/client-max-body-size: "50m" # Equivalent to proxy-body-size
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # Optional: Add file upload size limit if needed
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-new
   tls:
   - hosts:
     - apprise.starnix.net
