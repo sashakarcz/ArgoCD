@@ -112,7 +112,7 @@ metadata:
     # Specify the backend protocol
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-new
   tls:
   - hosts:
     - speed.starnix.net

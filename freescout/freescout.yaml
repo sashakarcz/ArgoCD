@@ -248,7 +248,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-new
   tls:
   - hosts:
     - freescout.starnix.net
