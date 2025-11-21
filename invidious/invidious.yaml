@@ -303,7 +303,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-new
   tls:
   - hosts:
     - vid.starnix.net

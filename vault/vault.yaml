@@ -205,7 +205,7 @@ metadata:
     # Cert-Manager annotations
     cert-manager.io/cluster-issuer: "letsencrypt-prod" # or your specific ClusterIssuer name
 spec:
-  ingressClassName: nginx # Use the Nginx Ingress Controller
+  ingressClassName: nginx-new # Use the Nginx Ingress Controller
   rules:
   - host: vault.starnix.net
     http:

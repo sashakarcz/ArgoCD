@@ -120,7 +120,7 @@ metadata:
     # Cert-Manager annotations for TLS
     cert-manager.io/cluster-issuer: "letsencrypt-prod" # Replace with your ClusterIssuer name
 spec:
-  ingressClassName: nginx # Use the Nginx Ingress Controller
+  ingressClassName: nginx-new # Use the Nginx Ingress Controller
   rules:
   - host: privatebin.service.starnix.net # Your desired hostname
     http:
