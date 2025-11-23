@@ -121,15 +121,9 @@ metadata:
   name: overseerr-ingress
   namespace: overseerr
   annotations:
-    # Use the cert-manager to automatically get a certificate
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # Ensure SSL is enabled and redirects HTTP to HTTPS
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # Specify the backend protocol
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
-  ingressClassName: nginx-new
+  ingressClassName: traefik
   tls:
   - hosts:
     - media.service.starnix.net

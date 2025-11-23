@@ -159,13 +159,9 @@ metadata:
   name: apprise-ingress
   namespace: apprise
   annotations:
-    nginx.com/force-ssl-redirect: "true"
-    nginx.com/backend-protocol: "HTTP"
-    nginx.com/client-max-body-size: "50m" # Equivalent to proxy-body-size
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # Optional: Add file upload size limit if needed
 spec:
-  ingressClassName: nginx-new
+  ingressClassName: traefik
   tls:
   - hosts:
     - apprise.starnix.net

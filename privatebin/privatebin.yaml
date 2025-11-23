@@ -115,12 +115,9 @@ metadata:
   name: privatebin-ingress
   namespace: privatebin
   annotations:
-    # Nginx Ingress Controller annotations
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Nginx talks HTTP to PrivateBin
-    # Cert-Manager annotations for TLS
-    cert-manager.io/cluster-issuer: "letsencrypt-prod" # Replace with your ClusterIssuer name
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx-new # Use the Nginx Ingress Controller
+  ingressClassName: traefik
   rules:
   - host: privatebin.service.starnix.net # Your desired hostname
     http:

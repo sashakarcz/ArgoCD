@@ -74,14 +74,9 @@ metadata:
   name: interstellar
   namespace: interstellar
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # adjust to your cluster issuer
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx-new
+  ingressClassName: traefik
   tls:
     - hosts:
         - proxy.starnix.net  # Change to your desired domain
