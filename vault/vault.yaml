@@ -200,12 +200,9 @@ metadata:
   name: vault-ingress
   namespace: vault
   annotations:
-    # Nginx Ingress Controller annotations
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Important for Nginx to talk to Vault
-    # Cert-Manager annotations
-    cert-manager.io/cluster-issuer: "letsencrypt-prod" # or your specific ClusterIssuer name
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx-new # Use the Nginx Ingress Controller
+  ingressClassName: traefik
   rules:
   - host: vault.starnix.net
     http:
