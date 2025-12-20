@@ -56,14 +56,18 @@ data:
     endpoints:
       - name: "Radarr WebUI"
         group: Jellyfin
-        url: "https://radarr.starnix.net"
+        url: "http://192.168.1.86:7878"
         interval: 30s
+        headers:
+          Host: radarr.starnix.net
         conditions:
           - "[STATUS] == 200"
       - name: "Sonarr WebUI"
         group: Jellyfin
-        url: "https://sonarr.starnix.net"
+        url: "http://192.168.1.86:8989"
         interval: 30s
+        headers:
+          Host: sonarr.starnix.net
         conditions:
           - "[STATUS] == 200"
       - name: "SABNZB"
@@ -86,7 +90,7 @@ data:
           - "[STATUS] == 200"
       - name: "FreeIPA LDAP"
         group: FreeIPA
-        url: "tcp://ipa1.starnix.net:389"
+        url: "tcp://192.168.1.24:389"
         interval: 30m
         client:
           timeout: 5s
@@ -94,7 +98,7 @@ data:
           - "[CONNECTED] == true"
       - name: "FreeIPA DNS"
         group: FreeIPA
-        url: "tcp://ipa1.starnix.net:53"
+        url: "tcp://192.168.1.24:53"
         interval: 1m
         client:
           timeout: 5s
@@ -102,7 +106,7 @@ data:
           - "[CONNECTED] == true"
       - name: "Mimir NFS Server"
         group: Infrastructure
-        url: "tcp://mimir.starnix.net:111"
+        url: "tcp://192.168.1.75:111"
         interval: 1m
         client:
           timeout: 5s
@@ -124,19 +128,10 @@ data:
           timeout: 10s
           insecure: true
         conditions:
-          - "[STATUS] == 200"
-      - name: "Kubernetes Nodes"
+          - "[STATUS] == 401"
+      - name: "Traefik Ingress Controller"
         group: Kubernetes
-        url: "https://kubernetes.default.svc.cluster.local:443/api/v1/nodes"
-        interval: 1m
-        client:
-          timeout: 10s
-          insecure: true
-        conditions:
-          - "[STATUS] == 200"
-      - name: "NGINX Ingress Controller"
-        group: Kubernetes
-        url: "http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80/healthz"
+        url: "http://traefik.traefik.svc.cluster.local:9000/ping"
         interval: 30s
         client:
           timeout: 5s
@@ -231,10 +226,6 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       serviceAccountName: gatus
-      dnsPolicy: "None"
-      dnsConfig:
-        nameservers:
-        - 192.168.7.1
       containers:
       - name: gatus
         image: twinproduction/gatus:latest
