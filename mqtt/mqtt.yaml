@@ -72,6 +72,13 @@ spec:
       labels:
         app: mosquitto
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: mosquitto
         image: eclipse-mosquitto:2.0.18

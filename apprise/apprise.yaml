@@ -85,6 +85,13 @@ spec:
       labels:
         app: apprise
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       # Remove the restrictive security context that was causing issues
       # The Apprise container needs to run setup tasks as root initially
       containers:
@@ -159,7 +166,8 @@ metadata:
   name: apprise-ingress
   namespace: apprise
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   tls:

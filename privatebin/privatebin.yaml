@@ -1,15 +1,11 @@
-# Kubernetes Manifests for PrivateBin
-
 ---
-# Namespace for PrivateBin services
 apiVersion: v1
 kind: Namespace
 metadata:
   name: privatebin
 
 ---
-# Persistent Volume Claim for PrivateBin Data (Dynamic Provisioning)
-# This will automatically create the Longhorn volume
+# Persistent Volume Claim using LONGHORN
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -17,16 +13,11 @@ metadata:
   namespace: privatebin
 spec:
   accessModes:
-    # ReadWriteMany is typically used for NFS, but Longhorn also supports it.
-    # For a single-replica PrivateBin, ReadWriteOnce might be sufficient
-    # if you don't need multiple pods to write to the same volume simultaneously.
-    # Keep ReadWriteMany if you might scale PrivateBin to multiple replicas later.
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi # Adjust as needed for your PrivateBin data
-  storageClassName: "longhorn" # This tells Longhorn to dynamically provision the volume
-  # No volumeName here, as Longhorn will create the PV automatically
+      storage: 10Gi
+  storageClassName: "longhorn" # FIXED
 
 ---
 # PrivateBin Deployment
@@ -38,7 +29,7 @@ metadata:
   labels:
     app: privatebin
 spec:
-  replicas: 1 # Corresponds to Nomad's "count = 1"
+  replicas: 1
   selector:
     matchLabels:
       app: privatebin
@@ -47,46 +38,44 @@ spec:
       labels:
         app: privatebin
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: privatebin
         image: privatebin/nginx-fpm-alpine
         ports:
         - containerPort: 8080
           name: http
-          protocol: TCP
         resources:
           requests:
-            cpu: "1000m" # 1 CPU core (1000 MHz in Nomad)
-            memory: "1024Mi" # 1 GiB (1024 MB in Nomad)
+            cpu: "200m"
+            memory: "256Mi"
+            # Ephemeral storage request removed to avoid scheduler bugs
           limits:
-            cpu: "1000m"
-            memory: "1024Mi"
-        livenessProbe: # Health check from Nomad
-          httpGet:
-            path: / # PrivateBin serves on root path
-            port: 8080
-          initialDelaySeconds: 10 # Give the app time to start
-          periodSeconds: 10 # Check every 10 seconds
-          timeoutSeconds: 2 # Timeout after 2 seconds
-          failureThreshold: 3 # Mark as unhealthy after 3 failures
-        readinessProbe: # Health check from Nomad
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
           httpGet:
             path: /
             port: 8080
-          initialDelaySeconds: 5 # Shorter delay for readiness
-          periodSeconds: 10
-          timeoutSeconds: 2
-          failureThreshold: 1 # Mark as unready quickly
+          initialDelaySeconds: 15 # Increased slightly for safety
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
         volumeMounts:
         - name: privatebin-data-storage
-          mountPath: "/srv/data" # Mount point for PrivateBin data
-          readOnly: false
+          mountPath: "/srv/data"
       volumes:
       - name: privatebin-data-storage
         persistentVolumeClaim:
-          claimName: privatebin-data-pvc # Link to the PVC
-      # You might need a ServiceAccount if you have specific RBAC requirements
-      serviceAccountName: default
+          claimName: privatebin-data-pvc
 
 ---
 # PrivateBin Service
@@ -95,31 +84,29 @@ kind: Service
 metadata:
   name: privatebin
   namespace: privatebin
-  labels:
-    app: privatebin
 spec:
   selector:
     app: privatebin
   ports:
     - name: http
-      protocol: TCP
-      port: 8080 # Service port
-      targetPort: 8080 # Container port
-  type: ClusterIP # Use ClusterIP for internal access, expose via Ingress
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
 
 ---
-# PrivateBin Ingress (Nginx and Cert-Manager)
+# PrivateBin Ingress for Traefik
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: privatebin-ingress
   namespace: privatebin
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
-  - host: privatebin.service.starnix.net # Your desired hostname
+  - host: privatebin.service.starnix.net
     http:
       paths:
       - path: /
@@ -129,7 +116,7 @@ spec:
             name: privatebin
             port:
               number: 8080
-  tls: # Required for HTTPS
+  tls:
   - hosts:
     - privatebin.service.starnix.net
-    secretName: privatebin-tls-secret # Cert-Manager will store the certificate here
+    secretName: privatebin-tls-secret
