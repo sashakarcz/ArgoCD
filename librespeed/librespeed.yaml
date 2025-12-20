@@ -22,7 +22,7 @@ spec:
   resources:
     requests:
       storage: 1Gi # A reasonable size for the configuration; adjust as needed
-  storageClassName: longhorn
+  storageClassName: longhorn-backup
 
 ---
 # 3. Deployment
