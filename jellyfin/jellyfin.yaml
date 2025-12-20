@@ -264,6 +264,8 @@ spec:
       securityContext:
         fsGroup: 105
         supplementalGroups: [44, 105]
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
       containers:
       - name: jellyfin
         image: jellyfin/jellyfin
@@ -337,24 +339,22 @@ spec:
         hostPath:
           path: /dev/dri
           type: Directory
-
 ---
 # 5. Service (MetalLB LoadBalancer)
-# This service exposes Jellyfin directly via MetalLB on a static IP.
 apiVersion: v1
 kind: Service
 metadata:
   name: jellyfin-service
   namespace: jellyfin
-  labels:
-    app: jellyfin
-  # Removed the conflicting metallb.universe.tf/loadBalancerIPs annotation
+  annotations:
+    metallb.io/loadBalancerIPs: 192.168.7.202
 spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
   selector:
     app: jellyfin
   ports:
-    - protocol: TCP
-      port: 8096
-      targetPort: 8096
-  type: LoadBalancer
-  loadBalancerIP: 192.168.1.202
+  - port: 8096
+    targetPort: 8096
+    protocol: TCP
+    name: http
