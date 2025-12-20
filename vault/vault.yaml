@@ -116,6 +116,13 @@ spec:
       labels:
         app: vault
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       securityContext:
         # It's common for Vault to run as root or a specific user.
         # Adjust PUID/PGID if needed, but for /vault and /vault/file mounts
@@ -200,7 +207,8 @@ metadata:
   name: vault-ingress
   namespace: vault
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:

@@ -87,6 +87,13 @@ spec:
       labels:
         app: homeassistant
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: homeassistant
         image: lscr.io/linuxserver/homeassistant:latest # Image from your Nomad spec
@@ -149,7 +156,8 @@ metadata:
   name: homeassistant-ingress
   namespace: homeassistant
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   tls:

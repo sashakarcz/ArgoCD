@@ -66,6 +66,13 @@ spec:
       labels:
         app: kutt-postgres
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -152,6 +159,13 @@ spec:
       labels:
         app: kutt-redis
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: redis
         image: redis:alpine
@@ -214,6 +228,13 @@ spec:
       labels:
         app: kutt-server
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       initContainers:
       - name: wait-for-postgres
         image: postgres:15-alpine
@@ -339,7 +360,8 @@ metadata:
   name: kutt-ingress
   namespace: kutt
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   tls:

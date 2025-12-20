@@ -44,6 +44,13 @@ spec:
       labels:
         app: librespeed
     spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: librespeed
         image: lscr.io/linuxserver/librespeed:latest
@@ -104,7 +111,8 @@ metadata:
   name: librespeed-ingress
   namespace: librespeed
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   tls:
