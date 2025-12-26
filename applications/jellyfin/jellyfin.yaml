@@ -38,10 +38,11 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-backup 
+  storageClassName: longhorn 
   resources:
     requests:
       storage: 5Gi
+
 ---
 # Series Volume
 apiVersion: v1

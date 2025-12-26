@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: 7.7.20
+    helm:
+      releaseName: argocd
+      values: |
+        global:
+          tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Exists"
+              effect: "NoSchedule"
+
+        server:
+          ingress:
+            enabled: false  # We manage this separately via Traefik
+
+          config:
+            repositories: |
+              - type: git
+                url: https://github.com/sashakarcz/ArgoCD.git
+
+        configs:
+          params:
+            server.insecure: true  # TLS termination handled by Traefik
+
+        applicationSet:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+  - group: "*"
+    kind: Secret
+    name: argocd-initial-admin-secret
+    jsonPointers:
+    - /data

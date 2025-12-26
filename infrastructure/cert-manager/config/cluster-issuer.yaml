@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-cloudflare
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  acme:
+    email: sasha@starnix.net
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: sasha@karcz.me
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token

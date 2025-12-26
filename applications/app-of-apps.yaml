@@ -1,0 +1,460 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apprise
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/apprise
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apprise
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: freescout
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/freescout
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: freescout
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatus
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/gatus
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gatus
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grocy
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/grocy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grocy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homeassistant
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/homeassistant
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homeassistant
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: interstellar
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/interstellar
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: interstellar
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: invidious
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/invidious
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: invidious
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jellyfin
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/jellyfin
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jellyfin
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kutt
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/kutt
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kutt
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: librespeed
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/librespeed
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librespeed
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metabase
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/metabase
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metabase
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/metrics
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mqtt
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/mqtt
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mqtt
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nocodb
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/nocodb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nocodb
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: overseerr
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/overseerr
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: overseerr
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: plex
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/plex
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: plex
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: privatebin
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/privatebin
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: privatebin
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trudesk
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/trudesk
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: trudesk
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/vault
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: weather
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/weather
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: weather
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: yourls
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/yourls
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: yourls
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
