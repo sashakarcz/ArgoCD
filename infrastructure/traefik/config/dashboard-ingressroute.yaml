@@ -1,0 +1,46 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik.starnix.net`)
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService
+  tls:
+    secretName: traefik-dashboard-tls
+
+---
+# Cert-manager certificate trigger
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-dashboard-cert-trigger
+  namespace: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - traefik.starnix.net
+    secretName: traefik-dashboard-tls
+  rules:
+  - host: traefik.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: traefik
+            port:
+              number: 9000
