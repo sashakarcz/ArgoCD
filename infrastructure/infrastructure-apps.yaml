@@ -268,7 +268,35 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: infrastructure/longhorn
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -276,7 +304,7 @@ metadata:
   name: argocd-helm
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   project: default
   source:

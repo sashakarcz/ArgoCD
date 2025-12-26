@@ -1,0 +1,12 @@
+# Talos configuration files contain secrets (tokens, certificates, keys)
+# Only patch.yaml is safe to commit
+cluster/talos/controlplane.yaml
+cluster/talos/worker.yaml
+cluster/talos/talosconfig
+
+# General secret patterns
+*.key
+*.crt
+*.pem
+**/secrets/*.yaml
+!**/secrets/.gitkeep
