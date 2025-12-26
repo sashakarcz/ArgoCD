@@ -29,6 +29,20 @@ spec:
     path: "/mnt/Store/nomad/jellyfin/config"
 
 ---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config-longhorn-pvc
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-backup 
+  resources:
+    requests:
+      storage: 5Gi
+---
 # Series Volume
 apiVersion: v1
 kind: PersistentVolume

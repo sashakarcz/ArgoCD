@@ -17,7 +17,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: "longhorn-backup" # FIXED
+  storageClassName: "longhorn-backup"
 
 ---
 # PrivateBin Deployment
@@ -30,6 +30,8 @@ metadata:
     app: privatebin
 spec:
   replicas: 1
+  strategy:
+    type: Recreate # Required for RWO volumes to swap pods safely
   selector:
     matchLabels:
       app: privatebin
@@ -38,6 +40,11 @@ spec:
       labels:
         app: privatebin
     spec:
+      # This section fixes the "Permission Denied" error
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000 
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
@@ -55,7 +62,6 @@ spec:
           requests:
             cpu: "200m"
             memory: "256Mi"
-            # Ephemeral storage request removed to avoid scheduler bugs
           limits:
             cpu: "500m"
             memory: "512Mi"
@@ -63,7 +69,7 @@ spec:
           httpGet:
             path: /
             port: 8080
-          initialDelaySeconds: 15 # Increased slightly for safety
+          initialDelaySeconds: 15
         readinessProbe:
           httpGet:
             path: /
