@@ -1,0 +1,42 @@
+cluster:
+  allowSchedulingOnControlPlanes: true
+  proxy:
+    mode: ipvs
+    extraArgs:
+      ipvs-strict-arp: "true"
+machine:
+  nodeLabels:
+    node.kubernetes.io/exclude-from-external-load-balancers: ""
+  kubelet:
+    extraArgs:
+      node-labels: node.kubernetes.io/exclude-from-external-load-balancers=false
+    extraMounts:
+      - destination: /var/lib/longhorn
+        type: bind
+        source: /var/lib/longhorn
+        options:
+          - rw
+          - rshared
+          - bind
+  network:
+    firewall:
+      rules:
+        - name: metallb-memberlist
+          portRanges:
+            - 7946
+          protocol: tcp
+          ingress:
+            - subnet: 192.168.7.0/24
+    interfaces:
+      - deviceSelector:
+          busPath: 0*
+        dhcp: true
+        vip:
+          ip: 192.168.7.69
+    nameservers:
+      - 192.168.7.1
+      - 1.1.1.1
+  disks:
+    - device: /dev/sdb
+      partitions:
+        - mountpoint: /var/lib/longhorn

@@ -4,9 +4,7 @@ metadata:
   name: l2-adv
   namespace: metallb-system
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   ipAddressPools:
   - main-pool
-  interfaces:
-  - eth0
