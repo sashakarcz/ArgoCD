@@ -8,3 +8,5 @@ metadata:
 spec:
   ipAddressPools:
   - main-pool
+  interfaces:
+  - eth0
