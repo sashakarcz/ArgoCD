@@ -108,7 +108,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: longhorn-backup
+  storageClassName: longhorn
 
 ---
 apiVersion: v1

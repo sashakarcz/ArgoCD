@@ -194,7 +194,7 @@ metadata:
   name: gatus-storage-pvc
   namespace: gatus
 spec:
-  storageClassName: longhorn-backup
+  storageClassName: longhorn
   accessModes:
   - ReadWriteOnce
   resources:
