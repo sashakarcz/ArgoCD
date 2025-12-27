@@ -1,0 +1,180 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: borgwarehouse
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: borgwarehouse-secrets
+  namespace: borgwarehouse
+type: Opaque
+stringData:
+  NEXTAUTH_SECRET: "***REMOVED***"
+  CRONJOB_KEY: "***REMOVED***"
+  MAIL_SMTP_PWD: "***REMOVED***"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: borgwarehouse-config
+  namespace: borgwarehouse
+data:
+  # Kept as borg.starnix.net per your request
+  NEXTAUTH_URL: "https://borg.starnix.net"
+  FQDN: "borg.starnix.net"
+  SSH_SERVER_PORT: "2222"
+  MAIL_SMTP_FROM: "info@starnix.net"
+  MAIL_SMTP_HOST: "smtp.gmail.com"
+  MAIL_SMTP_PORT: "465"
+  MAIL_SMTP_LOGIN: "info@starnix.net"
+  MAIL_REJECT_SELFSIGNED_TLS: "true"
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: borgwarehouse-nfs-pv
+spec:
+  capacity:
+    storage: 2Ti
+  accessModes: ["ReadWriteMany"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+    - timeo=600
+    - retrans=2
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Backup
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: borgwarehouse-nfs-pvc
+  namespace: borgwarehouse
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 2Ti
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: borgwarehouse
+  namespace: borgwarehouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: borgwarehouse
+  template:
+    metadata:
+      labels:
+        app: borgwarehouse
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: borgwarehouse
+        image: borgwarehouse/borgwarehouse
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: web
+        - containerPort: 22
+          name: ssh
+        envFrom:
+        - configMapRef: { name: borgwarehouse-config }
+        - secretRef: { name: borgwarehouse-secrets }
+        volumeMounts:
+        - name: nfs-storage
+          mountPath: /home/borgwarehouse/app/config
+          subPath: config
+        - name: nfs-storage
+          mountPath: /home/borgwarehouse/.ssh
+          subPath: ssh
+        - name: nfs-storage
+          mountPath: /etc/ssh
+          subPath: ssh_host
+        - name: nfs-storage
+          mountPath: /home/borgwarehouse/repos
+          subPath: repos
+        - name: nfs-storage
+          mountPath: /home/borgwarehouse/logs
+          subPath: logs
+        - name: nfs-storage
+          mountPath: /home/borgwarehouse/tmp
+          subPath: tmp
+        - name: nfs-storage
+          mountPath: /run
+          subPath: run
+      volumes:
+      - name: nfs-storage
+        persistentVolumeClaim:
+          claimName: borgwarehouse-nfs-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: borgwarehouse-svc
+  namespace: borgwarehouse
+  annotations:
+    # MetalLB Dedicated IP for SSH
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.204"
+spec:
+  type: LoadBalancer
+  selector:
+    app: borgwarehouse
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: web
+  - port: 2222
+    targetPort: 22
+    name: ssh
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: borgwarehouse-ingress
+  namespace: borgwarehouse
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+  # Traefik listens for borgwarehouse.starnix.net
+  - host: borgwarehouse.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: borgwarehouse-svc
+            port: { number: 3000 }
+  tls:
+  - hosts: ["borgwarehouse.starnix.net"]
+    secretName: borgwarehouse-tls-prod
