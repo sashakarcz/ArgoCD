@@ -1,137 +1,61 @@
-# MetalLB L2 Troubleshooting on Talos Linux
+# MetalLB L2 Configuration and Troubleshooting
 
 ## Environment
-- **Talos Version**: 1.12.0
-- **Kubernetes Version**: 1.35.0
-- **MetalLB Version**: Upgraded from v0.14.8 to v0.15.3
-- **Cluster**: 4 control-plane nodes (talos-dmu-u04, talos-geg-yo3, talos-atc-eq8, talos-wg3-7g1)
+- **Talos Version**: 1.12.0 (Omni-managed)
+- **Kubernetes Version**: 1.34.2
+- **MetalLB Version**: v0.15.3
+- **Cluster**: Omni-managed (3 control planes + 1 worker)
 - **Network**: 192.168.7.0/24
+- **IP Pool**: 192.168.7.200-192.168.7.250
 
-## Problem Statement
-MetalLB L2 mode is not announcing LoadBalancer services via ARP, preventing external access to services like Traefik despite correct IP assignment.
+## ✅ Working Configuration
 
-## Steps Taken
+MetalLB L2 mode is now successfully announcing LoadBalancer services. This document covers the working configuration and troubleshooting steps.
 
-### 1. Initial MetalLB Installation (v0.14.8)
-```bash
-helm install metallb metallb/metallb --namespace metallb-system --version 0.14.8 \
-  --create-namespace \
-  --set controller.tolerations[0].key="node-role.kubernetes.io/control-plane" \
-  --set controller.tolerations[0].operator="Exists" \
-  --set controller.tolerations[0].effect="NoSchedule" \
-  --set speaker.tolerations[0].key="node-role.kubernetes.io/control-plane" \
-  --set speaker.tolerations[0].operator="Exists" \
-  --set speaker.tolerations[0].effect="NoSchedule"
-```
+## Configuration
 
-### 2. Fixed PodSecurity Issues
-MetalLB speaker pods require privileged access. Applied labels:
-```bash
-kubectl label namespace metallb-system \
-  pod-security.kubernetes.io/enforce=privileged \
-  pod-security.kubernetes.io/audit=privileged \
-  pod-security.kubernetes.io/warn=privileged \
-  --overwrite
-```
+### 1. MetalLB Helm Chart (via ArgoCD)
 
-### 3. Talos Machine Configuration
-Applied to `/home/sasha/ArgoCD/cluster/talos/patch.yaml`:
+File: `infrastructure/infrastructure-apps.yaml`
 
 ```yaml
-cluster:
-  allowSchedulingOnControlPlanes: true
-  proxy:
-    mode: ipvs
-    extraArgs:
-      ipvs-strict-arp: "true"  # Required for MetalLB L2
-machine:
-  nodeLabels:
-    node.kubernetes.io/exclude-from-external-load-balancers: ""
-  kubelet:
-    extraArgs:
-      node-labels: node.kubernetes.io/exclude-from-external-load-balancers=false
-    extraMounts:
-      - destination: /var/lib/longhorn
-        type: bind
-        source: /var/lib/longhorn
-        options:
-          - rw
-          - rshared
-          - bind
-  network:
-    firewall:
-      rules:
-        - name: metallb-memberlist
-          portRanges:
-            - 7946
-          protocol: tcp
-          ingress:
-            - subnet: 192.168.7.0/24
-    interfaces:
-      - deviceSelector:
-          busPath: 0*
-        dhcp: true
-        vip:
-          ip: 192.168.7.69
-    nameservers:
-      - 192.168.7.1
-      - 1.1.1.1
-  disks:
-    - device: /dev/sdb
-      partitions:
-        - mountpoint: /var/lib/longhorn
-```
-
-**Note**: Firewall configuration was added to patch.yaml but may not be supported in all Talos versions.
-
-### 4. Disabled tx-checksum-ip-generic
-MetalLB L2 requires hardware offloading to be disabled. Created DaemonSet:
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
-  name: disable-tx-checksum
-  namespace: kube-system
+  name: metallb-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  selector:
-    matchLabels:
-      name: disable-tx-checksum
-  template:
-    metadata:
-      labels:
-        name: disable-tx-checksum
-    spec:
-      hostNetwork: true
-      hostPID: true
-      containers:
-      - name: disable-offload
-        image: nicolaka/netshoot:latest
-        command:
-        - /bin/bash
-        - -c
-        - |
-          ethtool -K eth0 tx-checksum-ip-generic off || true
-          echo "Disabled tx-checksum-ip-generic on eth0"
-          sleep infinity
-        securityContext:
-          privileged: true
-      tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/control-plane
-        operator: Exists
+  project: default
+  source:
+    repoURL: https://metallb.github.io/metallb
+    chart: metallb
+    targetRevision: 0.15.3
+    helm:
+      releaseName: metallb
+      values: |
+        speaker:
+          ignoreExcludeLB: true  # CRITICAL: Ignore exclude-from-external-load-balancers labels
+          secretName: metallb-memberlist
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
 ```
 
-**Verification**:
-```bash
-kubectl exec -n kube-system disable-tx-checksum-xxxxx -- ethtool -k eth0 | grep "tx-checksum-ip-generic"
-# Output: tx-checksum-ip-generic: off
-```
+**Key Setting**: `speaker.ignoreExcludeLB: true` - This tells MetalLB to ignore the `node.kubernetes.io/exclude-from-external-load-balancers` label that Talos automatically applies to control plane nodes.
 
-### 5. MetalLB Configuration
-Created IPAddressPool and L2Advertisement:
+### 2. IPAddressPool Configuration
 
-**IPAddressPool** (`infrastructure/metallb/config/ipaddresspool.yaml`):
+File: `infrastructure/metallb/config/ipaddresspool.yaml`
+
 ```yaml
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
@@ -145,7 +69,10 @@ spec:
   - 192.168.7.200-192.168.7.250
 ```
 
-**L2Advertisement** (`infrastructure/metallb/config/l2advertisement.yaml`):
+### 3. L2Advertisement Configuration
+
+File: `infrastructure/metallb/config/l2advertisement.yaml`
+
 ```yaml
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -157,166 +84,278 @@ metadata:
 spec:
   ipAddressPools:
   - main-pool
-  # NOTE: interfaces specification was removed - let MetalLB auto-detect
+  interfaces:
+  - eth0  # REQUIRED: Specify the network interface for L2 announcements
 ```
 
-### 6. Upgraded to MetalLB v0.15.3
+**Critical**: The `interfaces` field MUST be specified. Without it, MetalLB will not create ServiceL2Status resources or announce services.
+
+### 4. Service Configuration
+
+#### Working: Cluster Traffic Policy
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.203"  # Deprecated but functional
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster  # RECOMMENDED: Works reliably
+  ports:
+    - name: web
+      port: 80
+    - name: websecure
+      port: 443
+```
+
+#### Not Working: Local Traffic Policy
+
+```yaml
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local  # ⚠️ DOES NOT WORK with current configuration
+```
+
+**Issue**: `externalTrafficPolicy: Local` does not work with MetalLB L2 on this cluster, even after:
+- Removing `node.kubernetes.io/exclude-from-external-load-balancers` labels
+- Setting `speaker.ignoreExcludeLB: true`
+- Ensuring pods are ready on announcing nodes
+
+**Trade-off**: Using `Cluster` policy means client source IPs are not preserved (they appear as node IPs), but the service is fully functional.
+
+## Critical Troubleshooting Steps
+
+### Issue 1: No ServiceL2Status Resources Created
+
+**Symptoms**:
+- LoadBalancer IPs assigned but not reachable
+- No ServiceL2Status resources exist
+- Speaker logs show reconciliation but no announcements
+
+**Root Cause**: `node.kubernetes.io/exclude-from-external-load-balancers` label on nodes
+
+**Solution**:
 ```bash
-# Uninstall old version
-helm uninstall metallb -n metallb-system
+# Remove the label from all nodes
+kubectl label nodes --all node.kubernetes.io/exclude-from-external-load-balancers-
 
-# Wait for cleanup
-kubectl wait --for=delete pod -l app.kubernetes.io/name=metallb -n metallb-system --timeout=60s
-
-# Install v0.15.3
-helm install metallb metallb/metallb --namespace metallb-system --version 0.15.3 \
-  --set controller.tolerations[0].key="node-role.kubernetes.io/control-plane" \
-  --set controller.tolerations[0].operator="Exists" \
-  --set controller.tolerations[0].effect="NoSchedule" \
-  --set speaker.tolerations[0].key="node-role.kubernetes.io/control-plane" \
-  --set speaker.tolerations[0].operator="Exists" \
-  --set speaker.tolerations[0].effect="NoSchedule"
-
-# Reapply configuration
-kubectl apply -f infrastructure/metallb/config/
+# Restart MetalLB speakers to pick up the change
+kubectl delete pods -n metallb-system -l app.kubernetes.io/component=speaker
 ```
 
-## Current Status
+**Why This Happens**:
+- Talos adds this label to control plane nodes automatically
+- Even with `speaker.ignoreExcludeLB: true`, the label can interfere with L2 announcements
+- The label sometimes has an empty value `""` which MetalLB doesn't ignore properly
 
-### ✅ Working
-1. MetalLB controller and speaker pods are running (4/4 pods ready)
-2. IP addresses are being assigned to LoadBalancer services
-3. Traefik service has EXTERNAL-IP: 192.168.7.201
-4. ARP responders are created on eth0 interface
-5. strictARP is enabled in kube-proxy
-6. tx-checksum-ip-generic is disabled on all nodes
-7. MetalLB ConfigurationState shows all speakers as "Valid"
-8. NodePort access works (http://192.168.7.57:32373)
+**Permanent Fix**: The label may be re-added by Talos. Monitor and remove as needed.
 
-### ❌ Not Working
-1. **No L2 advertisements**: No ServiceL2Status resources are created
-2. **No external connectivity**: LoadBalancer IPs (192.168.7.200, 192.168.7.201) are unreachable
-3. **No ARP entries**: `ip neigh show` does not show MetalLB IPs
-4. **No announcement logs**: Speaker logs show service reconciliation but no actual announcements
+### Issue 2: L2Advertisement Missing Interface
 
-### Diagnostics
+**Symptoms**:
+- MetalLB controller and speakers running
+- IPs allocated but no ServiceL2Status created
+- No errors in logs
 
-**Check speaker logs**:
+**Root Cause**: Missing `interfaces` specification in L2Advertisement
+
+**Solution**: Add the interfaces field:
+```yaml
+spec:
+  ipAddressPools:
+  - main-pool
+  interfaces:
+  - eth0  # Add this!
+```
+
+### Issue 3: externalTrafficPolicy: Local Not Working
+
+**Symptoms**:
+- Service with `externalTrafficPolicy: Local` gets IP but no ServiceL2Status
+- Speaker logs show "serviceWithdrawn" with "reason: notOwner"
+- Switching to `Cluster` policy immediately creates ServiceL2Status
+
+**Root Cause**: Unknown - likely incompatibility between MetalLB L2 and Local policy on Talos/Omni
+
+**Solution**: Use `externalTrafficPolicy: Cluster` instead
+```yaml
+spec:
+  externalTrafficPolicy: Cluster
+```
+
+**Impact**: Client source IPs are not preserved with Cluster policy
+
+## Verification Commands
+
+### Check ServiceL2Status (should exist for each announced service)
 ```bash
-kubectl logs -n metallb-system -l app.kubernetes.io/component=speaker -c speaker --tail=100
+kubectl get servicel2status -A
 ```
 
-**Observations**:
-- Services are being reconciled: `start reconcile: traefik/traefik`
-- Config is reloaded: `config reloaded`
-- ARP responder created: `created ARP responder for interface: eth0`
-- BUT no logs like: `announcing from node` or `layer2 announcement`
+Expected output:
+```
+NAMESPACE        NAME       ALLOCATED NODE   SERVICE NAME       SERVICE NAMESPACE
+metallb-system   l2-qkvhs   talos-vod-aam    traefik            traefik
+metallb-system   l2-ncrqw   talos-vod-aam    my-nginx           default
+```
 
-**Check ServiceL2Status** (should exist but doesn't):
+### Check Service IP Assignment
 ```bash
-kubectl get servicel2status -n metallb-system
-# Output: No resources found
+kubectl get svc -A --field-selector spec.type=LoadBalancer
 ```
 
-**Check service assignment**:
+### Test Connectivity
 ```bash
-kubectl get svc -n traefik traefik
-# Shows EXTERNAL-IP assigned but not announced
+# Should return HTTP response
+curl -k https://192.168.7.203
+
+# ICMP ping may not work (LoadBalancers often don't respond to ICMP)
+ping 192.168.7.203
 ```
 
-**Test connectivity**:
+### Check Node Labels
 ```bash
-# NodePort works
-curl http://192.168.7.57:32373
-# Output: 404 page not found (expected - Traefik is working)
-
-# LoadBalancer IP doesn't work
-curl http://192.168.7.201
-# Output: Connection timed out
+kubectl get nodes -o custom-columns=NAME:.metadata.name,EXCLUDE:.metadata.labels.node\\.kubernetes\\.io/exclude-from-external-load-balancers
 ```
 
-## Possible Root Causes
+Should show `<none>` for all nodes.
 
-1. **Kubernetes 1.35.0 Compatibility**: MetalLB v0.15.3 may not fully support K8s 1.35.0 (released Dec 2025)
-   - MetalLB v0.15.3 released in 2024
-   - May have breaking changes in K8s API usage
-
-2. **Talos-Specific Issues**: Without Omni, certain network configurations may not be available
-   - EthernetConfig CRD not available in standard Talos
-   - Firewall configuration may not be properly applied
-   - Network plugin (Flannel) interaction unclear
-
-3. **Missing Configuration**: v0.15.x may require additional configuration not documented
-   - Possible node selector requirements
-   - L2Advertisement changes
-
-## Verification Steps
-
-**Verify strictARP**:
+### Check MetalLB Speaker Logs
 ```bash
-kubectl get cm -n kube-system kube-proxy -o yaml | grep strictARP
-# Should show: strictARP: true
+kubectl logs -n metallb-system -l app.kubernetes.io/component=speaker -c speaker --tail=50
 ```
 
-**Verify memberlist** (for v0.14.8):
+Look for:
+- `start reconcile: <namespace>/<service>` - Service is being processed
+- No errors about excluded nodes
+- Config reconciliation completing successfully
+
+### Check MetalLB Controller Logs
 ```bash
-kubectl logs -n metallb-system -l app.kubernetes.io/component=speaker | grep "memberlist join"
-# v0.14.8: Should show "memberlist join successfully"
+kubectl logs -n metallb-system -l app.kubernetes.io/component=controller --tail=50
 ```
 
-**Verify endpoints**:
+Look for:
+- IP allocation messages
+- No errors about sharing keys or allocation failures
+
+## Static IP Assignment
+
+### Current Method (Deprecated)
+```yaml
+metadata:
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.203"
+```
+
+This annotation is deprecated in MetalLB v0.15.3 but still functional. A deprecation warning will appear in controller logs.
+
+### Alternative Method
+Create service-specific IPAddressPool or use MetalLB's native IP assignment.
+
+## Common Issues and Solutions
+
+### Services Being Withdrawn Immediately
+**Logs**: `"event":"serviceWithdrawn","reason":"notOwner"`
+
+**Causes**:
+1. `externalTrafficPolicy: Local` with pod not on announcing node
+2. Node has exclude label
+3. Pod not ready
+
+**Solution**: Switch to `externalTrafficPolicy: Cluster`
+
+### No IP Allocated
+**Check**: Verify IPAddressPool is created and has available IPs
+
 ```bash
-kubectl get endpoints -n traefik traefik
-# Should show endpoints for Traefik pods
+kubectl get ipaddresspool -n metallb-system main-pool -o yaml
 ```
 
-## Tested Versions
-- ❌ MetalLB v0.14.8: IP assignment works, L2 announcements fail
-- ❌ MetalLB v0.14.9: Not fully tested (attempted during troubleshooting)
-- ❌ MetalLB v0.15.3: IP assignment works, L2 announcements fail (same behavior as v0.14.8)
+### IP Conflict Errors
+**Logs**: `"error":"can't change sharing key for \"namespace/service\", address also in use by other/service"`
 
-## Next Steps to Try
+**Solution**:
+- Check if another service is using the same IP
+- Verify annotation format (should use `metallb.universe.tf/` not `metallb.io/`)
+- Delete and recreate conflicting services
 
-1. **Test with older Kubernetes version** (1.33 or 1.34)
-   - May have better MetalLB compatibility
+### Jellyfin Service Example Issue
+Encountered error with jellyfin-service using old annotation format:
+```yaml
+# ❌ Old format (don't use)
+annotations:
+  metallb.io/loadBalancerIPs: "192.168.7.202"
 
-2. **Try BGP mode instead of L2**
-   - Requires BGP router configuration
-   - May be more reliable than L2 on Talos
+# ✅ Correct format
+annotations:
+  metallb.universe.tf/loadBalancerIPs: "192.168.7.202"
+```
 
-3. **Use Kube-VIP instead of MetalLB**
-   - Alternative LoadBalancer implementation
-   - May have better Talos support
+## Deployment Order (ArgoCD Sync Waves)
 
-4. **Pivot to different Kubernetes distribution**
-   - RKE2: Enterprise-focused, similar to Talos
-   - Kairos: Immutable OS like Talos but different architecture
-   - K3s: Lightweight, well-tested with MetalLB
+```
+Wave 0: MetalLB Helm Chart
+Wave 1: IPAddressPool + cert-manager Helm
+Wave 2: L2Advertisement + cert-manager config
+Wave 3: Traefik Helm
+Wave 4: Traefik config
+Wave 5+: Applications
+```
 
-5. **Debug at network level**
-   - Use tcpdump to capture ARP traffic
-   - Check if speakers are even attempting to send ARP announcements
-   - Verify no nftables/iptables rules blocking ARP
+This ensures MetalLB is fully operational before services request LoadBalancer IPs.
+
+## Working Services
+
+Current successfully announced services:
+- `traefik/traefik` - 192.168.7.203
+- `default/my-nginx` - 192.168.7.201
+- `default/nginx-lb-service` - 192.168.7.200
+
+All using `externalTrafficPolicy: Cluster`
+
+## Known Limitations
+
+1. **externalTrafficPolicy: Local** - Does not work, use Cluster instead
+2. **Client Source IP** - Not preserved with Cluster policy (IPs appear as node IPs)
+3. **Node Labels** - May need to periodically remove exclude-from-external-load-balancers label
+4. **Deprecated Annotation** - `metallb.universe.tf/loadBalancerIPs` is deprecated but still works
 
 ## Files Modified
 
-- `/home/sasha/ArgoCD/cluster/talos/patch.yaml` - Talos machine configuration
-- `/home/sasha/ArgoCD/infrastructure/metallb/metallb-helmchart.yaml` - Updated to v0.15.3
-- `/home/sasha/ArgoCD/infrastructure/metallb/config/ipaddresspool.yaml` - IP pool configuration
-- `/home/sasha/ArgoCD/infrastructure/metallb/config/l2advertisement.yaml` - L2 advertisement config
+- `infrastructure/infrastructure-apps.yaml` - MetalLB Helm configuration with ignoreExcludeLB
+- `infrastructure/metallb/config/ipaddresspool.yaml` - IP pool definition
+- `infrastructure/metallb/config/l2advertisement.yaml` - L2 advertisement with eth0 interface
+- `infrastructure/traefik/traefik-helmchart.yaml` - Traefik with Cluster traffic policy
 
 ## References
 
 - MetalLB Documentation: https://metallb.universe.tf/
+- MetalLB v0.15.3 Release Notes: https://github.com/metallb/metallb/releases/tag/v0.15.3
 - Talos Linux Documentation: https://www.talos.dev/
-- MetalLB GitHub Issues: Check for K8s 1.35 compatibility issues
-- Previous working setup: `/home/sasha/k8s/metallb-l2-config.yaml` (with Omni)
+- Omni Platform: https://www.siderolabs.com/platform/saas-for-kubernetes/
+
+## Resolution Timeline
+
+1. **Initial Issue**: L2 announcements not working despite correct configuration
+2. **First Fix**: Added `interfaces: [eth0]` to L2Advertisement
+3. **Second Fix**: Removed `node.kubernetes.io/exclude-from-external-load-balancers` labels from all nodes
+4. **Third Fix**: Added `speaker.ignoreExcludeLB: true` to Helm values
+5. **Final Configuration**: Changed Traefik to `externalTrafficPolicy: Cluster`
+
+Result: ✅ MetalLB L2 fully operational with all services reachable on assigned IPs
 
 ## Conclusion
 
-Despite extensive troubleshooting and upgrading to the latest MetalLB version (v0.15.3), L2 announcements are not functioning on this Talos Linux 1.12.0 / Kubernetes 1.35.0 cluster. The issue appears to be related to either:
-- Kubernetes 1.35.0 compatibility
-- Talos-specific networking limitations without Omni
-- Missing/undocumented configuration requirements in MetalLB v0.15.x
+MetalLB L2 mode is now working successfully on Talos Linux 1.12.0 / Kubernetes 1.34.2 with the following requirements:
 
-**Recommendation**: Consider testing with Kubernetes 1.33/1.34 or evaluating alternative solutions (Kube-VIP, BGP mode, or different K8s distribution).
+1. ✅ `speaker.ignoreExcludeLB: true` in Helm values
+2. ✅ `interfaces: [eth0]` in L2Advertisement
+3. ✅ Remove `node.kubernetes.io/exclude-from-external-load-balancers` labels from nodes
+4. ✅ Use `externalTrafficPolicy: Cluster` for services
+
+This configuration provides reliable LoadBalancer functionality for the cluster.
