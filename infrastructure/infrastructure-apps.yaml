@@ -373,8 +373,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://helm.stirlingpdf.io
-    chart: stirling-pdf
+    repoURL: https://docs.stirlingpdf.com/Stirling-PDF-chart/
+    chart: stirling-pdf-chart
     targetRevision: 2.2.0
     helm:
       releaseName: stirling-pdf
