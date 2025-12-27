@@ -363,3 +363,71 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: stirling-pdf-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: default
+  source:
+    repoURL: https://helm.stirlingpdf.io
+    chart: stirling-pdf
+    targetRevision: 2.2.0
+    helm:
+      releaseName: stirling-pdf
+      values: |
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          pathType: Prefix
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-production"
+            traefik.ingress.kubernetes.io/router.entrypoints: websecure
+          hosts:
+            - name: pdf.starnix.net
+              path: /
+              tls: true
+              tlsSecret: stirling-pdf-tls
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        persistence:
+          enabled: true
+          size: 5Gi
+          storageClass: "longhorn"
+          accessMode: ReadWriteOnce
+        securityContext:
+          enabled: true
+          fsGroup: 1000
+        replicaCount: 1
+        envs:
+          - name: UI_APP_NAME
+            value: "Starnix PDF Tools"
+          - name: UI_HOME_DESCRIPTION
+            value: "Your locally hosted PDF toolkit"
+          - name: UI_APP_NAVBAR_NAME
+            value: "Starnix PDF"
+          - name: APP_LOCALE
+            value: "en_US"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: stirling-pdf
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
