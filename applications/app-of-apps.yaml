@@ -67,28 +67,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: grocy
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/grocy
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: grocy
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: homeassistant
   namespace: argocd
 spec:
@@ -133,28 +111,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: invidious
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/invidious
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: invidious
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: jellyfin
   namespace: argocd
 spec:
@@ -166,28 +122,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: jellyfin
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kutt
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/kutt
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: kutt
   syncPolicy:
     automated:
       prune: true
@@ -265,28 +199,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mqtt
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/mqtt
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: mqtt
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: nocodb
   namespace: argocd
 spec:
@@ -331,28 +243,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: plex
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/plex
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: plex
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: privatebin
   namespace: argocd
 spec:
@@ -364,28 +254,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: privatebin
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: trudesk
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/sashakarcz/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/trudesk
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: trudesk
   syncPolicy:
     automated:
       prune: true
