@@ -38,10 +38,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn 
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 5Gi
+      storage: 20Gi
 
 ---
 # Series Volume
@@ -334,7 +334,7 @@ spec:
           sizeLimit: 20Gi
       - name: config-volume
         persistentVolumeClaim:
-          claimName: jellyfin-config-pvc
+          claimName: jellyfin-config-longhorn-pvc
       - name: series-volume
         persistentVolumeClaim:
           claimName: jellyfin-series-pvc
