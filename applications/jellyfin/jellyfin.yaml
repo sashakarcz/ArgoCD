@@ -299,12 +299,15 @@ spec:
           privileged: true
         resources:
           limits:
-            gpu.intel.com/i915: 1
             cpu: 12000m
             memory: 12Gi
           requests:
             cpu: 200m
             memory: 4Gi
+          # GPU temporarily disabled - no Intel i915 GPU available on cluster nodes
+          # Uncomment when GPU nodes are available:
+          # limits:
+          #   gpu.intel.com/i915: 1
         volumeMounts:
         - name: scratch-volume
           mountPath: "/transcode"
@@ -362,7 +365,7 @@ metadata:
   name: jellyfin-service
   namespace: jellyfin
   annotations:
-    metallb.io/loadBalancerIPs: 192.168.7.202
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.202"
 spec:
   type: LoadBalancer
   externalTrafficPolicy: Cluster
