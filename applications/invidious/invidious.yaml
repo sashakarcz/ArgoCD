@@ -311,7 +311,7 @@ metadata:
   name: invidious-ingress
   namespace: invidious
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik

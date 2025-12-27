@@ -1,19 +1,39 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-cloudflare
+  name: letsencrypt-staging
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   acme:
-    email: sasha@starnix.net
-    server: https://acme-v02.api.letsencrypt.org/directory
+    # Staging server for testing
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: sasha@karcz.me
     privateKeySecretRef:
-      name: letsencrypt-cloudflare-account-key
+      name: letsencrypt-staging
     solvers:
     - dns01:
         cloudflare:
-          email: sasha@karcz.me
           apiTokenSecretRef:
-            name: cloudflare-api-token-secret
+            name: cloudflare-api-token
+            key: api-token
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  acme:
+    # Production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: sasha@karcz.me
+    privateKeySecretRef:
+      name: letsencrypt-production
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
             key: api-token

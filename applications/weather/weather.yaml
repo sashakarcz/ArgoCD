@@ -128,7 +128,7 @@ metadata:
   labels:
     app: weather
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
