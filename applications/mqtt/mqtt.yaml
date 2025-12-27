@@ -51,7 +51,7 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: longhorn-backup
+  storageClassName: longhorn
 
 ---
 # 4. Deployment
