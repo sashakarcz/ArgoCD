@@ -1,0 +1,102 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cometdb
+---
+# 1. THE STORAGE CONNECTION
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: comet-nfs-pv
+spec:
+  capacity:
+    storage: 100Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Comet
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+    - timeo=600
+    - retrans=2
+    - noresvport
+---
+# 2. THE STORAGE RESERVATION
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: comet-nfs-pvc
+  namespace: cometdb
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "" 
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: comet-nfs-pv
+---
+# 3. THE EXTERNAL NETWORK ACCESS (MetalLB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: cometdb-service
+  namespace: cometdb
+spec:
+  selector:
+    app: cometdb
+  loadBalancerIP: 192.168.7.233
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: LoadBalancer
+---
+# 4. THE DATABASE ENGINE
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cometdb
+  namespace: cometdb
+spec:
+  serviceName: "cometdb"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cometdb
+  template:
+    metadata:
+      labels:
+        app: cometdb
+    spec:
+      # We rely on the container's internal logic to handle UID 70
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        env:
+        - name: POSTGRES_USER
+          value: "comet"
+        - name: POSTGRES_PASSWORD
+          value: "***REMOVED***"
+        - name: POSTGRES_DB
+          value: "comet"
+        # Nested subpath helps avoid NFS root permission issues
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata/main
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: nfs-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: db-data 
+        - name: nfs-storage
+          mountPath: /comet
+      volumes:
+      - name: nfs-storage
+        persistentVolumeClaim:
+          claimName: comet-nfs-pvc
