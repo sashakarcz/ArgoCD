@@ -25,7 +25,7 @@ metadata:
   name: traefik-dashboard-cert-trigger
   namespace: traefik
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
     argocd.argoproj.io/sync-wave: "4"
 spec:
   ingressClassName: traefik

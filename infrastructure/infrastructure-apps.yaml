@@ -10,20 +10,13 @@ spec:
   source:
     repoURL: https://metallb.github.io/metallb
     chart: metallb
-    targetRevision: 0.14.9
+    targetRevision: 0.15.3
     helm:
       releaseName: metallb
       values: |
-        controller:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
         speaker:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
+          ignoreExcludeLB: true
+          secretName: metallb-memberlist
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system
@@ -84,26 +77,12 @@ spec:
   source:
     repoURL: https://charts.jetstack.io
     chart: cert-manager
-    targetRevision: v1.16.2
+    targetRevision: v1.19.2
     helm:
       releaseName: cert-manager
       values: |
         crds:
           enabled: true
-        tolerations:
-          - key: "node-role.kubernetes.io/control-plane"
-            operator: "Exists"
-            effect: "NoSchedule"
-        webhook:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
-        cainjector:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
@@ -168,12 +147,6 @@ spec:
     helm:
       releaseName: traefik
       values: |
-        deployment:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
-
         service:
           type: LoadBalancer
           annotations:
