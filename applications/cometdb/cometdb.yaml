@@ -4,7 +4,17 @@ kind: Namespace
 metadata:
   name: cometdb
 ---
-# 1. THE STORAGE CONNECTION
+# 1. THE SECRET (PostgreSQL Password)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cometdb-secret
+  namespace: cometdb
+type: Opaque
+stringData:
+  postgres-password: "***REMOVED***"
+---
+# 2. THE STORAGE CONNECTION
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -82,7 +92,10 @@ spec:
         - name: POSTGRES_USER
           value: "comet"
         - name: POSTGRES_PASSWORD
-          value: "***REMOVED***"
+          valueFrom:
+            secretKeyRef:
+              name: cometdb-secret
+              key: postgres-password
         - name: POSTGRES_DB
           value: "comet"
         # Nested subpath helps avoid NFS root permission issues
