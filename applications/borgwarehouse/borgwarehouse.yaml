@@ -5,16 +5,11 @@ metadata:
   name: borgwarehouse
 
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: borgwarehouse-secrets
-  namespace: borgwarehouse
-type: Opaque
-stringData:
-  NEXTAUTH_SECRET: "***REMOVED***"
-  CRONJOB_KEY: "***REMOVED***"
-  MAIL_SMTP_PWD: "***REMOVED***"
+# Note: borgwarehouse-secrets must be created manually in the cluster:
+# kubectl create secret generic borgwarehouse-secrets -n borgwarehouse \
+#   --from-literal=NEXTAUTH_SECRET='YOUR_NEXTAUTH_SECRET' \
+#   --from-literal=CRONJOB_KEY='YOUR_CRONJOB_KEY' \
+#   --from-literal=MAIL_SMTP_PWD='YOUR_SMTP_PASSWORD'
 
 ---
 apiVersion: v1

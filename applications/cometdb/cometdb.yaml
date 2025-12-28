@@ -4,17 +4,10 @@ kind: Namespace
 metadata:
   name: cometdb
 ---
-# 1. THE SECRET (PostgreSQL Password)
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cometdb-secret
-  namespace: cometdb
-type: Opaque
-stringData:
-  postgres-password: "***REMOVED***"
----
-# 2. THE STORAGE CONNECTION
+# 1. THE STORAGE CONNECTION
+# Note: cometdb-secret must be created manually in the cluster:
+# kubectl create secret generic cometdb-secret -n cometdb \
+#   --from-literal=postgres-password='YOUR_PASSWORD_HERE'
 apiVersion: v1
 kind: PersistentVolume
 metadata:
