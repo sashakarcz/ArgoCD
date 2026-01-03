@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fleetdm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sashakarcz/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/fleetdm
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fleetdm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

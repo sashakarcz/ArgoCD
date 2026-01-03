@@ -1,0 +1,290 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fleetdm
+---
+# Note: fleetdm-secrets must be created manually in the cluster:
+# kubectl create secret generic fleetdm-secrets -n fleetdm \
+#   --from-literal=mysql-root-password='YOUR_MYSQL_ROOT_PASSWORD' \
+#   --from-literal=mysql-password='YOUR_FLEET_DB_PASSWORD' \
+#   --from-literal=jwt-key='YOUR_JWT_KEY_HERE'
+
+---
+# MySQL Database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: fleetdm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: fleetdm
+spec:
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: fleetdm
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fleetdm-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: "fleet"
+        - name: MYSQL_USER
+          value: "fleet"
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fleetdm-secrets
+              key: mysql-password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+---
+# Redis Cache
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: fleetdm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: fleetdm
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: fleetdm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        command:
+          - redis-server
+          - --appendonly
+          - "yes"
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+# FleetDM Application
+apiVersion: v1
+kind: Service
+metadata:
+  name: fleet
+  namespace: fleetdm
+spec:
+  selector:
+    app: fleet
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet
+  namespace: fleetdm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fleet
+  template:
+    metadata:
+      labels:
+        app: fleet
+    spec:
+      initContainers:
+      - name: fleet-prepare-db
+        image: fleetdm/fleet:v4.60.0
+        command:
+          - /usr/bin/fleet
+          - prepare
+          - db
+        env:
+        - name: FLEET_MYSQL_ADDRESS
+          value: "mysql:3306"
+        - name: FLEET_MYSQL_DATABASE
+          value: "fleet"
+        - name: FLEET_MYSQL_USERNAME
+          value: "fleet"
+        - name: FLEET_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fleetdm-secrets
+              key: mysql-password
+      containers:
+      - name: fleet
+        image: fleetdm/fleet:v4.60.0
+        command:
+          - /usr/bin/fleet
+          - serve
+        env:
+        - name: FLEET_MYSQL_ADDRESS
+          value: "mysql:3306"
+        - name: FLEET_MYSQL_DATABASE
+          value: "fleet"
+        - name: FLEET_MYSQL_USERNAME
+          value: "fleet"
+        - name: FLEET_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fleetdm-secrets
+              key: mysql-password
+        - name: FLEET_REDIS_ADDRESS
+          value: "redis:6379"
+        - name: FLEET_SERVER_ADDRESS
+          value: "0.0.0.0:8080"
+        - name: FLEET_AUTH_JWT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fleetdm-secrets
+              key: jwt-key
+        - name: FLEET_SERVER_CERT
+          value: "/tmp/server.cert"
+        - name: FLEET_SERVER_KEY
+          value: "/tmp/server.key"
+        - name: FLEET_LOGGING_JSON
+          value: "true"
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fleet-ingress
+  namespace: fleetdm
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-redirect-https@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: fleet.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fleet
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - fleet.starnix.net
+    secretName: fleet-tls
