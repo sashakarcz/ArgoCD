@@ -231,12 +231,10 @@ spec:
             secretKeyRef:
               name: fleetdm-secrets
               key: jwt-key
-        - name: FLEET_SERVER_CERT
-          value: "/tmp/server.cert"
-        - name: FLEET_SERVER_KEY
-          value: "/tmp/server.key"
         - name: FLEET_LOGGING_JSON
           value: "true"
+        - name: FLEET_SERVER_TLS
+          value: "false"
         ports:
         - containerPort: 8080
           name: http
