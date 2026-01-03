@@ -20,7 +20,7 @@ metadata:
 data:
   MYSQL_DATABASE: "nocodb"
   MYSQL_USER: "nocodb"
-  NC_PUBLIC_URL: "https://nocodb.starnix.net"  # Update with your domain
+  NC_PUBLIC_URL: "https://db.bairlabs.org"
 
 ---
 apiVersion: v1
@@ -285,10 +285,10 @@ spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - nocodb.starnix.net  # Update with your domain
+    - db.bairlabs.org
     secretName: nocodb-tls
   rules:
-  - host: nocodb.starnix.net  # Update with your domain
+  - host: db.bairlabs.org
     http:
       paths:
       - path: /
