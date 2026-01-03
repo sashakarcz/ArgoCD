@@ -279,14 +279,9 @@ metadata:
   name: nocodb-ingress
   namespace: nocodb
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
-  tls:
-  - hosts:
-    - db.bairlabs.org
-    secretName: nocodb-tls
   rules:
   - host: db.bairlabs.org
     http:
