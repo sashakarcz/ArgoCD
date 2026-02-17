@@ -129,6 +129,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: signoz-signoz
+            name: signoz
             port:
               number: 8080
