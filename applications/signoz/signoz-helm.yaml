@@ -18,6 +18,7 @@ spec:
             type: LoadBalancer
             annotations:
               metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
+              metallb.universe.tf/allow-shared-ip: "signoz-shared"
 
         # OpenTelemetry Collector
         otelCollector:
@@ -25,6 +26,7 @@ spec:
             type: LoadBalancer
             annotations:
               metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
+              metallb.universe.tf/allow-shared-ip: "signoz-shared"
           config:
             receivers:
               otlp:
