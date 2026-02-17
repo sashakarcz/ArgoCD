@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.signoz.io
+    chart: signoz
+    targetRevision: 0.111.0
+    helm:
+      releaseName: signoz
+      values: |
+        # SigNoz frontend/query service
+        signoz:
+          service:
+            type: LoadBalancer
+            annotations:
+              metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
+
+        # OpenTelemetry Collector
+        otelCollector:
+          service:
+            type: LoadBalancer
+            annotations:
+              metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
+          config:
+            receivers:
+              otlp:
+                protocols:
+                  grpc:
+                    endpoint: 0.0.0.0:4317
+                  http:
+                    endpoint: 0.0.0.0:4318
+              fluentforward:
+                endpoint: 0.0.0.0:24224
+              syslog:
+                tcp:
+                  listen_address: 0.0.0.0:8514
+                udp:
+                  listen_address: 0.0.0.0:8514
+                protocol: rfc5424
+            service:
+              pipelines:
+                logs:
+                  receivers: [otlp, fluentforward, syslog]
+
+        # ClickHouse storage (NFS-backed PVCs)
+        clickhouse:
+          persistence:
+            enabled: true
+            existingClaim: signoz-clickhouse-data
+            size: 50Gi
+          zookeeper:
+            persistence:
+              enabled: true
+              existingClaim: signoz-zookeeper-data
+              size: 5Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: signoz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
