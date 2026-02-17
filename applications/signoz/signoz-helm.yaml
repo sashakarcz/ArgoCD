@@ -12,13 +12,10 @@ spec:
     helm:
       releaseName: signoz
       values: |
-        # SigNoz frontend/query service
+        # SigNoz frontend/query service (accessed via Traefik ingress)
         signoz:
           service:
-            type: LoadBalancer
-            annotations:
-              metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
-              metallb.universe.tf/allow-shared-ip: "signoz-shared"
+            type: ClusterIP
 
         # OpenTelemetry Collector
         otelCollector:
@@ -26,7 +23,6 @@ spec:
             type: LoadBalancer
             annotations:
               metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
-              metallb.universe.tf/allow-shared-ip: "signoz-shared"
           config:
             receivers:
               otlp:
