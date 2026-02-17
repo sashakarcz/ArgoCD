@@ -23,6 +23,22 @@ spec:
             type: LoadBalancer
             annotations:
               metallb.universe.tf/loadBalancerIPs: "192.168.7.205"
+          ports:
+            syslog-tcp:
+              enabled: true
+              containerPort: 8514
+              servicePort: 8514
+              protocol: TCP
+            syslog-udp:
+              enabled: true
+              containerPort: 8514
+              servicePort: 8514
+              protocol: UDP
+            fluentforward:
+              enabled: true
+              containerPort: 24224
+              servicePort: 24224
+              protocol: TCP
           config:
             receivers:
               otlp:
