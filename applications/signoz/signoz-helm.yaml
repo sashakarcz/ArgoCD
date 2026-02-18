@@ -54,7 +54,7 @@ spec:
                   listen_address: 0.0.0.0:8514
                 udp:
                   listen_address: 0.0.0.0:8514
-                protocol: rfc5424
+                protocol: rfc3164
             service:
               pipelines:
                 logs:
