@@ -47,7 +47,7 @@ spec:
                 metrics/argocd:
                   receivers: [prometheus/argocd]
                   processors: [batch]
-                  exporters: []
+                  exporters: [otlp]
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
