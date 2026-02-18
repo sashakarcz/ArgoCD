@@ -87,3 +87,14 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: signoz-clickhouse-operator
+    jsonPointers:
+    - /spec
+  - group: apps
+    kind: StatefulSet
+    name: signoz
+    jsonPointers:
+    - /spec
