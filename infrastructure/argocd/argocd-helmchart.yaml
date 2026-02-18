@@ -20,9 +20,28 @@ spec:
               operator: "Exists"
               effect: "NoSchedule"
 
+        controller:
+          metrics:
+            enabled: true
+            service:
+              enabled: true
+              servicePort: 8082
+
         server:
+          metrics:
+            enabled: true
+            service:
+              enabled: true
+              servicePort: 8083
           ingress:
             enabled: false  # We manage this separately via Traefik
+
+        repoServer:
+          metrics:
+            enabled: true
+            service:
+              enabled: true
+              servicePort: 8084
 
           config:
             repositories: |
