@@ -55,6 +55,11 @@ spec:
                 udp:
                   listen_address: 0.0.0.0:8514
                 protocol: rfc3164
+                location: UTC
+                operators:
+                  - type: move
+                    from: attributes.message
+                    to: body
             service:
               pipelines:
                 logs:
