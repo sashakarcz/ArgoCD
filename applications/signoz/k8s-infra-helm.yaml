@@ -29,7 +29,7 @@ spec:
         otelDeployment:
           config:
             receivers:
-              prometheus:
+              prometheus/argocd:
                 config:
                   global:
                     scrape_interval: 60s
@@ -44,8 +44,10 @@ spec:
                           - argocd-repo-server.argocd.svc.cluster.local:8084
             service:
               pipelines:
-                metrics:
-                  receivers: [prometheus]
+                metrics/argocd:
+                  receivers: [prometheus/argocd]
+                  processors: [batch]
+                  exporters: []
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
