@@ -108,7 +108,7 @@ metadata:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "NSSCache"
     gethomepage.dev/description: "LDAP Cache Server"
-    gethomepage.dev/group: "Admin"
+    gethomepage.dev/group: "Security"
     gethomepage.dev/icon: "mdi-account-sync"
     gethomepage.dev/href: "https://nsscache.starnix.net"
 spec:
@@ -134,7 +134,7 @@ metadata:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "NSSCache"
     gethomepage.dev/description: "LDAP Cache Server"
-    gethomepage.dev/group: "Admin"
+    gethomepage.dev/group: "Security"
     gethomepage.dev/icon: "mdi-account-sync"
     gethomepage.dev/href: "https://nsscache.starnix.net"
     gethomepage.dev/pod-selector: "app=nsscache"
