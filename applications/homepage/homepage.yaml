@@ -175,10 +175,10 @@ data:
             icon: mdi-gift
             href: https://krampus.starnix.net
             description: Santa Sync Server
-        - Password Manager:
-            icon: mdi-key
+        - Password Reset:
+            icon: mdi-lock-reset
             href: https://password.starnix.net
-            description: Password Manager
+            description: LDAP Password Reset
 
   bookmarks.yaml: ""
   docker.yaml: ""
