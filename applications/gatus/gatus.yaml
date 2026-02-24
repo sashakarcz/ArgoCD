@@ -70,9 +70,9 @@ data:
           Host: sonarr.starnix.net
         conditions:
           - "[STATUS] == 200"
-      - name: "SABNZB"
+      - name: "SABnzbd"
         group: Jellyfin
-        url: "http://192.168.1.86:7881"
+        url: "https://nzb.starnix.net"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
