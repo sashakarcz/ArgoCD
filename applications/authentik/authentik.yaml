@@ -334,6 +334,13 @@ kind: Service
 metadata:
   name: authentik-server
   namespace: authentik
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Authentik"
+    gethomepage.dev/description: "Identity Provider & SSO"
+    gethomepage.dev/group: "Security"
+    gethomepage.dev/icon: "authentik.png"
+    gethomepage.dev/href: "https://auth.starnix.net"
 spec:
   selector:
     app: authentik-server

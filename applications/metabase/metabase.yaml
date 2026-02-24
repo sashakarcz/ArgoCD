@@ -213,6 +213,13 @@ kind: Service
 metadata:
   name: metabase
   namespace: metabase
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Metabase"
+    gethomepage.dev/description: "Business Intelligence"
+    gethomepage.dev/group: "Data"
+    gethomepage.dev/icon: "metabase.png"
+    gethomepage.dev/href: "https://metabase.starnix.net"
 spec:
   selector:
     app: metabase

@@ -110,6 +110,13 @@ metadata:
   namespace: weather
   labels:
     app: weather
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Weather"
+    gethomepage.dev/description: "WS4KP Weather Station"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-weather-lightning-rainy"
+    gethomepage.dev/href: "https://weather.starnix.net"
 spec:
   type: ClusterIP
   ports:

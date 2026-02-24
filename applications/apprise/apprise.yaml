@@ -151,6 +151,13 @@ kind: Service
 metadata:
   name: apprise
   namespace: apprise
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Apprise"
+    gethomepage.dev/description: "Notification Service"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "apprise.png"
+    gethomepage.dev/href: "https://apprise.starnix.net"
 spec:
   selector:
     app: apprise

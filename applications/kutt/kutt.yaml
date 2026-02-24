@@ -244,6 +244,13 @@ kind: Service
 metadata:
   name: kutt
   namespace: kutt
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Kutt"
+    gethomepage.dev/description: "URL Shortener"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "kutt.png"
+    gethomepage.dev/href: "https://go.starnix.net"
 spec:
   selector:
     app: kutt

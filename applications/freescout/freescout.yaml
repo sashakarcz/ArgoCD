@@ -245,6 +245,13 @@ kind: Service
 metadata:
   name: freescout-app
   namespace: freescout
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "FreeScout"
+    gethomepage.dev/description: "Help Desk"
+    gethomepage.dev/group: "Admin"
+    gethomepage.dev/icon: "freescout.png"
+    gethomepage.dev/href: "https://help.starnix.net"
 spec:
   selector:
     app: freescout-app

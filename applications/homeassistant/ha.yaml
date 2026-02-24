@@ -138,6 +138,13 @@ metadata:
   namespace: homeassistant
   labels:
     app: homeassistant
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Home Assistant"
+    gethomepage.dev/description: "Home Automation"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "home-assistant.png"
+    gethomepage.dev/href: "https://ha.service.starnix.net"
 spec:
   selector:
     app: homeassistant

@@ -163,6 +163,13 @@ kind: Service
 metadata:
   name: fleet
   namespace: fleetdm
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "FleetDM"
+    gethomepage.dev/description: "Device Management"
+    gethomepage.dev/group: "Admin"
+    gethomepage.dev/icon: "fleetdm.png"
+    gethomepage.dev/href: "https://fleet.starnix.net"
 spec:
   selector:
     app: fleet

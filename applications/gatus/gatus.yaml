@@ -275,6 +275,13 @@ metadata:
   namespace: gatus
   labels:
     app: gatus
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Gatus"
+    gethomepage.dev/description: "Service Status Monitor"
+    gethomepage.dev/group: "Monitoring"
+    gethomepage.dev/icon: "gatus.png"
+    gethomepage.dev/href: "https://status.starnix.net"
 spec:
   selector:
     app: gatus

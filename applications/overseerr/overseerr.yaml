@@ -90,6 +90,13 @@ metadata:
   namespace: overseerr
   labels:
     app: overseerr
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Jellyseerr"
+    gethomepage.dev/description: "Media Request Manager"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "jellyseerr.png"
+    gethomepage.dev/href: "https://media.service.starnix.net"
 spec:
   selector:
     app: overseerr

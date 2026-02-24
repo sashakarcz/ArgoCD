@@ -64,6 +64,13 @@ metadata:
   namespace: gtarot-web
   labels:
     app: gtarot-web
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "gTarot"
+    gethomepage.dev/description: "AI Tarot Reading"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-cards"
+    gethomepage.dev/href: "https://tarot.starnix.net"
 spec:
   type: ClusterIP
   ports:

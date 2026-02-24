@@ -366,6 +366,12 @@ metadata:
   namespace: jellyfin
   annotations:
     metallb.universe.tf/loadBalancerIPs: "192.168.7.202"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Jellyfin"
+    gethomepage.dev/description: "Media Server"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "jellyfin.png"
+    gethomepage.dev/href: "https://jellyfin.starnix.net"
 spec:
   type: LoadBalancer
   externalTrafficPolicy: Cluster

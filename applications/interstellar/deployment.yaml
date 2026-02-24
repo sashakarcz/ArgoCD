@@ -66,6 +66,13 @@ metadata:
   namespace: interstellar
   labels:
     app: interstellar
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Interstellar"
+    gethomepage.dev/description: "Web Proxy"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-web-box"
+    gethomepage.dev/href: "https://proxy.starnix.net"
 spec:
   type: ClusterIP
   ports:

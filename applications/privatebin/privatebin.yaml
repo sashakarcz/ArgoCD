@@ -90,6 +90,13 @@ kind: Service
 metadata:
   name: privatebin
   namespace: privatebin
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "PrivateBin"
+    gethomepage.dev/description: "Encrypted Pastebin"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "privatebin.png"
+    gethomepage.dev/href: "https://privatebin.service.starnix.net"
 spec:
   selector:
     app: privatebin
