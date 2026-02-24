@@ -159,7 +159,7 @@ data:
     - Services:
         - Santa Sync:
             icon: mdi-gift
-            href: https://santa-sync.starnix.net
+            href: https://krampus.starnix.net
             description: Santa Sync Server
 
   bookmarks.yaml: ""
