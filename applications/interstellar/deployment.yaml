@@ -72,7 +72,7 @@ metadata:
     gethomepage.dev/description: "Web Proxy"
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "mdi-web-box"
-    gethomepage.dev/href: "https://proxy.starnix.net"
+    gethomepage.dev/href: "https://nova.starnix.net"
 spec:
   type: ClusterIP
   ports:
@@ -95,16 +95,16 @@ metadata:
     gethomepage.dev/description: "Web Proxy"
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "mdi-web-box"
-    gethomepage.dev/href: "https://proxy.starnix.net"
+    gethomepage.dev/href: "https://nova.starnix.net"
     gethomepage.dev/pod-selector: "app=interstellar"
 spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - proxy.starnix.net  # Change to your desired domain
+        - nova.starnix.net
       secretName: interstellar-tls
   rules:
-    - host: proxy.starnix.net  # Change to your desired domain
+    - host: nova.starnix.net
       http:
         paths:
           - path: /
