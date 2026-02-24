@@ -161,6 +161,14 @@ data:
             icon: mdi-gift
             href: https://krampus.starnix.net
             description: Santa Sync Server
+        - SABnzbd:
+            icon: sabnzbd.png
+            href: https://nzb.starnix.net
+            description: Usenet Downloader
+        - Mimir NAS:
+            icon: mdi-nas
+            href: https://mimir.starnix.net
+            description: Network Attached Storage
 
   bookmarks.yaml: ""
   docker.yaml: ""
