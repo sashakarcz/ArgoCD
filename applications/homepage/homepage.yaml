@@ -146,7 +146,7 @@ data:
             description: TV Show Management
             widget:
               type: sonarr
-              url: http://192.168.1.86:8989
+              url: https://sonarr.starnix.net
               key: "{{HOMEPAGE_VAR_SONARR_API_KEY}}"
         - Radarr:
             icon: radarr.png
@@ -154,7 +154,7 @@ data:
             description: Movie Management
             widget:
               type: radarr
-              url: http://192.168.1.86:7878
+              url: https://radarr.starnix.net
               key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
     - Services:
         - Santa Sync:
