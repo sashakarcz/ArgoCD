@@ -122,6 +122,7 @@ metadata:
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "privatebin.png"
     gethomepage.dev/href: "https://privatebin.service.starnix.net"
+    gethomepage.dev/pod-selector: "app=privatebin"
 spec:
   ingressClassName: traefik
   rules:

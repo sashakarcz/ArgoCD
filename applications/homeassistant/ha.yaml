@@ -171,6 +171,7 @@ metadata:
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "home-assistant.png"
     gethomepage.dev/href: "https://ha.service.starnix.net"
+    gethomepage.dev/pod-selector: "app=homeassistant"
 spec:
   ingressClassName: traefik
   tls:

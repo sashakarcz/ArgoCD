@@ -126,6 +126,7 @@ metadata:
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "librespeed.png"
     gethomepage.dev/href: "https://speed.starnix.net"
+    gethomepage.dev/pod-selector: "app=librespeed"
 spec:
   ingressClassName: traefik
   tls:

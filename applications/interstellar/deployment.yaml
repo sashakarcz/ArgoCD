@@ -96,6 +96,7 @@ metadata:
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "mdi-web-box"
     gethomepage.dev/href: "https://proxy.starnix.net"
+    gethomepage.dev/pod-selector: "app=interstellar"
 spec:
   ingressClassName: traefik
   tls:

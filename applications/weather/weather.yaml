@@ -143,6 +143,7 @@ metadata:
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "mdi-weather-lightning-rainy"
     gethomepage.dev/href: "https://weather.starnix.net"
+    gethomepage.dev/pod-selector: "app=weather"
 spec:
   ingressClassName: traefik
   tls:

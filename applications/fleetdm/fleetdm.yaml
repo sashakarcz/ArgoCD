@@ -288,6 +288,7 @@ metadata:
     gethomepage.dev/group: "Admin"
     gethomepage.dev/icon: "fleetdm.png"
     gethomepage.dev/href: "https://fleet.starnix.net"
+    gethomepage.dev/pod-selector: "app=fleet"
 spec:
   ingressClassName: traefik
   rules:

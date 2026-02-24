@@ -97,6 +97,7 @@ metadata:
     gethomepage.dev/group: "Apps"
     gethomepage.dev/icon: "mdi-cards"
     gethomepage.dev/href: "https://tarot.starnix.net"
+    gethomepage.dev/pod-selector: "app=gtarot-web"
 spec:
   ingressClassName: traefik
   tls:

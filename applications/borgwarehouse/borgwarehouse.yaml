@@ -156,7 +156,7 @@ metadata:
     gethomepage.dev/name: "BorgWarehouse"
     gethomepage.dev/description: "Backup Repository Manager"
     gethomepage.dev/group: "Backup"
-    gethomepage.dev/icon: "borgwarehouse.png"
+    gethomepage.dev/icon: "mdi-harddisk"
     gethomepage.dev/href: "https://borgwarehouse.starnix.net"
 spec:
   type: LoadBalancer
@@ -183,8 +183,9 @@ metadata:
     gethomepage.dev/name: "BorgWarehouse"
     gethomepage.dev/description: "Backup Repository Manager"
     gethomepage.dev/group: "Backup"
-    gethomepage.dev/icon: "borgwarehouse.png"
+    gethomepage.dev/icon: "mdi-harddisk"
     gethomepage.dev/href: "https://borgwarehouse.starnix.net"
+    gethomepage.dev/pod-selector: "app=borgwarehouse"
 spec:
   ingressClassName: traefik
   rules:

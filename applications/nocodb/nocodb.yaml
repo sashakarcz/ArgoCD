@@ -293,6 +293,7 @@ metadata:
     gethomepage.dev/group: "Data"
     gethomepage.dev/icon: "nocodb.png"
     gethomepage.dev/href: "https://db.bairlabs.org"
+    gethomepage.dev/pod-selector: "app=nocodb"
 spec:
   ingressClassName: traefik
   rules:

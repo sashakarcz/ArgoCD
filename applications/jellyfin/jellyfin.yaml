@@ -401,6 +401,7 @@ metadata:
     gethomepage.dev/group: "Media"
     gethomepage.dev/icon: "jellyfin.png"
     gethomepage.dev/href: "https://jellyfin.starnix.net"
+    gethomepage.dev/pod-selector: "app=jellyfin"
 spec:
   ingressClassName: traefik
   rules:

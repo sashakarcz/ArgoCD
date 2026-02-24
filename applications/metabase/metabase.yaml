@@ -242,6 +242,7 @@ metadata:
     gethomepage.dev/group: "Data"
     gethomepage.dev/icon: "metabase.png"
     gethomepage.dev/href: "https://metabase.starnix.net"
+    gethomepage.dev/pod-selector: "app=metabase"
 spec:
   ingressClassName: traefik
   tls:

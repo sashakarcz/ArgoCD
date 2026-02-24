@@ -273,6 +273,7 @@ metadata:
     gethomepage.dev/group: "Admin"
     gethomepage.dev/icon: "freescout.png"
     gethomepage.dev/href: "https://help.starnix.net"
+    gethomepage.dev/pod-selector: "app=freescout-app"
 spec:
   ingressClassName: traefik
   tls:

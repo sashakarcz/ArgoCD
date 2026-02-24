@@ -273,6 +273,7 @@ metadata:
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "kutt.png"
     gethomepage.dev/href: "https://go.starnix.net"
+    gethomepage.dev/pod-selector: "app=kutt"
 spec:
   ingressClassName: traefik
   tls:

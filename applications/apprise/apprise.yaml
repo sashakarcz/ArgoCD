@@ -181,6 +181,7 @@ metadata:
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "apprise.png"
     gethomepage.dev/href: "https://apprise.starnix.net"
+    gethomepage.dev/pod-selector: "app=apprise"
 spec:
   ingressClassName: traefik
   tls:

@@ -417,6 +417,7 @@ metadata:
     gethomepage.dev/group: "Security"
     gethomepage.dev/icon: "authentik.png"
     gethomepage.dev/href: "https://auth.starnix.net"
+    gethomepage.dev/pod-selector: "app=authentik-server"
 spec:
   ingressClassName: traefik
   tls:

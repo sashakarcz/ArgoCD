@@ -222,6 +222,7 @@ metadata:
     gethomepage.dev/group: "Security"
     gethomepage.dev/icon: "vault.png"
     gethomepage.dev/href: "https://vault.starnix.net"
+    gethomepage.dev/pod-selector: "app=vault"
 spec:
   ingressClassName: traefik
   rules:

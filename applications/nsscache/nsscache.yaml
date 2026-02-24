@@ -137,6 +137,7 @@ metadata:
     gethomepage.dev/group: "Admin"
     gethomepage.dev/icon: "mdi-account-sync"
     gethomepage.dev/href: "https://nsscache.starnix.net"
+    gethomepage.dev/pod-selector: "app=nsscache"
 spec:
   ingressClassName: traefik
   tls:

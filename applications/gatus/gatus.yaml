@@ -312,6 +312,7 @@ metadata:
     gethomepage.dev/group: "Monitoring"
     gethomepage.dev/icon: "gatus.png"
     gethomepage.dev/href: "https://status.starnix.net"
+    gethomepage.dev/pod-selector: "app=gatus"
 spec:
   ingressClassName: traefik
   tls:
