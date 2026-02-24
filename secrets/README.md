@@ -26,6 +26,19 @@ Some applications may require additional secrets. Create these manually in their
 
 Check each application's manifest for secret references.
 
+#### homepage namespace
+
+1. **homepage-secrets**
+   - Required for: Sonarr and Radarr API widgets
+   - Creation command:
+     ```bash
+     kubectl create secret generic homepage-secrets \
+       --namespace=homepage \
+       --from-literal=sonarr-api-key=YOUR_SONARR_API_KEY \
+       --from-literal=radarr-api-key=YOUR_RADARR_API_KEY
+     ```
+   - Find your API keys under Settings → General → Security in each app's web UI
+
 ## Future: Automated Secret Management
 
 Consider implementing:
