@@ -96,7 +96,7 @@ metadata:
     gethomepage.dev/description: "Encrypted Pastebin"
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "privatebin.png"
-    gethomepage.dev/href: "https://privatebin.service.starnix.net"
+    gethomepage.dev/href: "https://privatebin.starnix.net"
 spec:
   selector:
     app: privatebin
@@ -121,12 +121,12 @@ metadata:
     gethomepage.dev/description: "Encrypted Pastebin"
     gethomepage.dev/group: "Tools"
     gethomepage.dev/icon: "privatebin.png"
-    gethomepage.dev/href: "https://privatebin.service.starnix.net"
+    gethomepage.dev/href: "https://privatebin.starnix.net"
     gethomepage.dev/pod-selector: "app=privatebin"
 spec:
   ingressClassName: traefik
   rules:
-  - host: privatebin.service.starnix.net
+  - host: privatebin.starnix.net
     http:
       paths:
       - path: /
@@ -138,5 +138,5 @@ spec:
               number: 8080
   tls:
   - hosts:
-    - privatebin.service.starnix.net
+    - privatebin.starnix.net
     secretName: privatebin-tls-secret
