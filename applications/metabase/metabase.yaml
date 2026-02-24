@@ -219,7 +219,7 @@ metadata:
     gethomepage.dev/description: "Business Intelligence"
     gethomepage.dev/group: "Data"
     gethomepage.dev/icon: "metabase.png"
-    gethomepage.dev/href: "https://metabase.starnix.net"
+    gethomepage.dev/href: "https://data.bairlabs.org"
 spec:
   selector:
     app: metabase
@@ -241,16 +241,16 @@ metadata:
     gethomepage.dev/description: "Business Intelligence"
     gethomepage.dev/group: "Data"
     gethomepage.dev/icon: "metabase.png"
-    gethomepage.dev/href: "https://metabase.starnix.net"
+    gethomepage.dev/href: "https://data.bairlabs.org"
     gethomepage.dev/pod-selector: "app=metabase"
 spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - metabase.starnix.net
+    - data.bairlabs.org
     secretName: metabase-tls
   rules:
-  - host: metabase.starnix.net
+  - host: data.bairlabs.org
     http:
       paths:
       - path: /
