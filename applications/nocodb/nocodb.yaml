@@ -287,6 +287,12 @@ metadata:
   namespace: nocodb
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "NocoDB"
+    gethomepage.dev/description: "No-Code Database"
+    gethomepage.dev/group: "Data"
+    gethomepage.dev/icon: "nocodb.png"
+    gethomepage.dev/href: "https://db.bairlabs.org"
 spec:
   ingressClassName: traefik
   rules:

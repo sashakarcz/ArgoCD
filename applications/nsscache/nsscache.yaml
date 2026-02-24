@@ -131,6 +131,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "NSSCache"
+    gethomepage.dev/description: "LDAP Cache Server"
+    gethomepage.dev/group: "Admin"
+    gethomepage.dev/icon: "mdi-account-sync"
+    gethomepage.dev/href: "https://nsscache.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

@@ -91,6 +91,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "gTarot"
+    gethomepage.dev/description: "AI Tarot Reading"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-cards"
+    gethomepage.dev/href: "https://tarot.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

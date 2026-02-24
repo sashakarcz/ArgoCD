@@ -395,6 +395,12 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.middlewares: traefik-redirect-https@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Jellyfin"
+    gethomepage.dev/description: "Media Server"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "jellyfin.png"
+    gethomepage.dev/href: "https://jellyfin.starnix.net"
 spec:
   ingressClassName: traefik
   rules:

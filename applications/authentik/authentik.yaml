@@ -411,6 +411,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Authentik"
+    gethomepage.dev/description: "Identity Provider & SSO"
+    gethomepage.dev/group: "Security"
+    gethomepage.dev/icon: "authentik.png"
+    gethomepage.dev/href: "https://auth.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

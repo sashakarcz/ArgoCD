@@ -116,6 +116,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "PrivateBin"
+    gethomepage.dev/description: "Encrypted Pastebin"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "privatebin.png"
+    gethomepage.dev/href: "https://privatebin.service.starnix.net"
 spec:
   ingressClassName: traefik
   rules:

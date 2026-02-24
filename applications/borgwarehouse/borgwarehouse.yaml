@@ -179,6 +179,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "BorgWarehouse"
+    gethomepage.dev/description: "Backup Repository Manager"
+    gethomepage.dev/group: "Backup"
+    gethomepage.dev/icon: "borgwarehouse.png"
+    gethomepage.dev/href: "https://borgwarehouse.starnix.net"
 spec:
   ingressClassName: traefik
   rules:

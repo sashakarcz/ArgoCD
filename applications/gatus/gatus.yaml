@@ -306,6 +306,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Gatus"
+    gethomepage.dev/description: "Service Status Monitor"
+    gethomepage.dev/group: "Monitoring"
+    gethomepage.dev/icon: "gatus.png"
+    gethomepage.dev/href: "https://status.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

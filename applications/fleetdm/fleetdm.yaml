@@ -282,6 +282,12 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.middlewares: traefik-redirect-https@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "FleetDM"
+    gethomepage.dev/description: "Device Management"
+    gethomepage.dev/group: "Admin"
+    gethomepage.dev/icon: "fleetdm.png"
+    gethomepage.dev/href: "https://fleet.starnix.net"
 spec:
   ingressClassName: traefik
   rules:

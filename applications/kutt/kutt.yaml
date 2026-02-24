@@ -267,6 +267,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Kutt"
+    gethomepage.dev/description: "URL Shortener"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "kutt.png"
+    gethomepage.dev/href: "https://go.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

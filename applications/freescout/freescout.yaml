@@ -267,6 +267,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "FreeScout"
+    gethomepage.dev/description: "Help Desk"
+    gethomepage.dev/group: "Admin"
+    gethomepage.dev/icon: "freescout.png"
+    gethomepage.dev/href: "https://help.starnix.net"
 spec:
   ingressClassName: traefik
   tls:

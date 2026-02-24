@@ -120,6 +120,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "LibreSpeed"
+    gethomepage.dev/description: "Network Speed Test"
+    gethomepage.dev/group: "Tools"
+    gethomepage.dev/icon: "librespeed.png"
+    gethomepage.dev/href: "https://speed.starnix.net"
 spec:
   ingressClassName: traefik
   tls:
