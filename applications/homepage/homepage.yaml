@@ -170,6 +170,10 @@ data:
             icon: mdi-nas
             href: https://mimir.starnix.net
             description: Network Attached Storage
+        - ProjectSend:
+            icon: projectsend.png
+            href: https://send.starnix.net
+            description: File Sharing
     - Admin:
         - Santa Sync:
             icon: mdi-gift
