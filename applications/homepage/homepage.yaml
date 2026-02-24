@@ -158,10 +158,6 @@ data:
               url: https://radarr.starnix.net
               key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
     - Services:
-        - Santa Sync:
-            icon: mdi-gift
-            href: https://krampus.starnix.net
-            description: Santa Sync Server
         - SABnzbd:
             icon: sabnzbd.png
             href: https://nzb.starnix.net
@@ -174,6 +170,15 @@ data:
             icon: mdi-nas
             href: https://mimir.starnix.net
             description: Network Attached Storage
+    - Admin:
+        - Santa Sync:
+            icon: mdi-gift
+            href: https://krampus.starnix.net
+            description: Santa Sync Server
+        - Password Manager:
+            icon: mdi-key
+            href: https://password.starnix.net
+            description: Password Manager
 
   bookmarks.yaml: ""
   docker.yaml: ""
