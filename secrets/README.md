@@ -35,9 +35,11 @@ Check each application's manifest for secret references.
      kubectl create secret generic homepage-secrets \
        --namespace=homepage \
        --from-literal=sonarr-api-key=YOUR_SONARR_API_KEY \
-       --from-literal=radarr-api-key=YOUR_RADARR_API_KEY
+       --from-literal=radarr-api-key=YOUR_RADARR_API_KEY \
+       --from-literal=sabnzbd-api-key=YOUR_SABNZBD_API_KEY
      ```
-   - Find your API keys under Settings → General → Security in each app's web UI
+   - Sonarr/Radarr: Settings → General → Security
+   - SABnzbd: Config → General → API Key
 
 ## Future: Automated Secret Management
 

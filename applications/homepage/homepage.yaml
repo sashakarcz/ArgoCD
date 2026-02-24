@@ -165,6 +165,10 @@ data:
             icon: sabnzbd.png
             href: https://nzb.starnix.net
             description: Usenet Downloader
+            widget:
+              type: sabnzbd
+              url: https://nzb.starnix.net
+              key: "{{HOMEPAGE_VAR_SABNZBD_API_KEY}}"
         - Mimir NAS:
             icon: mdi-nas
             href: https://mimir.starnix.net
@@ -244,6 +248,11 @@ spec:
                 secretKeyRef:
                   name: homepage-secrets
                   key: radarr-api-key
+            - name: HOMEPAGE_VAR_SABNZBD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: homepage-secrets
+                  key: sabnzbd-api-key
           ports:
             - name: http
               containerPort: 3000
