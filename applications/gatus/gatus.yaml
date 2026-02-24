@@ -179,6 +179,12 @@ data:
         interval: 30s
         conditions:
           - "[STATUS] == 200"
+      - name: "Krampus (Santa Sync)"
+        group: Services
+        url: "https://krampus.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
 
     alerting:
       slack:
