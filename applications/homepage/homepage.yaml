@@ -179,6 +179,7 @@ data:
             icon: mdi-gift
             href: https://krampus.starnix.net
             description: Santa Sync Server
+    - Security:
         - Password Reset:
             icon: mdi-lock-reset
             href: https://password.starnix.net
