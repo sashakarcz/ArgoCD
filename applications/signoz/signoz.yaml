@@ -115,6 +115,13 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/router.middlewares: traefik-redirect-https@kubernetescrd
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "SigNoz"
+    gethomepage.dev/description: "Observability Platform"
+    gethomepage.dev/group: "Monitoring"
+    gethomepage.dev/icon: "signoz.png"
+    gethomepage.dev/href: "https://signoz.starnix.net"
+    gethomepage.dev/pod-selector: "app.kubernetes.io/component=signoz"
 spec:
   ingressClassName: traefik
   tls:
