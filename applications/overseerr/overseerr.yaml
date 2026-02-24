@@ -96,7 +96,7 @@ metadata:
     gethomepage.dev/description: "Media Request Manager"
     gethomepage.dev/group: "Media"
     gethomepage.dev/icon: "jellyseerr.png"
-    gethomepage.dev/href: "https://media.service.starnix.net"
+    gethomepage.dev/href: "https://media.starnix.net"
 spec:
   selector:
     app: overseerr
@@ -122,16 +122,16 @@ metadata:
     gethomepage.dev/description: "Media Request Manager"
     gethomepage.dev/group: "Media"
     gethomepage.dev/icon: "jellyseerr.png"
-    gethomepage.dev/href: "https://media.service.starnix.net"
+    gethomepage.dev/href: "https://media.starnix.net"
     gethomepage.dev/pod-selector: "app=overseerr"
 spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - media.service.starnix.net
+    - media.starnix.net
     secretName: overseerr-tls-cert
   rules:
-  - host: media.service.starnix.net
+  - host: media.starnix.net
     http:
       paths:
       - path: /
