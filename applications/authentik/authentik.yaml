@@ -193,7 +193,7 @@ spec:
         fsGroup: 70
       containers:
       - name: postgresql
-        image: docker.io/library/postgres:12-alpine
+        image: docker.io/library/postgres:16-alpine
         envFrom:
         - configMapRef:
             name: authentik-config
