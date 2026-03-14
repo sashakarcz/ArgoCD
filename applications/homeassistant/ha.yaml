@@ -176,10 +176,10 @@ spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - ha.starnix.net
+    - ha.service.starnix.net
     secretName: homeassistant-tls-cert # cert-manager will create this secret
   rules:
-  - host: ha.starnix.net
+  - host: ha.service.starnix.net
     http:
       paths:
       - path: / # Route all traffic for the host
