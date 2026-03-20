@@ -54,8 +54,7 @@ spec:
                   listen_address: 0.0.0.0:8514
                 udp:
                   listen_address: 0.0.0.0:8514
-                protocol: rfc3164
-                location: UTC
+                protocol: rfc5424
                 operators:
                   - type: move
                     from: attributes.message
@@ -65,27 +64,19 @@ spec:
                 metrics:
                   metric:
                     - 'name == "grpc_server_handled_total"'
-              batch/logs:
-                send_batch_size: 10000
-                timeout: 5s
-              batch/metrics:
-                send_batch_size: 50000
-                timeout: 1s
-            exporters:
-              clickhouselogsexporter:
-                sending_queue:
-                  enabled: true
-                  num_consumers: 4
-                  queue_size: 5000
+              transform/syslog_resources:
+                log_statements:
+                  - context: log
+                    statements:
+                      - set(resource.attributes["host.name"], attributes["structured_data"]["resource"]["host.name"]) where resource.attributes["host.name"] == nil
+                      - set(resource.attributes["service.name"], attributes["structured_data"]["resource"]["service.name"]) where resource.attributes["service.name"] == nil
             service:
               pipelines:
                 logs:
                   receivers: [otlp, fluentforward, syslog]
-                  processors: [batch/logs]
-                  exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
+                  processors: [transform/syslog_resources, batch]
                 metrics:
-                  processors: [filter/drop_grpc_metrics, batch/metrics]
-                  exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
+                  processors: [filter/drop_grpc_metrics]
 
         # ClickHouse storage (NFS-backed PVCs)
         clickhouse:
