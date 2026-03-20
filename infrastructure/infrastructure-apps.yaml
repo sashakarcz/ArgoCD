@@ -473,6 +473,8 @@ spec:
           enabled: true
           fsGroup: 1000
         replicaCount: 1
+        image:
+          tag: "1.3.2"
         envs:
           - name: UI_APP_NAME
             value: "Starnix PDF Tools"
