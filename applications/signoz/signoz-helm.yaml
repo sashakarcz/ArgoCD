@@ -60,10 +60,17 @@ spec:
                   - type: move
                     from: attributes.message
                     to: body
+            processors:
+              filter/drop_grpc_metrics:
+                metrics:
+                  metric:
+                    - 'name == "grpc_server_handled_total"'
             service:
               pipelines:
                 logs:
                   receivers: [otlp, fluentforward, syslog]
+                metrics:
+                  processors: [filter/drop_grpc_metrics]
 
         # ClickHouse storage (NFS-backed PVCs)
         clickhouse:
