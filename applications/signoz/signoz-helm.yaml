@@ -65,12 +65,27 @@ spec:
                 metrics:
                   metric:
                     - 'name == "grpc_server_handled_total"'
+              batch/logs:
+                send_batch_size: 10000
+                timeout: 5s
+              batch/metrics:
+                send_batch_size: 50000
+                timeout: 1s
+            exporters:
+              clickhouselogsexporter:
+                sending_queue:
+                  enabled: true
+                  num_consumers: 4
+                  queue_size: 5000
             service:
               pipelines:
                 logs:
                   receivers: [otlp, fluentforward, syslog]
+                  processors: [batch/logs]
+                  exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
                 metrics:
-                  processors: [filter/drop_grpc_metrics]
+                  processors: [filter/drop_grpc_metrics, batch/metrics]
+                  exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
 
         # ClickHouse storage (NFS-backed PVCs)
         clickhouse:
