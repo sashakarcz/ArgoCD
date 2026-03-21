@@ -87,20 +87,16 @@ data:
           - type: discord
       - name: "Radarr"
         group: Jellyfin
-        url: "http://192.168.1.86:7878"
+        url: "https://radarr.starnix.net"
         interval: 30s
-        headers:
-          Host: radarr.starnix.net
         conditions:
           - "[STATUS] == 200"
         alerts:
           - type: discord
       - name: "Sonarr"
         group: Jellyfin
-        url: "http://192.168.1.86:8989"
+        url: "https://sonarr.starnix.net"
         interval: 30s
-        headers:
-          Host: sonarr.starnix.net
         conditions:
           - "[STATUS] == 200"
         alerts:
@@ -155,16 +151,6 @@ data:
         group: Home
         url: "https://home.starnix.net"
         interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
-
-      # ── Communication ────────────────────────────────────────────────────────
-      - name: "Matrix Chat"
-        group: Communication
-        url: "https://matrix.starnix.net"
-        interval: 30s
         conditions:
           - "[STATUS] == 200"
         alerts:
