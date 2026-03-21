@@ -141,7 +141,7 @@ data:
       # ── Home ─────────────────────────────────────────────────────────────────
       - name: "Home Assistant"
         group: Home
-        url: "https://ha.service.starnix.net"
+        url: "https://ha.starnix.net"
         interval: 1m
         conditions:
           - "[STATUS] == 200"
