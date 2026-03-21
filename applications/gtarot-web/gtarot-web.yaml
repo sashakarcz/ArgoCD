@@ -116,6 +116,26 @@ spec:
             port:
               number: 8080
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: gtarot-web
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: gtarot-web
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -125,6 +145,7 @@ spec:
   type: kv-v2
   mount: secret
   path: cluster/gemini-api-key
+  vaultAuthRef: default
   destination:
     name: gemini-api-key
     create: true

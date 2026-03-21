@@ -232,6 +232,26 @@ spec:
                   key: CRONJOB_KEY
           restartPolicy: OnFailure
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: borgwarehouse
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: borgwarehouse
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -241,6 +261,7 @@ spec:
   type: kv-v2
   mount: secret
   path: cluster/borgwarehouse-secrets
+  vaultAuthRef: default
   destination:
     name: borgwarehouse-secrets
     create: true

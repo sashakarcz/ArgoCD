@@ -524,6 +524,26 @@ spec:
             port:
               number: 80
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: gatus
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: gatus
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -533,6 +553,7 @@ spec:
   type: kv-v2
   mount: secret
   path: cluster/gatus-secrets
+  vaultAuthRef: default
   destination:
     name: gatus-secrets
     create: true
