@@ -159,7 +159,7 @@ data:
       # ── Services ─────────────────────────────────────────────────────────────
       - name: "Krampus (Santa Sync)"
         group: Services
-        url: "https://krampus.starnix.net"
+        url: "http://krampus.krampus.svc.cluster.local/ping"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
@@ -282,14 +282,6 @@ data:
       - name: "Longhorn UI"
         group: Cluster
         url: "https://longhorn.starnix.net"
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
-      - name: "Traefik Dashboard"
-        group: Cluster
-        url: "https://traefik.starnix.net"
         interval: 1m
         conditions:
           - "[STATUS] == 200"
