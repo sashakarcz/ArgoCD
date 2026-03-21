@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://helm.goharbor.io
+    chart: harbor
+    targetRevision: 1.18.3
+    helm:
+      releaseName: harbor
+      values: |
+        expose:
+          type: ingress
+          tls:
+            enabled: true
+            certSource: secret
+            secret:
+              secretName: harbor-tls
+          ingress:
+            hosts:
+              core: registry.starnix.net
+            className: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+
+        externalURL: https://registry.starnix.net
+
+        # Admin password from Vault-managed secret
+        existingSecretAdminPassword: harbor-secrets
+        existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
+
+        # 16-char encryption key from Vault-managed secret
+        existingSecretSecretKey: harbor-secrets
+
+        persistence:
+          enabled: true
+          resourcePolicy: "keep"
+          persistentVolumeClaim:
+            registry:
+              storageClass: longhorn
+              size: 50Gi
+            jobservice:
+              jobLog:
+                storageClass: longhorn
+                size: 1Gi
+            database:
+              storageClass: longhorn
+              size: 5Gi
+            redis:
+              storageClass: longhorn
+              size: 1Gi
+            trivy:
+              storageClass: longhorn
+              size: 5Gi
+
+        database:
+          type: internal
+          internal:
+            existingSecret: harbor-secrets
+            existingSecretPasswordKey: POSTGRES_PASSWORD
+
+        redis:
+          type: internal
+
+        trivy:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

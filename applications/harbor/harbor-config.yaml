@@ -1,0 +1,102 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: harbor
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: harbor
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret must contain:
+#   HARBOR_ADMIN_PASSWORD  - Harbor admin password
+#   secretKey              - Exactly 16 characters, used for encryption
+#   POSTGRES_PASSWORD      - Internal PostgreSQL password
+#   HARBOR_OIDC_CLIENT_SECRET - OAuth2 client secret from Authentik
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: harbor-secrets
+  namespace: harbor
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/harbor-secrets
+  vaultAuthRef: default
+  destination:
+    name: harbor-secrets
+    create: true
+  refreshAfter: 1h
+
+---
+# Runs after each sync to configure OIDC via Harbor API.
+# Idempotent — safe to re-run. Waits for Harbor to be ready first.
+# Prerequisites: create an OAuth2/OIDC provider in Authentik named "harbor"
+#   with redirect URI: https://registry.starnix.net/c/oidc/callback
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harbor-oidc-config
+  namespace: harbor
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: configure-oidc
+        image: curlimages/curl:8.11.1
+        env:
+        - name: HARBOR_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: harbor-secrets
+              key: HARBOR_ADMIN_PASSWORD
+        - name: HARBOR_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: harbor-secrets
+              key: HARBOR_OIDC_CLIENT_SECRET
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Waiting for Harbor API..."
+          until curl -sf https://registry.starnix.net/api/v2.0/ping; do
+            sleep 10
+          done
+          echo "Configuring OIDC..."
+          curl -sf -X PUT \
+            "https://registry.starnix.net/api/v2.0/configurations" \
+            -u "admin:${HARBOR_ADMIN_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"auth_mode\": \"oidc_auth\",
+              \"oidc_name\": \"Authentik\",
+              \"oidc_endpoint\": \"https://auth.starnix.net/application/o/harbor/\",
+              \"oidc_client_id\": \"mpEH6D7yTuFyGZdU5tSAAyr3UBsJB9j6n2gc6wid\",
+              \"oidc_client_secret\": \"${HARBOR_OIDC_CLIENT_SECRET}\",
+              \"oidc_scope\": \"openid,profile,email,groups\",
+              \"oidc_groups_claim\": \"groups\",
+              \"oidc_verify_cert\": true,
+              \"oidc_auto_onboard\": true,
+              \"oidc_user_claim\": \"preferred_username\"
+            }"
+          echo "OIDC configured."
