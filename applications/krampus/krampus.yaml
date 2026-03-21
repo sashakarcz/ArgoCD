@@ -166,9 +166,9 @@ metadata:
   name: default
   namespace: krampus
 spec:
-  method: kubernetes
+  method: jwt
   mount: kubernetes
-  kubernetes:
+  jwt:
     role: cluster
     serviceAccount: vault-auth
     audiences:

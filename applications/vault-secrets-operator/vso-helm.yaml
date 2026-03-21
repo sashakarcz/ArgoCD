@@ -20,9 +20,9 @@ spec:
         defaultAuthMethod:
           enabled: true
           namespace: vault-secrets-operator
-          method: kubernetes
+          method: jwt
           mount: kubernetes
-          kubernetes:
+          jwt:
             role: cluster
             tokenAudiences:
               - vault

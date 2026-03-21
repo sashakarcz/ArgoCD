@@ -244,9 +244,9 @@ metadata:
   name: default
   namespace: borgwarehouse
 spec:
-  method: kubernetes
+  method: jwt
   mount: kubernetes
-  kubernetes:
+  jwt:
     role: cluster
     serviceAccount: vault-auth
     audiences:
