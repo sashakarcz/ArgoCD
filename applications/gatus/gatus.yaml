@@ -1,4 +1,9 @@
 ---
+# Create secret before first sync:
+# kubectl create secret generic gatus-secrets -n gatus \
+#   --from-literal=discord-webhook-url="<discord webhook url>"
+
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -55,7 +60,7 @@ data:
 
     alerting:
       discord:
-        webhook-url: "https://discord.com/api/webhooks/1484725055278682133/LkNMlvHqbAX9Fb0miumdNFT3IydUszGbh7cSwwTCZ4AomJvCAsNNhdTNnyxnFvLrm0yG"
+        webhook-url: "${DISCORD_WEBHOOK_URL}"
         default-alert:
           failure-threshold: 3
           send-on-resolved: true
@@ -479,6 +484,11 @@ spec:
         env:
         - name: GATUS_CONFIG_PATH
           value: /config/config.yaml
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: gatus-secrets
+              key: discord-webhook-url
       volumes:
       - name: gatus-config
         configMap:
