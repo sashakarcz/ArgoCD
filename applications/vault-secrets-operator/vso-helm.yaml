@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-secrets-operator
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault-secrets-operator
+    targetRevision: 0.10.0
+    helm:
+      releaseName: vault-secrets-operator
+      values: |
+        defaultVaultConnection:
+          enabled: true
+          address: "https://vault.starnix.net"
+          skipTLSVerify: false
+
+        defaultAuthMethod:
+          enabled: true
+          namespace: vault-secrets-operator
+          method: kubernetes
+          mount: kubernetes
+          kubernetes:
+            role: cluster
+            serviceAccount: vault-secrets-operator-controller-manager
+            tokenAudiences:
+              - vault
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault-secrets-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
