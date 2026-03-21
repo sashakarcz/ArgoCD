@@ -298,16 +298,6 @@ data:
           - "[STATUS] == 401"
         alerts:
           - type: discord
-      - name: "Traefik Ingress (internal)"
-        group: Cluster
-        url: "http://traefik.traefik.svc.cluster.local:9000/ping"
-        interval: 30s
-        client:
-          timeout: 5s
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
       - name: "Cert-Manager"
         group: Cluster
         url: "http://cert-manager.cert-manager.svc.cluster.local:9402/metrics"
