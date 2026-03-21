@@ -47,14 +47,40 @@ metadata:
   namespace: gatus
 data:
   config.yaml: |
-    ui: 
+    ui:
       title: "Starnix Services"
       header: "Starnix Services"
 
     metrics: true
 
+    alerting:
+      discord:
+        webhook-url: "https://discord.com/api/webhooks/1484725055278682133/LkNMlvHqbAX9Fb0miumdNFT3IydUszGbh7cSwwTCZ4AomJvCAsNNhdTNnyxnFvLrm0yG"
+        default-alert:
+          failure-threshold: 3
+          send-on-resolved: true
+      slack:
+        webhook-url: "https://hooks.slack.com/services/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"
+
     endpoints:
-      - name: "Radarr WebUI"
+      # ── Jellyfin ────────────────────────────────────────────────────────────
+      - name: "Jellyfin"
+        group: Jellyfin
+        url: "https://jellyfin.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Overseerr"
+        group: Jellyfin
+        url: "https://media.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Radarr"
         group: Jellyfin
         url: "http://192.168.1.86:7878"
         interval: 30s
@@ -62,7 +88,9 @@ data:
           Host: radarr.starnix.net
         conditions:
           - "[STATUS] == 200"
-      - name: "Sonarr WebUI"
+        alerts:
+          - type: discord
+      - name: "Sonarr"
         group: Jellyfin
         url: "http://192.168.1.86:8989"
         interval: 30s
@@ -70,40 +98,255 @@ data:
           Host: sonarr.starnix.net
         conditions:
           - "[STATUS] == 200"
+        alerts:
+          - type: discord
       - name: "SABnzbd"
         group: Jellyfin
         url: "https://nzb.starnix.net"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
-      - name: "Overseer"
-        group: Jellyfin
-        url: "https://media.starnix.net"
+        alerts:
+          - type: discord
+
+      # ── Authentication ───────────────────────────────────────────────────────
+      - name: "Authentik SSO"
+        group: Authentication
+        url: "https://auth.starnix.net"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
-      - name: "Jellyfin WebUI"
-        group: Jellyfin
-        url: "https://jellyfin.starnix.net"
+        alerts:
+          - type: discord
+
+      # ── Security ─────────────────────────────────────────────────────────────
+      - name: "FleetDM"
+        group: Security
+        url: "https://fleet.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Borgwarehouse"
+        group: Security
+        url: "https://borgwarehouse.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+
+      # ── Home ─────────────────────────────────────────────────────────────────
+      - name: "Home Assistant"
+        group: Home
+        url: "https://ha.service.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Homepage"
+        group: Home
+        url: "https://home.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+
+      # ── Communication ────────────────────────────────────────────────────────
+      - name: "Matrix Chat"
+        group: Communication
+        url: "https://matrix.starnix.net"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
-      - name: "FreeIPA LDAP"
-        group: FreeIPA
-        url: "tcp://192.168.1.24:389"
-        interval: 30m
+        alerts:
+          - type: discord
+
+      # ── Services ─────────────────────────────────────────────────────────────
+      - name: "Krampus (Santa Sync)"
+        group: Services
+        url: "https://krampus.starnix.net"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Kutt (URL Shortener)"
+        group: Services
+        url: "https://go.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Metabase"
+        group: Services
+        url: "https://metabase.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "NocoDB"
+        group: Services
+        url: "https://db.bairlabs.org"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "PrivateBin"
+        group: Services
+        url: "https://privatebin.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "LibreSpeed"
+        group: Services
+        url: "https://speed.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Stirling PDF"
+        group: Services
+        url: "https://pdf.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Freescout"
+        group: Services
+        url: "https://freescout.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Apprise"
+        group: Services
+        url: "https://apprise.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "GTarot"
+        group: Services
+        url: "https://tarot.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Interstellar Proxy"
+        group: Services
+        url: "https://proxy.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Radiacode Analyzer"
+        group: Services
+        url: "https://radiacode.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Weather"
+        group: Services
+        url: "https://weather.starnix.net"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+
+      # ── Cluster ──────────────────────────────────────────────────────────────
+      - name: "ArgoCD"
+        group: Cluster
+        url: "https://argocd.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Signoz"
+        group: Cluster
+        url: "https://signoz.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Longhorn UI"
+        group: Cluster
+        url: "https://longhorn.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Traefik Dashboard"
+        group: Cluster
+        url: "https://traefik.starnix.net"
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Kubernetes API Server"
+        group: Cluster
+        url: "https://kubernetes.default.svc.cluster.local:443/healthz"
+        interval: 30s
+        client:
+          timeout: 10s
+          insecure: true
+        conditions:
+          - "[STATUS] == 401"
+        alerts:
+          - type: discord
+      - name: "Traefik Ingress (internal)"
+        group: Cluster
+        url: "http://traefik.traefik.svc.cluster.local:9000/ping"
+        interval: 30s
         client:
           timeout: 5s
         conditions:
-          - "[CONNECTED] == true"
-      - name: "FreeIPA DNS"
-        group: FreeIPA
-        url: "tcp://192.168.1.24:53"
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Cert-Manager"
+        group: Cluster
+        url: "http://cert-manager.cert-manager.svc.cluster.local:9402/metrics"
         interval: 1m
         client:
           timeout: 5s
         conditions:
-          - "[CONNECTED] == true"
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+      - name: "Longhorn Storage (internal)"
+        group: Cluster
+        url: "http://longhorn-frontend.longhorn-system.svc.cluster.local:80"
+        interval: 1m
+        client:
+          timeout: 10s
+        conditions:
+          - "[STATUS] == 200"
+        alerts:
+          - type: discord
+
+      # ── Infrastructure ───────────────────────────────────────────────────────
       - name: "Mimir NFS Server"
         group: Infrastructure
         url: "tcp://192.168.1.75:111"
@@ -112,7 +355,9 @@ data:
           timeout: 5s
         conditions:
           - "[CONNECTED] == true"
-      - name: "PBX Service (Telephone)"
+        alerts:
+          - type: discord
+      - name: "PBX (Telephone)"
         group: Infrastructure
         url: "tcp://146.190.123.109:5060"
         interval: 1m
@@ -120,75 +365,43 @@ data:
           timeout: 5s
         conditions:
           - "[CONNECTED] == true"
-      - name: "Kubernetes API Server"
-        group: Kubernetes
-        url: "https://kubernetes.default.svc.cluster.local:443/healthz"
-        interval: 30s
-        client:
-          timeout: 10s
-          insecure: true
-        conditions:
-          - "[STATUS] == 401"
-      - name: "Traefik Ingress Controller"
-        group: Kubernetes
-        url: "http://traefik.traefik.svc.cluster.local:9000/ping"
-        interval: 30s
+        alerts:
+          - type: discord
+      - name: "FreeIPA LDAP"
+        group: Infrastructure
+        url: "tcp://192.168.1.24:389"
+        interval: 5m
         client:
           timeout: 5s
         conditions:
-          - "[STATUS] == 200"
-      - name: "Cert-Manager"
-        group: Kubernetes
-        url: "http://cert-manager.cert-manager.svc.cluster.local:9402/metrics"
+          - "[CONNECTED] == true"
+        alerts:
+          - type: discord
+      - name: "FreeIPA DNS"
+        group: Infrastructure
+        url: "tcp://192.168.1.24:53"
         interval: 1m
         client:
           timeout: 5s
         conditions:
-          - "[STATUS] == 200"
-      - name: "Longhorn Storage"
-        group: Kubernetes
-        url: "http://longhorn-frontend.longhorn-system.svc.cluster.local:80"
-        interval: 1m
-        client:
-          timeout: 10s
-        conditions:
-          - "[STATUS] == 200"
+          - "[CONNECTED] == true"
+        alerts:
+          - type: discord
+
+      # ── Mercer ───────────────────────────────────────────────────────────────
       - name: "bensonmasons.com"
         group: Mercer
         url: "https://bensonmasons.com"
         interval: 30s
         conditions:
+          - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 240h"
         alerts:
-          - type: slack
-            description: "healthcheck failed 3 times in a row"
-            send-on-resolved: true
+          - type: discord
           - type: slack
             failure-threshold: 5
             description: "healthcheck failed 5 times in a row"
             send-on-resolved: true
-      - name: "Matrix Chat"
-        group: Communication
-        url: "https://matrix.starnix.net"
-        interval: 30s
-        conditions:
-          - "[STATUS] == 200"
-      - name: "Authentik SSO"
-        group: Authentication
-        url: "https://auth.starnix.net"
-        interval: 30s
-        conditions:
-          - "[STATUS] == 200"
-      - name: "Krampus (Santa Sync)"
-        group: Services
-        url: "https://krampus.starnix.net"
-        interval: 30s
-        conditions:
-          - "[STATUS] == 200"
-
-    alerting:
-      slack:
-        webhook-url: "https://hooks.slack.com/services/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"
 
     storage:
       type: sqlite
