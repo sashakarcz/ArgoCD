@@ -190,3 +190,31 @@ spec:
     port: 1813
     targetPort: 1813
     protocol: UDP
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: authentik-ldap-token
+  namespace: authentik
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/authentik-ldap-token
+  destination:
+    name: authentik-ldap-token
+    create: true
+  refreshAfter: 1h
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: authentik-radius-token
+  namespace: authentik
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/authentik-radius-token
+  destination:
+    name: authentik-radius-token
+    create: true
+  refreshAfter: 1h

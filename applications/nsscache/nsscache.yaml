@@ -155,3 +155,17 @@ spec:
             name: nsscache
             port:
               number: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: nsscache-secrets
+  namespace: nsscache
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/nsscache-secrets
+  destination:
+    name: nsscache-secrets
+    create: true
+  refreshAfter: 1h

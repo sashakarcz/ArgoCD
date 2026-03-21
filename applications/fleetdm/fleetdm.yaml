@@ -306,3 +306,17 @@ spec:
   - hosts:
     - fleet.starnix.net
     secretName: fleet-tls
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: fleetdm-secrets
+  namespace: fleetdm
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/fleetdm-secrets
+  destination:
+    name: fleetdm-secrets
+    create: true
+  refreshAfter: 1h

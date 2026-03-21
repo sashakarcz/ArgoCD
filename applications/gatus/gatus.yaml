@@ -523,3 +523,17 @@ spec:
             name: gatus
             port:
               number: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: gatus-secrets
+  namespace: gatus
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/gatus-secrets
+  destination:
+    name: gatus-secrets
+    create: true
+  refreshAfter: 1h

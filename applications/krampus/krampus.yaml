@@ -153,3 +153,17 @@ spec:
             name: krampus
             port:
               number: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: krampus-secrets
+  namespace: krampus
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/krampus-secrets
+  destination:
+    name: krampus-secrets
+    create: true
+  refreshAfter: 1h

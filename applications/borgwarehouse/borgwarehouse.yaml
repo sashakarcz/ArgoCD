@@ -231,3 +231,17 @@ spec:
                   name: borgwarehouse-secrets
                   key: CRONJOB_KEY
           restartPolicy: OnFailure
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: borgwarehouse-secrets
+  namespace: borgwarehouse
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/borgwarehouse-secrets
+  destination:
+    name: borgwarehouse-secrets
+    create: true
+  refreshAfter: 1h

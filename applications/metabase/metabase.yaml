@@ -281,3 +281,17 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: metabase-secrets
+  namespace: metabase
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/metabase-secrets
+  destination:
+    name: metabase-secrets
+    create: true
+  refreshAfter: 1h

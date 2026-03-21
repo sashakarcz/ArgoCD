@@ -435,3 +435,17 @@ spec:
             name: authentik-server
             port:
               number: 9000
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: authentik-secrets
+  namespace: authentik
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/authentik-secrets
+  destination:
+    name: authentik-secrets
+    create: true
+  refreshAfter: 1h

@@ -334,3 +334,17 @@ spec:
                 name: homepage
                 port:
                   number: 3000
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: homepage-secrets
+  namespace: homepage
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/homepage-secrets
+  destination:
+    name: homepage-secrets
+    create: true
+  refreshAfter: 1h

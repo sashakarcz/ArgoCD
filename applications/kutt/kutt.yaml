@@ -301,3 +301,17 @@ spec:
             name: kutt
             port:
               number: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: kutt-secrets
+  namespace: kutt
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/kutt-secrets
+  destination:
+    name: kutt-secrets
+    create: true
+  refreshAfter: 1h

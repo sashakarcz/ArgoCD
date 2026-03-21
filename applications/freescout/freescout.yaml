@@ -312,3 +312,17 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: freescout-secrets
+  namespace: freescout
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/freescout-secrets
+  destination:
+    name: freescout-secrets
+    create: true
+  refreshAfter: 1h

@@ -307,3 +307,17 @@ spec:
             name: nocodb
             port:
               number: 8080
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: nocodb-secrets
+  namespace: nocodb
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/nocodb-secrets
+  destination:
+    name: nocodb-secrets
+    create: true
+  refreshAfter: 1h

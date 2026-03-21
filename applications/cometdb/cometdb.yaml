@@ -106,3 +106,17 @@ spec:
       - name: nfs-storage
         persistentVolumeClaim:
           claimName: comet-nfs-pvc
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cometdb-secret
+  namespace: cometdb
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/cometdb-secret
+  destination:
+    name: cometdb-secret
+    create: true
+  refreshAfter: 1h

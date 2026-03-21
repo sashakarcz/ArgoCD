@@ -115,3 +115,17 @@ spec:
             name: gtarot-web-service
             port:
               number: 8080
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: gemini-api-key
+  namespace: gtarot-web
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/gemini-api-key
+  destination:
+    name: gemini-api-key
+    create: true
+  refreshAfter: 1h
