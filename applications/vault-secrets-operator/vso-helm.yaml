@@ -24,7 +24,6 @@ spec:
           mount: kubernetes
           kubernetes:
             role: cluster
-            serviceAccount: vault-secrets-operator-controller-manager
             tokenAudiences:
               - vault
   destination:
