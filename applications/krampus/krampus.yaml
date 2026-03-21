@@ -42,6 +42,8 @@ spec:
       labels:
         app: krampus
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
       - name: krampus
         image: astrognome/krampus:latest
