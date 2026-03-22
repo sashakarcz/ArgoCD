@@ -14,8 +14,6 @@ data:
   worker.hcl: |
     disable_mlock = true
 
-    hcp_boundary_cluster_id = "d4b299c0-61f9-47c6-9547-77ca2ea7e78b"
-
     listener "tcp" {
       address = "0.0.0.0:9202"
       purpose = "proxy"
@@ -23,6 +21,7 @@ data:
 
     worker {
       auth_storage_path = "/boundary/auth"
+      initial_upstreams = ["d4b299c0-61f9-47c6-9547-77ca2ea7e78b.proxy.boundary.hashicorp.cloud"]
       tags {
         type = ["k8s"]
       }
