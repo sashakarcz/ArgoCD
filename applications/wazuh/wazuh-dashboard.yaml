@@ -9,6 +9,8 @@ data:
     server.host: 0.0.0.0
     server.port: 5601
     opensearch.hosts: https://wazuh-indexer:9200
+    opensearch.username: kibanaserver
+    opensearch.password: "${KIBANASERVER_PASSWORD}"
     opensearch.ssl.verificationMode: certificate
     opensearch.requestHeadersWhitelist: ["securitytenant","Authorization"]
     opensearch_security.multitenancy.enabled: false
@@ -110,7 +112,7 @@ spec:
         - sh
         - -c
         - |
-          sed "s|\${OIDC_CLIENT_ID}|${OIDC_CLIENT_ID}|g; s|\${OIDC_CLIENT_SECRET}|${OIDC_CLIENT_SECRET}|g" \
+          sed "s|\${OIDC_CLIENT_ID}|${OIDC_CLIENT_ID}|g; s|\${OIDC_CLIENT_SECRET}|${OIDC_CLIENT_SECRET}|g; s|\${KIBANASERVER_PASSWORD}|${KIBANASERVER_PASSWORD}|g" \
             /config-template/opensearch_dashboards.yml > /rendered-config/opensearch_dashboards.yml
         env:
         - name: OIDC_CLIENT_ID
@@ -123,6 +125,11 @@ spec:
             secretKeyRef:
               name: wazuh-secrets
               key: OIDC_CLIENT_SECRET
+        - name: KIBANASERVER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wazuh-secrets
+              key: KIBANASERVER_PASSWORD
         volumeMounts:
         - name: config
           mountPath: /config-template
