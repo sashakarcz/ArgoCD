@@ -133,6 +133,11 @@ spec:
           value: "-Xms1g -Xmx1g"
         - name: OPENSEARCH_PATH_CONF
           value: /usr/share/wazuh-indexer/config
+        - name: INDEXER_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wazuh-secrets
+              key: INDEXER_PASSWORD
         volumeMounts:
         - name: data
           mountPath: /var/lib/wazuh-indexer
@@ -167,13 +172,11 @@ spec:
             cpu: 2000m
             memory: 2Gi
         readinessProbe:
-          httpGet:
-            scheme: HTTPS
-            path: /_cluster/health
-            port: 9200
-            httpHeaders:
-            - name: Authorization
-              value: Basic YWRtaW46NmxmOXdsdHpyUFRndVpyTHRQcnBWaTZR
+          exec:
+            command:
+            - bash
+            - -c
+            - 'curl -sk -u "admin:${INDEXER_ADMIN_PASSWORD}" https://localhost:9200/_cluster/health | grep -q "\"status\":\"green\"\|\"status\":\"yellow\""'
           initialDelaySeconds: 60
           periodSeconds: 15
           failureThreshold: 10
