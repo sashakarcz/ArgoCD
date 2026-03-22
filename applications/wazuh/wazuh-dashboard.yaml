@@ -36,6 +36,7 @@ data:
           url: "https://wazuh-manager"
           port: 55000
           username: wazuh-wui
+          password: "${API_PASSWORD}"
           run_as: false
 
 ---
@@ -113,7 +114,9 @@ spec:
         - -c
         - |
           sed "s|\${OIDC_CLIENT_ID}|${OIDC_CLIENT_ID}|g; s|\${OIDC_CLIENT_SECRET}|${OIDC_CLIENT_SECRET}|g; s|\${KIBANASERVER_PASSWORD}|${KIBANASERVER_PASSWORD}|g" \
-            /config-template/opensearch_dashboards.yml > /rendered-config/opensearch_dashboards.yml
+            /config-template/opensearch_dashboards.yml > /rendered-config/opensearch_dashboards.yml && \
+          sed "s|\${API_PASSWORD}|${API_PASSWORD}|g" \
+            /config-template/wazuh.yml > /rendered-config/wazuh.yml
         env:
         - name: OIDC_CLIENT_ID
           valueFrom:
@@ -130,6 +133,11 @@ spec:
             secretKeyRef:
               name: wazuh-secrets
               key: KIBANASERVER_PASSWORD
+        - name: API_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wazuh-secrets
+              key: API_PASSWORD
         volumeMounts:
         - name: config
           mountPath: /config-template
@@ -182,7 +190,7 @@ spec:
         - name: rendered-config
           mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
           subPath: opensearch_dashboards.yml
-        - name: wazuh-config
+        - name: rendered-config
           mountPath: /usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
           subPath: wazuh.yml
         - name: certs
@@ -208,14 +216,10 @@ spec:
           items:
           - key: opensearch_dashboards.yml
             path: opensearch_dashboards.yml
-      - name: rendered-config
-        emptyDir: {}
-      - name: wazuh-config
-        configMap:
-          name: wazuh-dashboard-config
-          items:
           - key: wazuh.yml
             path: wazuh.yml
+      - name: rendered-config
+        emptyDir: {}
       - name: certs
         secret:
           secretName: wazuh-certs
