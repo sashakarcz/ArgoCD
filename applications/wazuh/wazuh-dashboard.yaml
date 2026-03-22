@@ -22,7 +22,6 @@ data:
     opensearch_security.session.ttl: 900000
     opensearch_security.session.keepalive: true
     opensearch_security.auth.type: "saml"
-    opensearch_security.saml.extra_storage.cookie_ttl: 900000
     server.xsrf.allowlist: ["/_opendistro/_security/saml/acs/idpinitiated", "/_opendistro/_security/saml/acs", "/_opendistro/_security/saml/logout"]
 
   wazuh.yml: |
