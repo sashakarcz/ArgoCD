@@ -26,6 +26,7 @@ data:
     opensearch_security.openid.client_id: "${OIDC_CLIENT_ID}"
     opensearch_security.openid.client_secret: "${OIDC_CLIENT_SECRET}"
     opensearch_security.openid.base_redirect_url: "https://wazuh-dash.starnix.net"
+    opensearch_security.openid.subject_key: "preferred_username"
     opensearch_security.openid.verify_hostnames: false
 
   wazuh.yml: |
