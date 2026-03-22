@@ -133,13 +133,6 @@ spec:
           value: "-Xms1g -Xmx1g"
         - name: OPENSEARCH_PATH_CONF
           value: /usr/share/wazuh-indexer/config
-        ulimits:
-        - name: memlock
-          hard: -1
-          soft: -1
-        - name: nofile
-          hard: 655360
-          soft: 655360
         volumeMounts:
         - name: data
           mountPath: /var/lib/wazuh-indexer
