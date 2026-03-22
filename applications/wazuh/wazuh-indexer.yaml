@@ -208,12 +208,6 @@ spec:
             path: admin-key.pem
       - name: logs
         emptyDir: {}
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 50Gi
+      - name: data
+        persistentVolumeClaim:
+          claimName: wazuh-indexer-data

@@ -355,76 +355,30 @@ spec:
             path: filebeat.pem
           - key: filebeat-key.pem
             path: filebeat-key.pem
-  volumeClaimTemplates:
-  - metadata:
-      name: wazuh-api-configuration
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-etc
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-logs
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 10Gi
-  - metadata:
-      name: wazuh-queue
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 2Gi
-  - metadata:
-      name: wazuh-var-multigroups
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-integrations
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-active-response
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-agentless
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
-  - metadata:
-      name: wazuh-wodles
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn
-      resources:
-        requests:
-          storage: 1Gi
+      - name: wazuh-api-configuration
+        persistentVolumeClaim:
+          claimName: wazuh-manager-api-configuration
+      - name: wazuh-etc
+        persistentVolumeClaim:
+          claimName: wazuh-manager-etc
+      - name: wazuh-logs
+        persistentVolumeClaim:
+          claimName: wazuh-manager-logs
+      - name: wazuh-queue
+        persistentVolumeClaim:
+          claimName: wazuh-manager-queue
+      - name: wazuh-var-multigroups
+        persistentVolumeClaim:
+          claimName: wazuh-manager-var-multigroups
+      - name: wazuh-integrations
+        persistentVolumeClaim:
+          claimName: wazuh-manager-integrations
+      - name: wazuh-active-response
+        persistentVolumeClaim:
+          claimName: wazuh-manager-active-response
+      - name: wazuh-agentless
+        persistentVolumeClaim:
+          claimName: wazuh-manager-agentless
+      - name: wazuh-wodles
+        persistentVolumeClaim:
+          claimName: wazuh-manager-wodles
