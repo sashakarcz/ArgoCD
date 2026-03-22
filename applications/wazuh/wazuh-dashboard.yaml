@@ -21,13 +21,9 @@ data:
     opensearch_security.cookie.ttl: 900000
     opensearch_security.session.ttl: 900000
     opensearch_security.session.keepalive: true
-    opensearch_security.auth.type: "openid"
-    opensearch_security.openid.connect_url: "https://auth.starnix.net/application/o/wazuh/.well-known/openid-configuration"
-    opensearch_security.openid.client_id: "${OIDC_CLIENT_ID}"
-    opensearch_security.openid.client_secret: "${OIDC_CLIENT_SECRET}"
-    opensearch_security.openid.base_redirect_url: "https://wazuh-dash.starnix.net"
-    opensearch_security.openid.subject_key: "preferred_username"
-    opensearch_security.openid.verify_hostnames: false
+    opensearch_security.auth.type: "saml"
+    opensearch_security.saml.extra_storage.cookie_ttl: 900000
+    server.xsrf.allowlist: ["/_opendistro/_security/saml/acs/idpinitiated", "/_opendistro/_security/saml/acs", "/_opendistro/_security/saml/logout"]
 
   wazuh.yml: |
     hosts:
@@ -110,19 +106,9 @@ spec:
         - sh
         - -c
         - |
-          sed "s|\${OIDC_CLIENT_ID}|${OIDC_CLIENT_ID}|g; s|\${OIDC_CLIENT_SECRET}|${OIDC_CLIENT_SECRET}|g; s|\${KIBANASERVER_PASSWORD}|${KIBANASERVER_PASSWORD}|g" \
+          sed "s|\${KIBANASERVER_PASSWORD}|${KIBANASERVER_PASSWORD}|g" \
             /config-template/opensearch_dashboards.yml > /rendered-config/opensearch_dashboards.yml
         env:
-        - name: OIDC_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: wazuh-secrets
-              key: OIDC_CLIENT_ID
-        - name: OIDC_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: wazuh-secrets
-              key: OIDC_CLIENT_SECRET
         - name: KIBANASERVER_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -162,16 +148,6 @@ spec:
             secretKeyRef:
               name: wazuh-secrets
               key: API_PASSWORD
-        - name: OIDC_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: wazuh-secrets
-              key: OIDC_CLIENT_ID
-        - name: OIDC_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: wazuh-secrets
-              key: OIDC_CLIENT_SECRET
         volumeMounts:
         - name: rendered-config
           mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
