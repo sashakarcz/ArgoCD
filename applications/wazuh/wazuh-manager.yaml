@@ -289,7 +289,7 @@ spec:
               name: wazuh-secrets
               key: INDEXER_PASSWORD
         - name: FILEBEAT_SSL_VERIFICATION_MODE
-          value: "full"
+          value: "certificate"
         - name: SSL_CERTIFICATE_AUTHORITIES
           value: /etc/ssl/root-ca.pem
         - name: SSL_CERTIFICATE
