@@ -23,7 +23,7 @@ data:
 
     worker {
       auth_storage_path = "/boundary/auth"
-tags {
+      tags {
         type = ["k8s"]
       }
     }
