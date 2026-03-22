@@ -43,14 +43,14 @@ data:
       config_version: 2
 
     admin:
-      hash: "$2b$12$ISFV2lgIi9CdiHsrOOiOz.R69JWK32vBfVpre0AkaJDdtov2F2GiS"
+      hash: "$2b$12$OnysqWCC3HYAzm8icTgEruZ8iqGVxBbV5WBTTGc7CBPQipEvc5xou"
       reserved: true
       backend_roles:
       - "admin"
       description: "Admin user"
 
     kibanaserver:
-      hash: "$2b$12$UP8OeA2mnPre1CLsd.ydMeDCx2JnXgGJNYGcjE7nvIUMfl3xsTsuO"
+      hash: "$2b$12$NfbPc/6LKMs7wEo2FsBlgewVcH7Ia.kl/Z7Lt9dfhy9vTHZAoiB.S"
       reserved: true
       description: "Kibana server user"
 
@@ -173,7 +173,7 @@ spec:
             port: 9200
             httpHeaders:
             - name: Authorization
-              value: Basic YWRtaW46YWRtaW4=
+              value: Basic YWRtaW46NmxmOXdsdHpyUFRndVpyTHRQcnBWaTZR
           initialDelaySeconds: 60
           periodSeconds: 15
           failureThreshold: 10
