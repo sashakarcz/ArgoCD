@@ -1,0 +1,219 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-indexer-config
+  namespace: wazuh
+data:
+  opensearch.yml: |
+    network.host: "0.0.0.0"
+    node.name: "wazuh.indexer"
+    cluster.name: "wazuh-cluster"
+    discovery.type: single-node
+    path.data: /var/lib/wazuh-indexer
+    path.logs: /var/log/wazuh-indexer
+    compatibility.override_main_response_version: true
+    plugins.security.ssl.http.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer.pem
+    plugins.security.ssl.http.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer-key.pem
+    plugins.security.ssl.http.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+    plugins.security.ssl.transport.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer.pem
+    plugins.security.ssl.transport.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer-key.pem
+    plugins.security.ssl.transport.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+    plugins.security.ssl.http.enabled: true
+    plugins.security.ssl.transport.enforce_hostname_verification: false
+    plugins.security.ssl.transport.resolve_hostname: false
+    plugins.security.authcz.admin_dn:
+    - "CN=admin,OU=Wazuh,O=Wazuh,L=California,C=US"
+    plugins.security.check_snapshot_restore_write_privileges: true
+    plugins.security.enable_snapshot_restore_privilege: true
+    plugins.security.nodes_dn:
+    - "CN=wazuh.indexer,OU=Wazuh,O=Wazuh,L=California,C=US"
+    plugins.security.restapi.roles_enabled:
+    - "all_access"
+    - "security_rest_api_access"
+    plugins.security.system_indices.enabled: true
+    plugins.security.system_indices.indices: [".opendistro-alerting-config", ".opendistro-alerting-alert*", ".opendistro-anomaly-results*", ".opendistro-anomaly-detector*", ".opendistro-anomaly-checkpoints", ".opendistro-anomaly-detection-state", ".opendistro-reports-*", ".opendistro-notifications-*", ".opendistro-notebooks", ".opensearch-observability", ".opendistro-asynchronous-search-response*", ".replication-metadata-store"]
+    plugins.security.allow_default_init_securityindex: true
+    cluster.routing.allocation.disk.threshold_enabled: false
+
+  internal_users.yml: |
+    ---
+    _meta:
+      type: "internalusers"
+      config_version: 2
+
+    admin:
+      hash: "$2b$12$ISFV2lgIi9CdiHsrOOiOz.R69JWK32vBfVpre0AkaJDdtov2F2GiS"
+      reserved: true
+      backend_roles:
+      - "admin"
+      description: "Admin user"
+
+    kibanaserver:
+      hash: "$2b$12$UP8OeA2mnPre1CLsd.ydMeDCx2JnXgGJNYGcjE7nvIUMfl3xsTsuO"
+      reserved: true
+      description: "Kibana server user"
+
+    kibanaro:
+      hash: "$2a$12$JJSXNfTowz7Uu5ttXfeYpeYE0arACvcwlPBStB1F.MI7f0U9Z4DGC"
+      reserved: false
+      backend_roles:
+      - "kibanauser"
+      - "readall"
+
+    logstash:
+      hash: "$2a$12$u1ShR4l4uBS3Uv59Pa2y5.1uQuZBrZtmNfqB3iM/.jL0XoV9sghS2"
+      reserved: false
+      backend_roles:
+      - "logstash"
+
+    readall:
+      hash: "$2a$12$ae4ycwzwvLtZxwZ82RmiEunBbIPiAmGZduBAjKN0TXdwQFtCwARz2"
+      reserved: false
+      backend_roles:
+      - "readall"
+
+    snapshotrestore:
+      hash: "$2y$12$DpwmetHKwgYnorbgdvORCenv4NAK8cPUg8AI6pxLCuWf/ALc0.v7W"
+      reserved: false
+      backend_roles:
+      - "snapshotrestore"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-indexer
+  namespace: wazuh
+spec:
+  selector:
+    app: wazuh-indexer
+  ports:
+  - name: https
+    port: 9200
+    targetPort: 9200
+  - name: transport
+    port: 9300
+    targetPort: 9300
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wazuh-indexer
+  namespace: wazuh
+spec:
+  serviceName: wazuh-indexer
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wazuh-indexer
+  template:
+    metadata:
+      labels:
+        app: wazuh-indexer
+    spec:
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /var/lib/wazuh-indexer /var/log/wazuh-indexer"]
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/wazuh-indexer
+        - name: logs
+          mountPath: /var/log/wazuh-indexer
+      containers:
+      - name: wazuh-indexer
+        image: wazuh/wazuh-indexer:4.14.1
+        ports:
+        - containerPort: 9200
+        - containerPort: 9300
+        env:
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms1g -Xmx1g"
+        - name: OPENSEARCH_PATH_CONF
+          value: /usr/share/wazuh-indexer/config
+        ulimits:
+        - name: memlock
+          hard: -1
+          soft: -1
+        - name: nofile
+          hard: 655360
+          soft: 655360
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/wazuh-indexer
+        - name: logs
+          mountPath: /var/log/wazuh-indexer
+        - name: config
+          mountPath: /usr/share/wazuh-indexer/config/opensearch.yml
+          subPath: opensearch.yml
+        - name: config
+          mountPath: /usr/share/wazuh-indexer/config/opensearch-security/internal_users.yml
+          subPath: internal_users.yml
+        - name: certs
+          mountPath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+          subPath: root-ca.pem
+        - name: certs
+          mountPath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer.pem
+          subPath: wazuh.indexer.pem
+        - name: certs
+          mountPath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer-key.pem
+          subPath: wazuh.indexer-key.pem
+        - name: admin-certs
+          mountPath: /usr/share/wazuh-indexer/config/certs/admin.pem
+          subPath: admin.pem
+        - name: admin-certs
+          mountPath: /usr/share/wazuh-indexer/config/certs/admin-key.pem
+          subPath: admin-key.pem
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1.5Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /_cluster/health
+            port: 9200
+            httpHeaders:
+            - name: Authorization
+              value: Basic YWRtaW46YWRtaW4=
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          failureThreshold: 10
+      volumes:
+      - name: config
+        configMap:
+          name: wazuh-indexer-config
+      - name: certs
+        secret:
+          secretName: wazuh-certs
+          items:
+          - key: root-ca.pem
+            path: root-ca.pem
+          - key: wazuh.indexer.pem
+            path: wazuh.indexer.pem
+          - key: wazuh.indexer-key.pem
+            path: wazuh.indexer-key.pem
+      - name: admin-certs
+        secret:
+          secretName: wazuh-certs
+          items:
+          - key: admin.pem
+            path: admin.pem
+          - key: admin-key.pem
+            path: admin-key.pem
+      - name: logs
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: longhorn
+      resources:
+        requests:
+          storage: 50Gi
