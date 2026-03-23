@@ -55,26 +55,32 @@ spec:
                 udp:
                   listen_address: 0.0.0.0:8514
                 protocol: rfc5424
-                operators:
-                  - type: move
-                    from: attributes.message
-                    to: body
             processors:
               filter/drop_grpc_metrics:
                 metrics:
                   metric:
                     - 'name == "grpc_server_handled_total"'
+              batch/logs:
+                send_batch_size: 10000
+                timeout: 5s
               transform/syslog_resources:
                 log_statements:
                   - context: log
                     statements:
                       - set(resource.attributes["host.name"], attributes["structured_data"]["resource"]["host.name"]) where resource.attributes["host.name"] == nil
                       - set(resource.attributes["service.name"], attributes["structured_data"]["resource"]["service.name"]) where resource.attributes["service.name"] == nil
+            exporters:
+              clickhouselogsexporter:
+                sending_queue:
+                  enabled: true
+                  num_consumers: 4
+                  queue_size: 5000
             service:
               pipelines:
                 logs:
                   receivers: [otlp, fluentforward, syslog]
-                  processors: [transform/syslog_resources, batch]
+                  processors: [transform/syslog_resources, batch/logs]
+                  exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
                 metrics:
                   processors: [filter/drop_grpc_metrics]
 
