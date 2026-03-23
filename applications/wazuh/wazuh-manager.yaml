@@ -232,6 +232,7 @@ metadata:
     metallb.universe.tf/loadBalancerIPs: 192.168.7.220
 spec:
   type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     app: wazuh-manager
   ports:
