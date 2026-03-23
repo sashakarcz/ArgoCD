@@ -27,7 +27,7 @@ data:
   wazuh.yml: |
     hosts:
       - default:
-          url: "http://wazuh-manager"
+          url: "https://wazuh-manager"
           port: 55000
           username: wazuh-wui
           password: "${API_PASSWORD}"
@@ -132,7 +132,9 @@ spec:
               name: wazuh-secrets
               key: INDEXER_PASSWORD
         - name: WAZUH_API_URL
-          value: "http://wazuh-manager"
+          value: "https://wazuh-manager"
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
         - name: DASHBOARD_USERNAME
           value: "kibanaserver"
         - name: DASHBOARD_PASSWORD
