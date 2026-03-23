@@ -365,11 +365,9 @@ spec:
         persistentVolumeClaim:
           claimName: wazuh-manager-logs
       - name: wazuh-queue
-        persistentVolumeClaim:
-          claimName: wazuh-manager-queue
+        emptyDir: {}
       - name: wazuh-var-multigroups
-        persistentVolumeClaim:
-          claimName: wazuh-manager-var-multigroups
+        emptyDir: {}
       - name: wazuh-integrations
         persistentVolumeClaim:
           claimName: wazuh-manager-integrations
