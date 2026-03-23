@@ -11,7 +11,7 @@ data:
         <jsonout_output>yes</jsonout_output>
         <alerts_log>yes</alerts_log>
         <logall>no</logall>
-        <logall_json>no</logall_json>
+        <logall_json>yes</logall_json>
         <email_notification>no</email_notification>
         <agents_disconnection_time>10m</agents_disconnection_time>
         <agents_disconnection_alert_time>0</agents_disconnection_alert_time>
@@ -208,6 +208,34 @@ data:
       </localfile>
     </ossec_config>
 
+  filebeat.yml: |
+    filebeat.modules:
+      - module: wazuh
+        alerts:
+          enabled: true
+        archives:
+          enabled: true
+    setup.template.json.enabled: true
+    setup.template.overwrite: true
+    setup.template.json.path: '/etc/filebeat/wazuh-template.json'
+    setup.template.json.name: 'wazuh'
+    setup.ilm.enabled: false
+    output.elasticsearch:
+      hosts: ['https://wazuh-indexer:9200']
+      username: 'admin'
+      password: '${INDEXER_PASSWORD}'
+      ssl.verification_mode: 'certificate'
+      ssl.certificate_authorities: ['/etc/ssl/root-ca.pem']
+      ssl.certificate: '/etc/ssl/filebeat.pem'
+      ssl.key: '/etc/ssl/filebeat-key.pem'
+    logging.metrics.enabled: false
+    seccomp:
+      default_action: allow
+      syscalls:
+      - action: allow
+        names:
+        - rseq
+
 ---
 apiVersion: v1
 kind: Service
@@ -270,6 +298,15 @@ spec:
       labels:
         app: wazuh-manager
     spec:
+      initContainers:
+      - name: prepare-filebeat-config
+        image: busybox
+        command: ["cp", "/filebeat-template/filebeat.yml", "/filebeat-rendered/filebeat.yml"]
+        volumeMounts:
+        - name: filebeat-template
+          mountPath: /filebeat-template
+        - name: filebeat-rendered
+          mountPath: /filebeat-rendered
       containers:
       - name: wazuh-manager
         image: wazuh/wazuh-manager:4.14.1
@@ -335,6 +372,9 @@ spec:
           mountPath: /var/ossec/agentless
         - name: wazuh-wodles
           mountPath: /var/ossec/wodles
+        - name: filebeat-rendered
+          mountPath: /etc/filebeat/filebeat.yml
+          subPath: filebeat.yml
         resources:
           requests:
             cpu: 500m
@@ -381,3 +421,11 @@ spec:
       - name: wazuh-wodles
         persistentVolumeClaim:
           claimName: wazuh-manager-wodles
+      - name: filebeat-template
+        configMap:
+          name: wazuh-manager-config
+          items:
+          - key: filebeat.yml
+            path: filebeat.yml
+      - name: filebeat-rendered
+        emptyDir: {}
