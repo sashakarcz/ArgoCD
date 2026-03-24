@@ -1,0 +1,156 @@
+---
+# hbbs - ID/rendezvous server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk-hbbs
+  namespace: rustdesk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rustdesk-hbbs
+  template:
+    metadata:
+      labels:
+        app: rustdesk-hbbs
+    spec:
+      containers:
+      - name: hbbs
+        image: rustdesk/rustdesk-server:latest
+        command: ["hbbs"]
+        args: ["-r", "hbbr.starnix.net:21117"]
+        ports:
+        - containerPort: 21115
+          protocol: TCP
+        - containerPort: 21116
+          protocol: TCP
+        - containerPort: 21116
+          protocol: UDP
+        volumeMounts:
+        - name: data
+          mountPath: /root
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: rustdesk-hbbs-data
+
+---
+# hbbr - relay server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk-hbbr
+  namespace: rustdesk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rustdesk-hbbr
+  template:
+    metadata:
+      labels:
+        app: rustdesk-hbbr
+    spec:
+      containers:
+      - name: hbbr
+        image: rustdesk/rustdesk-server:latest
+        command: ["hbbr"]
+        ports:
+        - containerPort: 21117
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
+---
+# hbbs service - ports for ID/rendezvous server
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbs
+  namespace: rustdesk
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.221"
+    metallb.universe.tf/allow-shared-ip: "rustdesk"
+spec:
+  type: LoadBalancer
+  selector:
+    app: rustdesk-hbbs
+  ports:
+  - name: nat-test
+    port: 21115
+    targetPort: 21115
+    protocol: TCP
+  - name: id-tcp
+    port: 21116
+    targetPort: 21116
+    protocol: TCP
+  - name: id-udp
+    port: 21116
+    targetPort: 21116
+    protocol: UDP
+
+---
+# hbbr service - ports for relay server
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbr
+  namespace: rustdesk
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.221"
+    metallb.universe.tf/allow-shared-ip: "rustdesk"
+spec:
+  type: LoadBalancer
+  selector:
+    app: rustdesk-hbbr
+  ports:
+  - name: relay
+    port: 21117
+    targetPort: 21117
+    protocol: TCP
+
+---
+# NFS PV for hbbs key storage
+# Before applying, create on NFS server:
+#   mkdir -p /mnt/Store/rustdesk/hbbs
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rustdesk-hbbs-data-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/rustdesk/hbbs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustdesk-hbbs-data
+  namespace: rustdesk
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""
+  volumeName: rustdesk-hbbs-data-pv
+  resources:
+    requests:
+      storage: 1Gi
