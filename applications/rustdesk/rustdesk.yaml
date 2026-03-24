@@ -17,10 +17,12 @@ spec:
     spec:
       containers:
       - name: hbbs
-        image: rustdesk/rustdesk-server:latest
+        image: rustdesk/rustdesk-server-pro:latest
         command: ["hbbs"]
         args: ["-r", "hbbr.starnix.net:21117"]
         ports:
+        - containerPort: 21114
+          protocol: TCP
         - containerPort: 21115
           protocol: TCP
         - containerPort: 21116
@@ -61,7 +63,7 @@ spec:
     spec:
       containers:
       - name: hbbr
-        image: rustdesk/rustdesk-server:latest
+        image: rustdesk/rustdesk-server-pro:latest
         command: ["hbbr"]
         ports:
         - containerPort: 21117
@@ -121,6 +123,49 @@ spec:
     port: 21117
     targetPort: 21117
     protocol: TCP
+
+---
+# Web console service + ingress
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-webconsole
+  namespace: rustdesk
+spec:
+  selector:
+    app: rustdesk-hbbs
+  ports:
+  - name: webconsole
+    port: 21114
+    targetPort: 21114
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rustdesk-webconsole
+  namespace: rustdesk
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - rustdesk.starnix.net
+    secretName: rustdesk-webconsole-tls
+  rules:
+  - host: rustdesk.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rustdesk-webconsole
+            port:
+              number: 21114
 
 ---
 apiVersion: v1
