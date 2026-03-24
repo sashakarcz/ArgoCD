@@ -123,24 +123,6 @@ spec:
     protocol: TCP
 
 ---
-# NFS PV for hbbs key storage
-# Before applying, create on NFS server:
-#   mkdir -p /mnt/Store/rustdesk/hbbs
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: rustdesk-hbbs-data-pv
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
-  nfs:
-    server: 192.168.1.75
-    path: /mnt/Store/rustdesk/hbbs
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -149,8 +131,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: ""
-  volumeName: rustdesk-hbbs-data-pv
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi
