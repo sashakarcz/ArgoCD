@@ -258,6 +258,7 @@ metadata:
   namespace: wazuh
   annotations:
     metallb.universe.tf/loadBalancerIPs: 192.168.7.220
+    external-dns.alpha.kubernetes.io/hostname: wazuh.starnix.net
 spec:
   type: LoadBalancer
   externalTrafficPolicy: Local
