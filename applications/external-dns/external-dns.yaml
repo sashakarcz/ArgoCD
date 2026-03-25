@@ -1,0 +1,133 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+
+---
+# ClusterRole gives ExternalDNS read access to Ingress and Service resources
+# across all namespaces so it can discover hostnames to register.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+- apiGroups: [""]
+  resources: ["services", "endpoints", "pods", "nodes"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: external-dns
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.15.1
+        args:
+        - --source=ingress
+        - --source=service
+        # Only manage records within starnix.net
+        - --domain-filter=starnix.net
+        - --provider=rfc2136
+        # Knot DNS MetalLB IP
+        - --rfc2136-host=192.168.7.211
+        - --rfc2136-port=53
+        - --rfc2136-zone=starnix.net
+        - --rfc2136-tsig-keyname=externaldns
+        # Secret injected via env var below
+        - --rfc2136-tsig-secret=$(EXTERNAL_DNS_RFC2136_TSIG_SECRET)
+        - --rfc2136-tsig-secret-alg=hmac-sha256
+        - --rfc2136-tcp
+        # TXT records track which records ExternalDNS owns; prefix avoids
+        # colliding with application TXT records.
+        - --txt-owner-id=external-dns-cluster
+        - --txt-prefix=_externaldns-
+        # upsert-only: create and update records but never delete them.
+        # Change to "sync" once confident the migration is clean.
+        - --policy=upsert-only
+        - --interval=30s
+        - --log-level=info
+        env:
+        - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: external-dns-secrets
+              key: EXTERNAL_DNS_RFC2136_TSIG_SECRET
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: external-dns
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: external-dns
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret must contain:
+#   EXTERNAL_DNS_RFC2136_TSIG_SECRET = <same base64 key as knot-keys.conf>
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: external-dns-secrets
+  namespace: external-dns
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/external-dns-secrets
+  vaultAuthRef: default
+  destination:
+    name: external-dns-secrets
+    create: true
+  refreshAfter: 1h

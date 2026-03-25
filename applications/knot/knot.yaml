@@ -24,14 +24,29 @@ data:
       - target: stderr
         any: info
 
+    # TSIG key + ACL for ExternalDNS dynamic updates live in a Secret,
+    # not in git. The include pulls them in at runtime.
+    include: /secrets/knot-keys.conf
+
     template:
       - id: default
         storage: /storage/zones
+        # Store the RFC 2136 journal outside the git-sync symlink tree so
+        # zone reloads don't orphan ExternalDNS-managed entries.
+        journal-db: /storage/journal
 
     zone:
       - domain: starnix.net
         file: starnix.net.zone
-        zonefile-load: whole
+        # difference: only apply changes from the zone file on reload,
+        # leaving journal entries (ExternalDNS records) untouched.
+        zonefile-load: difference
+        # Keep all records in the journal, not just deltas.
+        journal-content: all
+        # Never write dynamic updates back to the zone file; git is the
+        # source of truth for static records.
+        zonefile-sync: -1
+        acl: [externaldns-update]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41,12 +56,9 @@ metadata:
   labels:
     app: knot
 spec:
-  replicas: 2
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 1
+  # Single replica required: Longhorn PVC is ReadWriteOnce, and RFC 2136
+  # updates must land on the same pod that owns the journal.
+  replicas: 1
   selector:
     matchLabels:
       app: knot
@@ -67,7 +79,11 @@ spec:
         configMap:
           name: knot-config
       - name: zone-data
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: knot-zone-data
+      - name: knot-secrets
+        secret:
+          secretName: knot-secrets
       - name: rundir
         emptyDir: {}
       initContainers:
@@ -105,6 +121,9 @@ spec:
           mountPath: /config
         - name: zone-data
           mountPath: /storage
+        - name: knot-secrets
+          mountPath: /secrets
+          readOnly: true
         - name: rundir
           mountPath: /rundir
         livenessProbe:
@@ -208,3 +227,67 @@ spec:
     port: 53
     targetPort: 53
     protocol: UDP
+
+---
+# Longhorn PVC for zone file + RFC 2136 journal persistence.
+# Replaces the previous emptyDir so records survive pod restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: knot-zone-data
+  namespace: knot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: knot
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: knot
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret must contain key: knot-keys.conf
+# with contents:
+#   key:
+#     - id: externaldns
+#       algorithm: hmac-sha256
+#       secret: <tsig-secret>
+#   acl:
+#     - id: externaldns-update
+#       key: externaldns
+#       action: update
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: knot-secrets
+  namespace: knot
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/knot-secrets
+  vaultAuthRef: default
+  destination:
+    name: knot-secrets
+    create: true
+  refreshAfter: 1h
