@@ -30,7 +30,8 @@ data:
 
     template:
       - id: default
-        storage: /storage/zones
+        # git-sync writes to /storage/git/zones (symlink to latest checkout)
+        storage: /storage/git/zones
         # Store the RFC 2136 journal outside the git-sync symlink tree so
         # zone reloads don't orphan ExternalDNS-managed entries.
         journal-db: /storage/journal
@@ -91,13 +92,15 @@ spec:
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
         args:
         - --repo=https://github.com/usenix17/dns.git
-        - --branch=main
-        - --root=/tmp/git
-        - --dest=zones
+        - --ref=main
+        - --root=/data/git
+        - --link=zones
         - --one-time
         volumeMounts:
         - name: zone-data
-          mountPath: /tmp/git
+          # Mount at /data so git-sync owns /data/git, never touching
+          # the PVC root where lost+found lives.
+          mountPath: /data
       containers:
       - name: knot
         image: cznic/knot:3.4
@@ -154,9 +157,9 @@ spec:
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
         args:
         - --repo=https://github.com/usenix17/dns.git
-        - --branch=main
-        - --root=/tmp/git
-        - --dest=zones
+        - --ref=main
+        - --root=/data/git
+        - --link=zones
         - --period=60s
         resources:
           requests:
@@ -167,7 +170,7 @@ spec:
             memory: 64Mi
         volumeMounts:
         - name: zone-data
-          mountPath: /tmp/git
+          mountPath: /data
       - name: reloader
         image: alpine:latest
         command:
@@ -182,7 +185,7 @@ spec:
           echo "knotc location: $(which knotc 2>&1 || echo 'not found')"
           LAST=""
           while true; do
-            CURRENT=$(readlink /storage/zones 2>/dev/null)
+            CURRENT=$(readlink /storage/git/zones 2>/dev/null)
             if [ "$CURRENT" != "$LAST" ] && [ -n "$CURRENT" ]; then
               echo "Zone update detected, reloading..."
               /usr/sbin/knotc -s /rundir/knot.sock zone-reload starnix.net 2>&1 || true
