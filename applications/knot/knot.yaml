@@ -16,9 +16,6 @@ data:
     server:
         listen: 0.0.0.0@53
         rundir: /rundir
-        # Store journal outside the git-sync symlink tree so RFC 2136
-        # entries survive zone reloads triggered by git-sync updates.
-        journal-db: /storage/journal
 
     control:
         listen: /rundir/knot.sock
