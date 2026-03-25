@@ -68,6 +68,10 @@ spec:
       labels:
         app: knot
     spec:
+      # git-sync runs as uid/gid 65533. fsGroup makes the Longhorn PVC
+      # root group-writable so git-sync can create its working directory.
+      securityContext:
+        fsGroup: 65533
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
