@@ -68,7 +68,6 @@ spec:
         # Secret injected via env var below
         - --rfc2136-tsig-secret=$(EXTERNAL_DNS_RFC2136_TSIG_SECRET)
         - --rfc2136-tsig-secret-alg=hmac-sha256
-        - --rfc2136-tcp
         # TXT records track which records ExternalDNS owns; prefix avoids
         # colliding with application TXT records.
         - --txt-owner-id=external-dns-cluster
