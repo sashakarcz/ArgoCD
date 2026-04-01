@@ -78,7 +78,10 @@ spec:
 
           configMaps:
             config:
-              enabled: false
+              enabled: true
+              data:
+                config.yml: |
+                  # Non-secret config — sensitive values set via env vars
 
   destination:
     server: https://kubernetes.default.svc
