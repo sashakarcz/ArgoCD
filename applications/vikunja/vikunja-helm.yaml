@@ -60,6 +60,7 @@ spec:
                   name: vikunja-secrets
                   key: dbPassword
             VIKUNJA_SERVICE_PUBLICURL: "https://project.starnix.net"
+            VIKUNJA_AUTH_LOCAL_ENABLED: "false"
             VIKUNJA_AUTH_OPENID_ENABLED: "true"
             VIKUNJA_AUTH_OPENID_PROVIDERS_0_NAME: "Authentik"
             VIKUNJA_AUTH_OPENID_PROVIDERS_0_AUTHURL: "https://auth.starnix.net/application/o/vikunja/"
