@@ -47,6 +47,10 @@ spec:
             repositories: |
               - type: git
                 url: https://github.com/usenix17/ArgoCD.git
+              - type: helm
+                name: vikunja
+                url: ghcr.io/go-vikunja/helm-chart
+                enableOCI: "true"
 
         configs:
           cm:
