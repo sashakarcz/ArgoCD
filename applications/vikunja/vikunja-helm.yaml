@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/go-vikunja/helm-chart
+    repoURL: ghcr.io/go-vikunja/helm-chart
     chart: vikunja
     targetRevision: 2.0.0
     helm:
