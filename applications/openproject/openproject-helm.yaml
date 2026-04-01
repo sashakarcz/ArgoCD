@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openproject-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.openproject.org
+    chart: openproject
+    targetRevision: 13.4.4
+    helm:
+      releaseName: openproject
+      values: |
+        image:
+          tag: "17.2.3-slim"
+
+        ingress:
+          enabled: true
+          ingressClassName: traefik
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-production"
+            traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            gethomepage.dev/enabled: "true"
+            gethomepage.dev/name: "OpenProject"
+            gethomepage.dev/description: "Project Management"
+            gethomepage.dev/group: "Tools"
+            gethomepage.dev/icon: "openproject.png"
+            gethomepage.dev/href: "https://project.starnix.net"
+          host: "project.starnix.net"
+          tls:
+            enabled: true
+            secretName: "openproject-tls"
+
+        openproject:
+          https: true
+          host: "project.starnix.net"
+
+          admin_user:
+            name: "OpenProject Admin"
+            mail: "admin@starnix.net"
+            password_reset: "true"
+            secret: "openproject-secrets"
+            secretKeys:
+              password: "adminPassword"
+
+          oidc:
+            enabled: true
+            provider: "authentik"
+            displayName: "Authentik"
+            host: "auth.starnix.net"
+            authorizationEndpoint: "/application/o/authorize/"
+            tokenEndpoint: "/application/o/token/"
+            userinfoEndpoint: "/application/o/userinfo/"
+            endSessionEndpoint: "/application/o/openproject/end-session/"
+            scope: "[openid, email, profile]"
+            existingSecret: "openproject-secrets"
+            secretKeys:
+              identifier: "clientId"
+              secret: "oidc-client-secret"
+
+        persistence:
+          enabled: true
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: longhorn
+          size: 10Gi
+
+        postgresql:
+          bundled: true
+          primary:
+            persistence:
+              storageClass: longhorn
+              size: 5Gi
+          auth:
+            username: "openproject"
+            database: "openproject"
+            existingSecret: "openproject-secrets"
+            secretKeys:
+              adminPasswordKey: "postgres-password"
+              userPasswordKey: "password"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openproject
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
