@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vikunja-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: oci://ghcr.io/go-vikunja/helm-chart
+    chart: vikunja
+    targetRevision: 2.0.0
+    helm:
+      releaseName: vikunja
+      values: |
+        vikunja:
+          image:
+            repository: vikunja/vikunja
+            tag: "1.0.0"
+
+          ingress:
+            main:
+              enabled: true
+              ingressClassName: traefik
+              annotations:
+                cert-manager.io/cluster-issuer: "letsencrypt-production"
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                gethomepage.dev/enabled: "true"
+                gethomepage.dev/name: "Vikunja"
+                gethomepage.dev/description: "Task Management"
+                gethomepage.dev/group: "Tools"
+                gethomepage.dev/icon: "vikunja.png"
+                gethomepage.dev/href: "https://project.starnix.net"
+              hosts:
+                - host: project.starnix.net
+                  paths:
+                    - path: /
+              tls:
+                - secretName: vikunja-tls
+                  hosts:
+                    - project.starnix.net
+
+          persistence:
+            data:
+              enabled: true
+              accessMode: ReadWriteOnce
+              size: 5Gi
+              storageClass: longhorn
+              mountPath: /app/vikunja/files
+            database:
+              enabled: false
+
+          env:
+            VIKUNJA_DATABASE_TYPE: postgres
+            VIKUNJA_DATABASE_HOST: vikunja-postgres
+            VIKUNJA_DATABASE_DATABASE: vikunja
+            VIKUNJA_DATABASE_USER: vikunja
+            VIKUNJA_DATABASE_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: dbPassword
+            VIKUNJA_SERVICE_PUBLICURL: "https://project.starnix.net"
+            VIKUNJA_AUTH_OPENID_ENABLED: "true"
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_NAME: "Authentik"
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_AUTHURL: "https://auth.starnix.net/application/o/vikunja/"
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_LOGOUTURL: "https://auth.starnix.net/application/o/vikunja/end-session/"
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_SCOPE: "openid email profile"
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_CLIENTID:
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: clientId
+            VIKUNJA_AUTH_OPENID_PROVIDERS_0_CLIENTSECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: clientSecret
+
+          configMaps:
+            config:
+              enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vikunja
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
