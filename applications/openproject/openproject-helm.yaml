@@ -62,7 +62,7 @@ spec:
         persistence:
           enabled: true
           accessModes:
-            - ReadWriteOnce
+            - ReadWriteMany
           storageClassName: longhorn
           size: 10Gi
 
