@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bair-sky
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bair-sky
+  namespace: bair-sky
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bair-sky
+  template:
+    metadata:
+      labels:
+        app: bair-sky
+    spec:
+      containers:
+      - name: bair-sky
+        image: registry.starnix.net/library/bair-sky:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bair-sky
+  namespace: bair-sky
+spec:
+  selector:
+    app: bair-sky
+  ports:
+  - port: 8080
+    targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bair-sky
+  namespace: bair-sky
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-production
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: sky.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bair-sky
+            port:
+              number: 8080
+  tls:
+  - secretName: bair-sky-tls
+    hosts:
+    - sky.starnix.net
