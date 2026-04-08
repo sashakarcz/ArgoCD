@@ -29,6 +29,7 @@ spec:
 #   s3-secret-key       - MinIO secret key
 #   oidc-client-secret  - Authentik OIDC client secret
 #   seahub-secret-key   - Django SECRET_KEY for Seahub
+#   seafile-license     - Contents of seafile-license.txt from https://customer.seafile.com
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -163,17 +164,17 @@ data:
   SEAFILE_MYSQL_DB_SEAFILE_DB_NAME: "seafile_db"
   SEAFILE_MYSQL_DB_SEAHUB_DB_NAME: "seahub_db"
   INIT_SEAFILE_ADMIN_EMAIL: "admin@starnix.net"
-  # S3/MinIO storage backend — disabled until seafile-pro-mc image is in use
-  # SEAF_SERVER_STORAGE_TYPE: "s3"
-  # S3_COMMIT_BUCKET: "seafile-commits"
-  # S3_FS_BUCKET: "seafile-fs"
-  # S3_BLOCK_BUCKET: "seafile-blocks"
-  # S3_KEY_ID: "seafile"
-  # S3_HOST: "192.168.1.150:9000"
-  # S3_PATH_STYLE_REQUEST: "true"
-  # S3_USE_V4_SIGNATURE: "true"
-  # S3_USE_HTTPS: "false"
-  # S3_AWS_REGION: "us-east-1"
+  # S3/MinIO storage backend
+  SEAF_SERVER_STORAGE_TYPE: "s3"
+  S3_COMMIT_BUCKET: "seafile-commits"
+  S3_FS_BUCKET: "seafile-fs"
+  S3_BLOCK_BUCKET: "seafile-blocks"
+  S3_KEY_ID: "seafile"
+  S3_HOST: "192.168.1.150:9000"
+  S3_PATH_STYLE_REQUEST: "true"
+  S3_USE_V4_SIGNATURE: "true"
+  S3_USE_HTTPS: "false"
+  S3_AWS_REGION: "us-east-1"
 
 ---
 apiVersion: apps/v1
@@ -267,6 +268,18 @@ spec:
         - |
           import os, sys
           conf = '/shared/seafile/conf/seahub_settings.py'
+
+          # Write Pro license file
+          license_content = os.environ.get('SEAFILE_LICENSE', '')
+          if license_content:
+              license_path = '/shared/seafile/seafile-data/seafile-license.txt'
+              if not os.path.exists(license_path):
+                  os.makedirs('/shared/seafile/seafile-data', exist_ok=True)
+                  with open(license_path, 'w') as f:
+                      f.write(license_content)
+                  print("License file written")
+              else:
+                  print("License file already present")
 
           # Patch seafile.conf with S3 backend if not already set
           seafile_conf = '/shared/seafile/conf/seafile.conf'
@@ -384,12 +397,17 @@ spec:
             secretKeyRef:
               name: seafile-secrets
               key: s3-secret-key
+        - name: SEAFILE_LICENSE
+          valueFrom:
+            secretKeyRef:
+              name: seafile-secrets
+              key: seafile-license
         volumeMounts:
         - name: seafile-data
           mountPath: /shared
       containers:
       - name: seafile
-        image: seafileltd/seafile-mc:13.0-latest  # Switch to seafile-pro-mc:13.0-latest when Pro license is ready
+        image: seafileltd/seafile-pro-mc:13.0-latest
         ports:
         - containerPort: 80
         envFrom:
