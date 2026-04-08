@@ -269,18 +269,6 @@ spec:
           import os, sys
           conf = '/shared/seafile/conf/seahub_settings.py'
 
-          # Write Pro license file
-          license_content = os.environ.get('SEAFILE_LICENSE', '')
-          if license_content:
-              license_path = '/shared/seafile/seafile-data/seafile-license.txt'
-              if not os.path.exists(license_path):
-                  os.makedirs('/shared/seafile/seafile-data', exist_ok=True)
-                  with open(license_path, 'w') as f:
-                      f.write(license_content)
-                  print("License file written")
-              else:
-                  print("License file already present")
-
           # Patch seafile.conf with S3 backend if not already set
           seafile_conf = '/shared/seafile/conf/seafile.conf'
           s3_key = os.environ['S3_SECRET_KEY']
@@ -397,11 +385,6 @@ spec:
             secretKeyRef:
               name: seafile-secrets
               key: s3-secret-key
-        - name: SEAFILE_LICENSE
-          valueFrom:
-            secretKeyRef:
-              name: seafile-secrets
-              key: seafile-license
         volumeMounts:
         - name: seafile-data
           mountPath: /shared
