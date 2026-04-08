@@ -273,7 +273,18 @@ spec:
           with open(conf) as f:
               content = f.read()
           if 'ENABLE_OAUTH' in content:
-              print("OIDC settings already present; nothing to do")
+              # Fix wrong authorize URL if present
+              if 'seafile/authorize' in content:
+                  print("Fixing wrong OAUTH_AUTHORIZATION_URL")
+                  content = content.replace(
+                      'https://auth.starnix.net/application/o/seafile/authorize/',
+                      'https://auth.starnix.net/application/o/authorize/'
+                  )
+                  with open(conf, 'w') as f:
+                      f.write(content)
+                  print("Fixed OAUTH_AUTHORIZATION_URL")
+              else:
+                  print("OIDC settings already present; nothing to do")
               sys.exit(0)
           client_secret = os.environ['OAUTH_CLIENT_SECRET']
           seahub_secret = os.environ['SEAHUB_SECRET_KEY']
@@ -301,7 +312,7 @@ spec:
           OAUTH_CLIENT_SECRET = {client_secret!r}
           OAUTH_REDIRECT_URL = 'https://seafile.starnix.net/oauth/callback/'
           OAUTH_PROVIDER_DOMAIN = 'auth.starnix.net'
-          OAUTH_AUTHORIZATION_URL = 'https://auth.starnix.net/application/o/seafile/authorize/'
+          OAUTH_AUTHORIZATION_URL = 'https://auth.starnix.net/application/o/authorize/'
           OAUTH_TOKEN_URL = 'https://auth.starnix.net/application/o/token/'
           OAUTH_USER_INFO_URL = 'https://auth.starnix.net/application/o/userinfo/'
           OAUTH_SCOPE = ['openid', 'profile', 'email']
