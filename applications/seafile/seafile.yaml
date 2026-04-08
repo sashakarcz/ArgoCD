@@ -267,25 +267,7 @@ spec:
         - |
           import os, sys
           conf = '/shared/seafile/conf/seahub_settings.py'
-          if not os.path.exists(conf):
-              print("seahub_settings.py not yet created by Seafile init; skipping OIDC patch (will apply on next start)")
-              sys.exit(0)
-          with open(conf) as f:
-              content = f.read()
-          if 'ENABLE_OAUTH' in content:
-              # Fix wrong authorize URL if present
-              if 'seafile/authorize' in content:
-                  print("Fixing wrong OAUTH_AUTHORIZATION_URL")
-                  content = content.replace(
-                      'https://auth.starnix.net/application/o/seafile/authorize/',
-                      'https://auth.starnix.net/application/o/authorize/'
-                  )
-                  with open(conf, 'w') as f:
-                      f.write(content)
-                  print("Fixed OAUTH_AUTHORIZATION_URL")
-              else:
-                  print("OIDC settings already present; nothing to do")
-              sys.exit(0)
+
           # Patch seafile.conf with S3 backend if not already set
           seafile_conf = '/shared/seafile/conf/seafile.conf'
           s3_key = os.environ['S3_SECRET_KEY']
@@ -331,46 +313,61 @@ spec:
               else:
                   print("seafile.conf already has S3 config")
 
-          client_secret = os.environ['OAUTH_CLIENT_SECRET']
-          seahub_secret = os.environ['SEAHUB_SECRET_KEY']
-          patch = f"""
-          # Settings appended by oidc-patcher init container
-          SECRET_KEY = {seahub_secret!r}
-          SERVICE_URL = 'https://seafile.starnix.net/'
-          FILE_SERVER_ROOT = 'https://seafile.starnix.net/seafhttp'
-
-          CACHES = {{
-              'default': {{
-                  'BACKEND': 'django_redis.cache.RedisCache',
-                  'LOCATION': 'redis://seafile-redis:6379/0',
-              }},
-              'locmem': {{
-                  'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-              }},
-          }}
-          COMPRESS_CACHE_BACKEND = 'locmem'
-
-          ENABLE_OAUTH = True
-          OAUTH_CREATE_UNKNOWN_USER = True
-          OAUTH_ACTIVATE_USER_AFTER_CREATION = True
-          OAUTH_CLIENT_ID = 'zT2fc0wKlYNF18AMxgiJ2Q4aOFWTilVzuDUwbFMZ'
-          OAUTH_CLIENT_SECRET = {client_secret!r}
-          OAUTH_REDIRECT_URL = 'https://seafile.starnix.net/oauth/callback/'
-          OAUTH_PROVIDER_DOMAIN = 'auth.starnix.net'
-          OAUTH_AUTHORIZATION_URL = 'https://auth.starnix.net/application/o/authorize/'
-          OAUTH_TOKEN_URL = 'https://auth.starnix.net/application/o/token/'
-          OAUTH_USER_INFO_URL = 'https://auth.starnix.net/application/o/userinfo/'
-          OAUTH_SCOPE = ['openid', 'profile', 'email']
-          OAUTH_ATTRIBUTE_MAP = {{
-              'sub': (True, 'uid'),
-              'name': (False, 'name'),
-              'email': (False, 'contact_email'),
-          }}
-          """
-          import textwrap
-          with open(conf, 'a') as f:
-              f.write(textwrap.dedent(patch))
-          print("OIDC settings appended to seahub_settings.py")
+          # Patch seahub_settings.py with OIDC + cache settings
+          if not os.path.exists(conf):
+              print("seahub_settings.py not yet created; skipping (will apply on next start)")
+          else:
+              with open(conf) as f:
+                  content = f.read()
+              if 'seafile/authorize' in content:
+                  print("Fixing wrong OAUTH_AUTHORIZATION_URL")
+                  content = content.replace(
+                      'https://auth.starnix.net/application/o/seafile/authorize/',
+                      'https://auth.starnix.net/application/o/authorize/'
+                  )
+                  with open(conf, 'w') as f:
+                      f.write(content)
+                  print("Fixed OAUTH_AUTHORIZATION_URL")
+              if 'ENABLE_OAUTH' not in content:
+                  client_secret = os.environ['OAUTH_CLIENT_SECRET']
+                  seahub_secret = os.environ['SEAHUB_SECRET_KEY']
+                  patch = (
+                      '\n# Settings appended by oidc-patcher init container\n'
+                      f'SECRET_KEY = {seahub_secret!r}\n'
+                      "SERVICE_URL = 'https://seafile.starnix.net/'\n"
+                      "FILE_SERVER_ROOT = 'https://seafile.starnix.net/seafhttp'\n"
+                      "CACHES = {\n"
+                      "    'default': {\n"
+                      "        'BACKEND': 'django_redis.cache.RedisCache',\n"
+                      "        'LOCATION': 'redis://seafile-redis:6379/0',\n"
+                      "    },\n"
+                      "    'locmem': {\n"
+                      "        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',\n"
+                      "    },\n"
+                      "}\n"
+                      "COMPRESS_CACHE_BACKEND = 'locmem'\n"
+                      "ENABLE_OAUTH = True\n"
+                      "OAUTH_CREATE_UNKNOWN_USER = True\n"
+                      "OAUTH_ACTIVATE_USER_AFTER_CREATION = True\n"
+                      "OAUTH_CLIENT_ID = 'zT2fc0wKlYNF18AMxgiJ2Q4aOFWTilVzuDUwbFMZ'\n"
+                      f"OAUTH_CLIENT_SECRET = {client_secret!r}\n"
+                      "OAUTH_REDIRECT_URL = 'https://seafile.starnix.net/oauth/callback/'\n"
+                      "OAUTH_PROVIDER_DOMAIN = 'auth.starnix.net'\n"
+                      "OAUTH_AUTHORIZATION_URL = 'https://auth.starnix.net/application/o/authorize/'\n"
+                      "OAUTH_TOKEN_URL = 'https://auth.starnix.net/application/o/token/'\n"
+                      "OAUTH_USER_INFO_URL = 'https://auth.starnix.net/application/o/userinfo/'\n"
+                      "OAUTH_SCOPE = ['openid', 'profile', 'email']\n"
+                      "OAUTH_ATTRIBUTE_MAP = {\n"
+                      "    'sub': (True, 'uid'),\n"
+                      "    'name': (False, 'name'),\n"
+                      "    'email': (False, 'contact_email'),\n"
+                      "}\n"
+                  )
+                  with open(conf, 'a') as f:
+                      f.write(patch)
+                  print("OIDC settings appended to seahub_settings.py")
+              else:
+                  print("OIDC settings already present")
         env:
         - name: OAUTH_CLIENT_SECRET
           valueFrom:
