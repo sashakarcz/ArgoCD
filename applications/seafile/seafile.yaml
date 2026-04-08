@@ -293,40 +293,38 @@ spec:
               with open(seafile_conf) as f:
                   sc = f.read()
               if 'commit_object_backend' not in sc:
-                  s3_block = f"""
-[commit_object_backend]
-name = s3
-bucket = seafile-commits
-key_id = seafile
-key = {s3_key}
-host = 192.168.1.150:9000
-path_style_request = true
-use_v4_signature = true
-aws_region = us-east-1
-use_https = false
-
-[fs_object_backend]
-name = s3
-bucket = seafile-fs
-key_id = seafile
-key = {s3_key}
-host = 192.168.1.150:9000
-path_style_request = true
-use_v4_signature = true
-aws_region = us-east-1
-use_https = false
-
-[block_backend]
-name = s3
-bucket = seafile-blocks
-key_id = seafile
-key = {s3_key}
-host = 192.168.1.150:9000
-path_style_request = true
-use_v4_signature = true
-aws_region = us-east-1
-use_https = false
-"""
+                  s3_block = (
+                      '\n[commit_object_backend]\n'
+                      'name = s3\n'
+                      'bucket = seafile-commits\n'
+                      'key_id = seafile\n'
+                      f'key = {s3_key}\n'
+                      'host = 192.168.1.150:9000\n'
+                      'path_style_request = true\n'
+                      'use_v4_signature = true\n'
+                      'aws_region = us-east-1\n'
+                      'use_https = false\n'
+                      '\n[fs_object_backend]\n'
+                      'name = s3\n'
+                      'bucket = seafile-fs\n'
+                      'key_id = seafile\n'
+                      f'key = {s3_key}\n'
+                      'host = 192.168.1.150:9000\n'
+                      'path_style_request = true\n'
+                      'use_v4_signature = true\n'
+                      'aws_region = us-east-1\n'
+                      'use_https = false\n'
+                      '\n[block_backend]\n'
+                      'name = s3\n'
+                      'bucket = seafile-blocks\n'
+                      'key_id = seafile\n'
+                      f'key = {s3_key}\n'
+                      'host = 192.168.1.150:9000\n'
+                      'path_style_request = true\n'
+                      'use_v4_signature = true\n'
+                      'aws_region = us-east-1\n'
+                      'use_https = false\n'
+                  )
                   with open(seafile_conf, 'a') as f:
                       f.write(s3_block)
                   print("S3 backend written to seafile.conf")
