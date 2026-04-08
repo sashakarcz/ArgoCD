@@ -179,6 +179,48 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: seafile-redis
+  namespace: seafile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seafile-redis
+  template:
+    metadata:
+      labels:
+        app: seafile-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seafile-redis
+  namespace: seafile
+spec:
+  selector:
+    app: seafile-redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: seafile
   namespace: seafile
 spec:
@@ -201,6 +243,22 @@ spec:
         - sh
         - -c
         - until mysqladmin ping -h seafile-mariadb --silent; do echo "waiting for mariadb"; sleep 3; done
+      - name: install-boto3
+        image: python:3.11-slim
+        command:
+        - sh
+        - -c
+        - pip install boto3 --quiet --target /pip-packages
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: pip-packages
+          mountPath: /pip-packages
       - name: oidc-patcher
         image: python:3.11-slim
         command:
@@ -220,10 +278,22 @@ spec:
           client_secret = os.environ['OAUTH_CLIENT_SECRET']
           seahub_secret = os.environ['SEAHUB_SECRET_KEY']
           patch = f"""
-          # OIDC settings (appended by oidc-patcher init container)
+          # Settings appended by oidc-patcher init container
           SECRET_KEY = {seahub_secret!r}
           SERVICE_URL = 'https://seafile.starnix.net/'
           FILE_SERVER_ROOT = 'https://seafile.starnix.net/seafhttp'
+
+          CACHES = {{
+              'default': {{
+                  'BACKEND': 'django_redis.cache.RedisCache',
+                  'LOCATION': 'redis://seafile-redis:6379/0',
+              }},
+              'locmem': {{
+                  'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+              }},
+          }}
+          COMPRESS_CACHE_BACKEND = 'locmem'
+
           ENABLE_OAUTH = True
           OAUTH_CREATE_UNKNOWN_USER = True
           OAUTH_ACTIVATE_USER_AFTER_CREATION = True
@@ -303,9 +373,13 @@ spec:
             secretKeyRef:
               name: seafile-secrets
               key: seahub-secret-key
+        - name: PYTHONPATH
+          value: /pip-packages
         volumeMounts:
         - name: seafile-data
           mountPath: /shared
+        - name: pip-packages
+          mountPath: /pip-packages
         resources:
           requests:
             cpu: 200m
@@ -333,6 +407,8 @@ spec:
       - name: seafile-data
         persistentVolumeClaim:
           claimName: seafile-data
+      - name: pip-packages
+        emptyDir: {}
 
 ---
 apiVersion: v1
