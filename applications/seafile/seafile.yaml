@@ -286,6 +286,53 @@ spec:
               else:
                   print("OIDC settings already present; nothing to do")
               sys.exit(0)
+          # Patch seafile.conf with S3 backend if not already set
+          seafile_conf = '/shared/seafile/conf/seafile.conf'
+          s3_key = os.environ['S3_SECRET_KEY']
+          if os.path.exists(seafile_conf):
+              with open(seafile_conf) as f:
+                  sc = f.read()
+              if 'commit_object_backend' not in sc:
+                  s3_block = f"""
+[commit_object_backend]
+name = s3
+bucket = seafile-commits
+key_id = seafile
+key = {s3_key}
+host = 192.168.1.150:9000
+path_style_request = true
+use_v4_signature = true
+aws_region = us-east-1
+use_https = false
+
+[fs_object_backend]
+name = s3
+bucket = seafile-fs
+key_id = seafile
+key = {s3_key}
+host = 192.168.1.150:9000
+path_style_request = true
+use_v4_signature = true
+aws_region = us-east-1
+use_https = false
+
+[block_backend]
+name = s3
+bucket = seafile-blocks
+key_id = seafile
+key = {s3_key}
+host = 192.168.1.150:9000
+path_style_request = true
+use_v4_signature = true
+aws_region = us-east-1
+use_https = false
+"""
+                  with open(seafile_conf, 'a') as f:
+                      f.write(s3_block)
+                  print("S3 backend written to seafile.conf")
+              else:
+                  print("seafile.conf already has S3 config")
+
           client_secret = os.environ['OAUTH_CLIENT_SECRET']
           seahub_secret = os.environ['SEAHUB_SECRET_KEY']
           patch = f"""
@@ -337,6 +384,11 @@ spec:
             secretKeyRef:
               name: seafile-secrets
               key: seahub-secret-key
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: seafile-secrets
+              key: s3-secret-key
         volumeMounts:
         - name: seafile-data
           mountPath: /shared
