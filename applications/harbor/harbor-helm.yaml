@@ -68,6 +68,10 @@ spec:
         trivy:
           enabled: true
 
+        jobservice:
+          updateStrategy:
+            type: Recreate
+
   destination:
     server: https://kubernetes.default.svc
     namespace: harbor
