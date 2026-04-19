@@ -1,0 +1,151 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eve-notifier
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: eve-notifier
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: eve-notifier
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret must contain:
+#   git-pat  - Personal access token for pulling the private config repo
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: eve-notifier-secrets
+  namespace: eve-notifier
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/eve-notifier-secrets
+  vaultAuthRef: default
+  destination:
+    name: eve-notifier-secrets
+    create: true
+  refreshAfter: 1h
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eve-notifier-state
+  namespace: eve-notifier
+  labels:
+    recurring-job-group.longhorn.io/default: enabled
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eve-notifier
+  namespace: eve-notifier
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: eve-notifier
+  template:
+    metadata:
+      labels:
+        app: eve-notifier
+    spec:
+      enableServiceLinks: false
+      initContainers:
+      - name: git-sync-init
+        image: registry.k8s.io/git-sync/git-sync:v4.4.0
+        args:
+        - --repo=https://github.com/usenix17/eve-notifier-config.git
+        - --ref=main
+        - --root=/git
+        - --link=current
+        - --one-time
+        - --username=usenix17
+        - --password-env=GITSYNC_PASSWORD
+        env:
+        - name: GITSYNC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: eve-notifier-secrets
+              key: git-pat
+        volumeMounts:
+        - name: config
+          mountPath: /git
+      containers:
+      - name: git-sync
+        image: registry.k8s.io/git-sync/git-sync:v4.4.0
+        args:
+        - --repo=https://github.com/usenix17/eve-notifier-config.git
+        - --ref=main
+        - --root=/git
+        - --link=current
+        - --period=60s
+        - --username=usenix17
+        - --password-env=GITSYNC_PASSWORD
+        env:
+        - name: GITSYNC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: eve-notifier-secrets
+              key: git-pat
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - name: config
+          mountPath: /git
+      - name: eve-notifier
+        image: registry.starnix.net/library/eve-notifier:latest
+        args:
+        - --config
+        - /config/current/config.yaml
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: state
+          mountPath: /app/state
+      volumes:
+      - name: config
+        emptyDir: {}
+      - name: state
+        persistentVolumeClaim:
+          claimName: eve-notifier-state
