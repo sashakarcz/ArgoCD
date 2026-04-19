@@ -28,7 +28,8 @@ spec:
 
 ---
 # Vault secret must contain:
-#   git-pat  - Personal access token for pulling the private config repo
+#   git-pat        - Personal access token for pulling the private config repo
+#   notify-webhook - Webhook URL to notify when config is reloaded
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -126,6 +127,51 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /git
+      - name: config-notifier
+        image: alpine:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until apk add --no-cache curl jq; do sleep 5; done
+          LAST=""
+          while true; do
+            CURRENT=$(readlink /config/current 2>/dev/null)
+            if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
+              if [ -n "$LAST" ]; then
+                echo "Config changed, sending notification..."
+                CONFIG=$(cat /config/current/config.yaml 2>/dev/null)
+                # Truncate to 1800 chars to stay within Discord limits
+                if [ ${#CONFIG} -gt 1800 ]; then
+                  CONFIG=$(echo "$CONFIG" | head -c 1800)
+                  CONFIG="${CONFIG}
+... (truncated)"
+                fi
+                BODY=$(jq -n --arg msg "$(printf '⚙️ **eve-notifier config reloaded**\n```yaml\n%s\n```' "$CONFIG")" '{"content": $msg}')
+                curl -s -X POST "$NOTIFY_WEBHOOK" \
+                  -H "Content-Type: application/json" \
+                  -d "$BODY" || true
+              fi
+              LAST="$CURRENT"
+            fi
+            sleep 5
+          done
+        env:
+        - name: NOTIFY_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: eve-notifier-secrets
+              key: notify-webhook
+        resources:
+          requests:
+            cpu: 5m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
       - name: eve-notifier
         image: registry.starnix.net/library/eve-notifier:latest
         args:
