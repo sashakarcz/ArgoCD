@@ -79,7 +79,6 @@ spec:
         app: eve-notifier
     spec:
       enableServiceLinks: false
-      shareProcessNamespace: true
       initContainers:
       - name: git-sync-init
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
@@ -127,34 +126,6 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /git
-      - name: config-reloader
-        image: alpine:latest
-        command:
-        - /bin/sh
-        - -c
-        - |
-          LAST=""
-          while true; do
-            CURRENT=$(readlink /config/current 2>/dev/null)
-            if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
-              if [ -n "$LAST" ]; then
-                echo "Config changed ($LAST -> $CURRENT), restarting eve-notifier..."
-                pkill eve-notifier || true
-              fi
-              LAST="$CURRENT"
-            fi
-            sleep 5
-          done
-        resources:
-          requests:
-            cpu: 5m
-            memory: 16Mi
-          limits:
-            cpu: 50m
-            memory: 32Mi
-        volumeMounts:
-        - name: config
-          mountPath: /config
       - name: eve-notifier
         image: registry.starnix.net/library/eve-notifier:latest
         args:
