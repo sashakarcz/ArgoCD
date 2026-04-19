@@ -44,6 +44,15 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - talos-1yg-rc3
       containers:
       - name: krampus
         image: registry.starnix.net/library/krampus:latest

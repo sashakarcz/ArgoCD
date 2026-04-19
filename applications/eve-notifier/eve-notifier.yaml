@@ -83,7 +83,7 @@ spec:
       - name: git-sync-init
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
         args:
-        - --repo=https://github.com/usenix17/eve-notifier-config.git
+        - --repo=https://github.com/ComaDoofWarrior/zKillBot.git
         - --ref=main
         - --root=/git
         - --link=current
