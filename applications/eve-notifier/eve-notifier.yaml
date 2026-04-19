@@ -88,9 +88,9 @@ spec:
         - --root=/git
         - --link=current
         - --one-time
-        - --username=usenix17
-        - --password-env=GITSYNC_PASSWORD
         env:
+        - name: GITSYNC_USERNAME
+          value: usenix17
         - name: GITSYNC_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -103,14 +103,14 @@ spec:
       - name: git-sync
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
         args:
-        - --repo=https://github.com/usenix17/eve-notifier-config.git
+        - --repo=https://github.com/ComaDoofWarrior/zKillBot.git
         - --ref=main
         - --root=/git
         - --link=current
         - --period=60s
-        - --username=usenix17
-        - --password-env=GITSYNC_PASSWORD
         env:
+        - name: GITSYNC_USERNAME
+          value: usenix17
         - name: GITSYNC_PASSWORD
           valueFrom:
             secretKeyRef:
