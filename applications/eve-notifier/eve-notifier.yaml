@@ -139,7 +139,7 @@ spec:
             if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
               if [ -n "$LAST" ]; then
                 echo "Config changed ($LAST -> $CURRENT), restarting eve-notifier..."
-                pkill -f /app/eve-notifier || true
+                pkill eve-notifier || true
               fi
               LAST="$CURRENT"
             fi
