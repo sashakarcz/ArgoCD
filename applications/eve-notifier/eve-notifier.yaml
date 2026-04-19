@@ -131,6 +131,7 @@ spec:
         args:
         - --config
         - /config/current/config.yaml
+        workingDir: /app/state
         resources:
           requests:
             cpu: 50m
