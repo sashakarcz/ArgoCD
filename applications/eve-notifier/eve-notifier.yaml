@@ -139,7 +139,7 @@ spec:
             if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
               if [ -n "$LAST" ]; then
                 echo "Config changed, sending notification..."
-                WEBHOOK=$(grep -m1 '^alert_webhook_url:' /config/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'')
+                WEBHOOK=$(grep -m1 '^alert_webhook_url:' /config/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'' | tr -d '\r')
                 if [ -n "$WEBHOOK" ]; then
                   CONFIG=$(cat /config/current/config.yaml 2>/dev/null)
                   # Truncate to 1800 chars to stay within Discord limits
