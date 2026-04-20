@@ -99,6 +99,29 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /git
+      - name: startup-notifier
+        image: alpine:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          apk add --no-cache curl --quiet
+          WEBHOOK=$(grep -m1 '^alert_webhook_url:' /git/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'')
+          if [ -n "$WEBHOOK" ]; then
+            curl -s -X POST "$WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d '{"content": "🚀 **eve-notifier** is starting up..."}' || true
+          fi
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 32Mi
+        volumeMounts:
+        - name: config
+          mountPath: /git
       containers:
       - name: git-sync
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
