@@ -28,8 +28,7 @@ spec:
 
 ---
 # Vault secret must contain:
-#   git-pat        - Personal access token for pulling the private config repo
-#   notify-webhook - Webhook URL to notify when config is reloaded
+#   git-pat  - Personal access token for pulling the private config repo
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -140,26 +139,25 @@ spec:
             if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
               if [ -n "$LAST" ]; then
                 echo "Config changed, sending notification..."
-                CONFIG=$(cat /config/current/config.yaml 2>/dev/null)
-                # Truncate to 1800 chars to stay within Discord limits
-                if [ ${#CONFIG} -gt 1800 ]; then
-                  CONFIG=$(printf '%s\n(truncated)' "$(printf '%s' "$CONFIG" | head -c 1800)")
+                WEBHOOK=$(grep -m1 '^alert_webhook_url:' /config/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'')
+                if [ -n "$WEBHOOK" ]; then
+                  CONFIG=$(cat /config/current/config.yaml 2>/dev/null)
+                  # Truncate to 1800 chars to stay within Discord limits
+                  if [ ${#CONFIG} -gt 1800 ]; then
+                    CONFIG=$(printf '%s\n(truncated)' "$(printf '%s' "$CONFIG" | head -c 1800)")
+                  fi
+                  BODY=$(jq -n --arg msg "$(printf '⚙️ **eve-notifier config reloaded**\n```yaml\n%s\n```' "$CONFIG")" '{"content": $msg}')
+                  curl -s -X POST "$WEBHOOK" \
+                    -H "Content-Type: application/json" \
+                    -d "$BODY" || true
+                else
+                  echo "alert_webhook_url not set in config, skipping notification"
                 fi
-                BODY=$(jq -n --arg msg "$(printf '⚙️ **eve-notifier config reloaded**\n```yaml\n%s\n```' "$CONFIG")" '{"content": $msg}')
-                curl -s -X POST "$NOTIFY_WEBHOOK" \
-                  -H "Content-Type: application/json" \
-                  -d "$BODY" || true
               fi
               LAST="$CURRENT"
             fi
             sleep 5
           done
-        env:
-        - name: NOTIFY_WEBHOOK
-          valueFrom:
-            secretKeyRef:
-              name: eve-notifier-secrets
-              key: notify-webhook
         resources:
           requests:
             cpu: 5m
