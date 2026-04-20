@@ -105,12 +105,10 @@ spec:
         - /bin/sh
         - -c
         - |
-          apk add --no-cache curl --quiet
-          WEBHOOK=$(grep -m1 '^alert_webhook_url:' /git/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'')
+          until apk add --no-cache curl; do sleep 2; done
+          WEBHOOK=$(grep -m1 '^alert_webhook_url:' /git/current/config.yaml | sed "s/^alert_webhook_url:[[:space:]]*//;s/[\"']//g")
           if [ -n "$WEBHOOK" ]; then
-            curl -s -X POST "$WEBHOOK" \
-              -H "Content-Type: application/json" \
-              -d '{"content": "🚀 **eve-notifier** is starting up..."}' || true
+            curl -s -X POST "$WEBHOOK" -H "Content-Type: application/json" -d "{\"content\": \"eve-notifier is starting up...\"}" || true
           fi
         resources:
           requests:
