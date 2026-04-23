@@ -72,9 +72,7 @@ spec:
         # colliding with application TXT records.
         - --txt-owner-id=external-dns-cluster
         - --txt-prefix=_externaldns-
-        # upsert-only: create and update records but never delete them.
-        # Change to "sync" once confident the migration is clean.
-        - --policy=upsert-only
+        - --policy=sync
         - --interval=30s
         - --log-level=info
         env:
