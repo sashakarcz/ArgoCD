@@ -78,6 +78,15 @@ spec:
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
         effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - talos-dg8-q1t
       volumes:
       - name: knot-config
         configMap:
