@@ -212,7 +212,7 @@ spec:
               name: freescout-secrets
               key: db-password
         - name: SITE_URL
-          value: "https://freescout.starnix.net"
+          value: "https://help.starnix.net"
         - name: APP_CLOUDFLARE_IS_USED
           value: "true"
         - name: ADMIN_EMAIL
@@ -271,7 +271,7 @@ metadata:
     gethomepage.dev/description: "Help Desk"
     gethomepage.dev/group: "Admin"
     gethomepage.dev/icon: "freescout.png"
-    gethomepage.dev/href: "https://freescout.starnix.net"
+    gethomepage.dev/href: "https://help.starnix.net"
 spec:
   selector:
     app: freescout-app
@@ -292,16 +292,16 @@ metadata:
     gethomepage.dev/description: "Help Desk"
     gethomepage.dev/group: "Admin"
     gethomepage.dev/icon: "freescout.png"
-    gethomepage.dev/href: "https://freescout.starnix.net"
+    gethomepage.dev/href: "https://help.starnix.net"
     gethomepage.dev/pod-selector: "app=freescout-app"
 spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - freescout.starnix.net
+    - help.starnix.net
     secretName: freescout-tls
   rules:
-  - host: freescout.starnix.net
+  - host: help.starnix.net
     http:
       paths:
       - path: /
