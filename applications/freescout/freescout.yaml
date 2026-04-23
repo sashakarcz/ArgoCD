@@ -144,6 +144,8 @@ metadata:
   namespace: freescout
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: freescout-app
