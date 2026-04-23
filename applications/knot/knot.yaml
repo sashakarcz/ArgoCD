@@ -57,6 +57,8 @@ spec:
   # Single replica required: Longhorn PVC is ReadWriteOnce, and RFC 2136
   # updates must land on the same pod that owns the journal.
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: knot
