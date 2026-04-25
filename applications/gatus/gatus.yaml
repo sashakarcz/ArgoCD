@@ -215,7 +215,7 @@ data:
           - type: discord
       - name: "Freescout"
         group: Services
-        url: "https://freescout.starnix.net"
+        url: "https://help.starnix.net"
         interval: 1m
         conditions:
           - "[STATUS] == 200"
