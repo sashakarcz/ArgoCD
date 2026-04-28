@@ -1,0 +1,195 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stash
+
+---
+# NFS PersistentVolume for video library
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: stash-data-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: "192.168.1.75"
+    path: "/mnt/Store/Stash"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stash-data-pvc
+  namespace: stash
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  volumeName: stash-data-pv
+  storageClassName: ""
+
+---
+# Longhorn PVC for config + SQLite database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stash-config
+  namespace: stash
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Longhorn PVC for generated thumbnails/sprites/previews
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stash-generated
+  namespace: stash
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stash
+  namespace: stash
+  labels:
+    app: stash
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: stash
+  template:
+    metadata:
+      labels:
+        app: stash
+    spec:
+      containers:
+      - name: stash
+        image: stashapp/stash:latest
+        ports:
+        - containerPort: 9999
+          name: http
+        env:
+        - name: STASH_STASH
+          value: /data
+        - name: STASH_GENERATED
+          value: /generated
+        - name: STASH_CACHE
+          value: /cache
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 4000m
+            memory: 4Gi
+        volumeMounts:
+        - name: config
+          mountPath: /root/.stash
+        - name: data
+          mountPath: /data
+        - name: generated
+          mountPath: /generated
+        - name: cache
+          mountPath: /cache
+        livenessProbe:
+          tcpSocket:
+            port: 9999
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 9999
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: stash-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: stash-data-pvc
+      - name: generated
+        persistentVolumeClaim:
+          claimName: stash-generated
+      - name: cache
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stash
+  namespace: stash
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Stash"
+    gethomepage.dev/description: "Media Organizer"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "stash.png"
+    gethomepage.dev/href: "https://stash.starnix.net"
+spec:
+  selector:
+    app: stash
+  ports:
+  - port: 9999
+    targetPort: 9999
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stash-ingress
+  namespace: stash
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Stash"
+    gethomepage.dev/description: "Media Organizer"
+    gethomepage.dev/group: "Media"
+    gethomepage.dev/icon: "stash.png"
+    gethomepage.dev/href: "https://stash.starnix.net"
+    gethomepage.dev/pod-selector: "app=stash"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - stash.starnix.net
+    secretName: stash-tls
+  rules:
+  - host: stash.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stash
+            port:
+              number: 9999
