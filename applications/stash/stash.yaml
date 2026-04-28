@@ -85,6 +85,9 @@ spec:
       labels:
         app: stash
     spec:
+      securityContext:
+        fsGroup: 105
+        supplementalGroups: [44, 105]
       containers:
       - name: stash
         image: stashapp/stash:latest
@@ -98,6 +101,8 @@ spec:
           value: /generated
         - name: STASH_CACHE
           value: /cache
+        securityContext:
+          privileged: true
         resources:
           requests:
             cpu: 200m
@@ -114,6 +119,8 @@ spec:
           mountPath: /generated
         - name: cache
           mountPath: /cache
+        - name: dev-dri
+          mountPath: /dev/dri
         livenessProbe:
           tcpSocket:
             port: 9999
@@ -139,6 +146,10 @@ spec:
           claimName: stash-generated
       - name: cache
         emptyDir: {}
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
+          type: Directory
 
 ---
 apiVersion: v1
