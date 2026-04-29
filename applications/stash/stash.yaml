@@ -69,6 +69,32 @@ spec:
       storage: 50Gi
 
 ---
+# Baseline config pre-seeded on first run. Stash writes to the copy on
+# the Longhorn PVC so UI changes persist; this ConfigMap is the source
+# of truth for the initial path layout.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stash-config-seed
+  namespace: stash
+data:
+  config.yml: |
+    host: 0.0.0.0
+    port: 9999
+    stash:
+    - path: /data
+      excludes: []
+      image_excludes: []
+      video_excludes: []
+      zip_file_extensions:
+      - zip
+      - cbz
+    generated: /generated
+    cache: /cache
+    database: /root/.stash/stash-go.sqlite
+    metadata: /root/.stash/metadata
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -91,6 +117,25 @@ spec:
       securityContext:
         fsGroup: 105
         supplementalGroups: [44, 105]
+      initContainers:
+      - name: seed-config
+        image: alpine:latest
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /root/.stash/config.yml ]; then
+            echo "Seeding config.yml from ConfigMap..."
+            cp /seed/config.yml /root/.stash/config.yml
+          else
+            echo "config.yml already exists, skipping seed."
+          fi
+        volumeMounts:
+        - name: config
+          mountPath: /root/.stash
+        - name: config-seed
+          mountPath: /seed
+          readOnly: true
       containers:
       - name: stash
         image: stashapp/stash:latest
@@ -141,6 +186,9 @@ spec:
       - name: config
         persistentVolumeClaim:
           claimName: stash-config
+      - name: config-seed
+        configMap:
+          name: stash-config-seed
       - name: data
         persistentVolumeClaim:
           claimName: stash-data-pvc
@@ -160,13 +208,6 @@ kind: Service
 metadata:
   name: stash
   namespace: stash
-  annotations:
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Stash"
-    gethomepage.dev/description: "Media Organizer"
-    gethomepage.dev/group: "Media"
-    gethomepage.dev/icon: "stash.png"
-    gethomepage.dev/href: "https://stash.starnix.net"
 spec:
   selector:
     app: stash
@@ -183,13 +224,6 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Stash"
-    gethomepage.dev/description: "Media Organizer"
-    gethomepage.dev/group: "Media"
-    gethomepage.dev/icon: "stash.png"
-    gethomepage.dev/href: "https://stash.starnix.net"
-    gethomepage.dev/pod-selector: "app=stash"
 spec:
   ingressClassName: traefik
   tls:
