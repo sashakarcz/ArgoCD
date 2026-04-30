@@ -143,7 +143,11 @@ spec:
         - -c
         - |
           apk add --no-cache intel-media-driver libva
-          cp -r /usr/lib/dri /vaapi-drivers/
+          mkdir -p /vaapi-drivers/dri /vaapi-drivers/lib
+          cp -r /usr/lib/dri/iHD* /vaapi-drivers/dri/
+          cp /usr/lib/libigdgmm.so* /vaapi-drivers/lib/
+          cp /usr/lib/libva*.so* /vaapi-drivers/lib/ 2>/dev/null || true
+          cp /usr/lib/libmfx*.so* /vaapi-drivers/lib/ 2>/dev/null || true
         volumeMounts:
         - name: vaapi-drivers
           mountPath: /vaapi-drivers
@@ -164,6 +168,8 @@ spec:
           value: /vaapi-drivers/dri
         - name: LIBVA_DRIVER_NAME
           value: iHD
+        - name: LD_LIBRARY_PATH
+          value: /vaapi-drivers/lib
         securityContext:
           privileged: true
         resources:
