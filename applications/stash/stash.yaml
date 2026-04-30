@@ -136,6 +136,17 @@ spec:
         - name: config-seed
           mountPath: /seed
           readOnly: true
+      - name: install-vaapi-drivers
+        image: alpine:latest
+        command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache intel-media-driver libva
+          cp -r /usr/lib/dri /vaapi-drivers/
+        volumeMounts:
+        - name: vaapi-drivers
+          mountPath: /vaapi-drivers
       containers:
       - name: stash
         image: stashapp/stash:latest
@@ -149,6 +160,10 @@ spec:
           value: /generated
         - name: STASH_CACHE
           value: /cache
+        - name: LIBVA_DRIVERS_PATH
+          value: /vaapi-drivers/dri
+        - name: LIBVA_DRIVER_NAME
+          value: iHD
         securityContext:
           privileged: true
         resources:
@@ -169,6 +184,8 @@ spec:
           mountPath: /cache
         - name: dev-dri
           mountPath: /dev/dri
+        - name: vaapi-drivers
+          mountPath: /vaapi-drivers
         livenessProbe:
           tcpSocket:
             port: 9999
@@ -196,6 +213,8 @@ spec:
         persistentVolumeClaim:
           claimName: stash-generated
       - name: cache
+        emptyDir: {}
+      - name: vaapi-drivers
         emptyDir: {}
       - name: dev-dri
         hostPath:
