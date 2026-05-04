@@ -80,6 +80,22 @@ spec:
     spec:
       enableServiceLinks: false
       initContainers:
+      - name: validate-state
+        image: alpine:latest
+        command:
+        - sh
+        - -c
+        - |
+          if [ -f /app/state/state.json ]; then
+            apk add --no-cache python3 -q 2>/dev/null
+            python3 -c "import json; json.load(open('/app/state/state.json'))" 2>/dev/null || {
+              echo "state.json corrupted, removing..."
+              rm -f /app/state/state.json
+            }
+          fi
+        volumeMounts:
+        - name: state
+          mountPath: /app/state
       - name: git-sync-init
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
         args:
