@@ -92,8 +92,7 @@ spec:
         configMap:
           name: knot-config
       - name: zone-data
-        persistentVolumeClaim:
-          claimName: knot-zone-data
+        emptyDir: {}
       - name: knot-secrets
         secret:
           secretName: knot-secrets
@@ -242,22 +241,6 @@ spec:
     port: 53
     targetPort: 53
     protocol: UDP
-
----
-# Longhorn PVC for zone file + RFC 2136 journal persistence.
-# Replaces the previous emptyDir so records survive pod restarts.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: knot-zone-data
-  namespace: knot
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn
-  resources:
-    requests:
-      storage: 1Gi
 
 ---
 apiVersion: v1
