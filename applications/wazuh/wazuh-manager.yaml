@@ -308,6 +308,24 @@ spec:
           mountPath: /filebeat-template
         - name: filebeat-rendered
           mountPath: /filebeat-rendered
+      - name: seed-agent-groups
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          for group in arch debian freebsd kubernetes-node; do
+            mkdir -p /var/ossec/etc/shared/$group
+            cp /agent-groups/$group.conf /var/ossec/etc/shared/$group/agent.conf
+            chown 101:101 /var/ossec/etc/shared/$group/agent.conf
+            chmod 660 /var/ossec/etc/shared/$group/agent.conf
+          done
+        volumeMounts:
+        - name: wazuh-etc
+          mountPath: /var/ossec/etc
+        - name: agent-groups
+          mountPath: /agent-groups
+          readOnly: true
       containers:
       - name: wazuh-manager
         image: wazuh/wazuh-manager:4.14.1
@@ -430,3 +448,6 @@ spec:
             path: filebeat.yml
       - name: filebeat-rendered
         emptyDir: {}
+      - name: agent-groups
+        configMap:
+          name: wazuh-agent-groups

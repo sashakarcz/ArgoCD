@@ -1,0 +1,325 @@
+---
+# Agent group configs pushed to agents by the Wazuh manager.
+# Source of truth: applications/wazuh/shared/<group>/agent.conf
+# Keep these in sync with those files when making changes.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-agent-groups
+  namespace: wazuh
+data:
+  arch.conf: |
+    <agent_config>
+
+      <!-- Arch Linux uses systemd-journald; no /var/log/auth.log or syslog -->
+      <localfile>
+        <log_format>journald</log_format>
+        <location>journald</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/pacman.log</location>
+      </localfile>
+
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <alert_new_files>yes</alert_new_files>
+        <!-- pacman and gnupg dirs generate heavy churn on every update -->
+        <ignore>/etc/pacman.d/gnupg</ignore>
+        <ignore>/var/cache/pacman</ignore>
+        <ignore>/var/lib/pacman</ignore>
+        <ignore>/var/lib/systemd</ignore>
+        <ignore type="sregex">.log$|.swp$</ignore>
+        <skip_nfs>yes</skip_nfs>
+        <skip_dev>yes</skip_dev>
+        <skip_proc>yes</skip_proc>
+        <skip_sys>yes</skip_sys>
+        <process_priority>10</process_priority>
+        <max_eps>100</max_eps>
+        <synchronization>
+          <enabled>yes</enabled>
+          <interval>5m</interval>
+          <max_interval>1h</max_interval>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </syscheck>
+
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>yes</packages>
+        <ports all="yes">yes</ports>
+        <processes>yes</processes>
+        <synchronization>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </wodle>
+
+      <sca>
+        <enabled>yes</enabled>
+        <scan_on_start>yes</scan_on_start>
+        <interval>12h</interval>
+        <skip_nfs>yes</skip_nfs>
+      </sca>
+
+      <rootcheck>
+        <disabled>no</disabled>
+        <check_files>yes</check_files>
+        <check_trojans>yes</check_trojans>
+        <check_dev>yes</check_dev>
+        <check_sys>yes</check_sys>
+        <check_pids>yes</check_pids>
+        <check_ports>yes</check_ports>
+        <check_if>yes</check_if>
+        <frequency>43200</frequency>
+        <skip_nfs>yes</skip_nfs>
+      </rootcheck>
+
+    </agent_config>
+
+  debian.conf: |
+    <agent_config>
+
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/auth.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/syslog</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/kern.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/dpkg.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/apt/history.log</location>
+      </localfile>
+
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <alert_new_files>yes</alert_new_files>
+        <!-- apt/dpkg dirs change on every package operation -->
+        <ignore>/var/lib/apt</ignore>
+        <ignore>/var/lib/dpkg</ignore>
+        <ignore>/var/cache/apt</ignore>
+        <ignore>/var/lib/systemd</ignore>
+        <ignore type="sregex">.log$|.swp$</ignore>
+        <skip_nfs>yes</skip_nfs>
+        <skip_dev>yes</skip_dev>
+        <skip_proc>yes</skip_proc>
+        <skip_sys>yes</skip_sys>
+        <process_priority>10</process_priority>
+        <max_eps>100</max_eps>
+        <synchronization>
+          <enabled>yes</enabled>
+          <interval>5m</interval>
+          <max_interval>1h</max_interval>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </syscheck>
+
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>yes</packages>
+        <ports all="yes">yes</ports>
+        <processes>yes</processes>
+        <synchronization>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </wodle>
+
+      <sca>
+        <enabled>yes</enabled>
+        <scan_on_start>yes</scan_on_start>
+        <interval>12h</interval>
+        <skip_nfs>yes</skip_nfs>
+      </sca>
+
+      <rootcheck>
+        <disabled>no</disabled>
+        <check_files>yes</check_files>
+        <check_trojans>yes</check_trojans>
+        <check_dev>yes</check_dev>
+        <check_sys>yes</check_sys>
+        <check_pids>yes</check_pids>
+        <check_ports>yes</check_ports>
+        <check_if>yes</check_if>
+        <frequency>43200</frequency>
+        <skip_nfs>yes</skip_nfs>
+      </rootcheck>
+
+    </agent_config>
+
+  freebsd.conf: |
+    <agent_config>
+
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/auth.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/messages</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/security</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/cron</location>
+      </localfile>
+
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <alert_new_files>yes</alert_new_files>
+        <!-- pkg database and ports tree change frequently -->
+        <ignore>/var/db/pkg</ignore>
+        <ignore>/var/cache/pkg</ignore>
+        <ignore>/usr/ports</ignore>
+        <ignore>/var/db/ports</ignore>
+        <ignore type="sregex">.log$|.swp$</ignore>
+        <skip_nfs>yes</skip_nfs>
+        <skip_dev>yes</skip_dev>
+        <skip_proc>yes</skip_proc>
+        <skip_sys>yes</skip_sys>
+        <process_priority>10</process_priority>
+        <max_eps>100</max_eps>
+        <synchronization>
+          <enabled>yes</enabled>
+          <interval>5m</interval>
+          <max_interval>1h</max_interval>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </syscheck>
+
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>yes</packages>
+        <ports all="yes">yes</ports>
+        <processes>yes</processes>
+        <synchronization>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </wodle>
+
+      <sca>
+        <enabled>yes</enabled>
+        <scan_on_start>yes</scan_on_start>
+        <interval>12h</interval>
+        <skip_nfs>yes</skip_nfs>
+      </sca>
+
+      <rootcheck>
+        <disabled>no</disabled>
+        <check_files>yes</check_files>
+        <check_trojans>yes</check_trojans>
+        <check_dev>yes</check_dev>
+        <check_sys>yes</check_sys>
+        <check_pids>yes</check_pids>
+        <check_ports>yes</check_ports>
+        <check_if>yes</check_if>
+        <frequency>43200</frequency>
+        <skip_nfs>yes</skip_nfs>
+      </rootcheck>
+
+    </agent_config>
+
+  kubernetes-node.conf: |
+    <agent_config>
+
+      <!-- Talos is immutable; monitor container and pod logs -->
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/containers/*.log</location>
+      </localfile>
+
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <alert_new_files>yes</alert_new_files>
+        <!-- Kubernetes runtime dirs generate massive churn -->
+        <ignore>/var/lib/kubelet</ignore>
+        <ignore>/var/lib/containerd</ignore>
+        <ignore>/var/log/pods</ignore>
+        <ignore>/var/log/containers</ignore>
+        <ignore>/run</ignore>
+        <ignore>/sys</ignore>
+        <ignore type="sregex">.log$|.swp$</ignore>
+        <skip_nfs>yes</skip_nfs>
+        <skip_dev>yes</skip_dev>
+        <skip_proc>yes</skip_proc>
+        <skip_sys>yes</skip_sys>
+        <process_priority>10</process_priority>
+        <max_eps>50</max_eps>
+        <synchronization>
+          <enabled>yes</enabled>
+          <interval>5m</interval>
+          <max_interval>1h</max_interval>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </syscheck>
+
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>no</packages>
+        <ports all="yes">yes</ports>
+        <processes>yes</processes>
+        <synchronization>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </wodle>
+
+      <sca>
+        <enabled>yes</enabled>
+        <scan_on_start>yes</scan_on_start>
+        <interval>12h</interval>
+        <skip_nfs>yes</skip_nfs>
+      </sca>
+
+      <rootcheck>
+        <disabled>no</disabled>
+        <check_files>yes</check_files>
+        <check_trojans>yes</check_trojans>
+        <check_dev>yes</check_dev>
+        <check_sys>yes</check_sys>
+        <check_pids>yes</check_pids>
+        <check_ports>yes</check_ports>
+        <check_if>yes</check_if>
+        <frequency>43200</frequency>
+        <skip_nfs>yes</skip_nfs>
+      </rootcheck>
+
+    </agent_config>
