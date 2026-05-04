@@ -356,7 +356,7 @@ spec:
       - name: dev-dri
         hostPath:
           path: /dev/dri
-          type: Directory
+          type: DirectoryOrCreate
 ---
 # 5. Service (MetalLB LoadBalancer)
 apiVersion: v1
