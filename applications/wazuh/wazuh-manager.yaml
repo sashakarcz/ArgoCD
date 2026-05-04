@@ -299,6 +299,15 @@ spec:
       labels:
         app: wazuh-manager
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - talos-dg8-q1t
       initContainers:
       - name: prepare-filebeat-config
         image: busybox
