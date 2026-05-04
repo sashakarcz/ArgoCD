@@ -323,3 +323,88 @@ data:
       </rootcheck>
 
     </agent_config>
+
+  macos.conf: |
+    <agent_config>
+
+      <!-- macOS Unified Logging System (Catalina and later) -->
+      <localfile>
+        <log_format>macos</log_format>
+        <query type="predicate" level="info">
+          eventMessage CONTAINS "error" OR eventMessage CONTAINS "fail"
+          OR category == "network" OR category == "security"
+          OR subsystem == "com.apple.securityd"
+          OR subsystem == "com.apple.AuthKit"
+        </query>
+      </localfile>
+      <!-- Legacy syslog still present on most macOS installs -->
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/system.log</location>
+      </localfile>
+
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <alert_new_files>yes</alert_new_files>
+        <!-- High-churn macOS dirs -->
+        <ignore>/private/var/folders</ignore>
+        <ignore>/private/var/db/Spotlight-V100</ignore>
+        <ignore>/private/var/db/TimeMachine</ignore>
+        <ignore>/Library/Caches</ignore>
+        <ignore>/System/Library/Caches</ignore>
+        <!-- Homebrew (Intel: /usr/local, Apple Silicon: /opt/homebrew) -->
+        <ignore>/usr/local/var/homebrew</ignore>
+        <ignore>/opt/homebrew/var</ignore>
+        <ignore type="sregex">.DS_Store$|.log$|.swp$</ignore>
+        <skip_nfs>yes</skip_nfs>
+        <skip_dev>yes</skip_dev>
+        <skip_proc>yes</skip_proc>
+        <skip_sys>yes</skip_sys>
+        <process_priority>10</process_priority>
+        <max_eps>100</max_eps>
+        <synchronization>
+          <enabled>yes</enabled>
+          <interval>5m</interval>
+          <max_interval>1h</max_interval>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </syscheck>
+
+      <wodle name="syscollector">
+        <disabled>no</disabled>
+        <interval>1h</interval>
+        <scan_on_start>yes</scan_on_start>
+        <hardware>yes</hardware>
+        <os>yes</os>
+        <network>yes</network>
+        <packages>yes</packages>
+        <ports all="yes">yes</ports>
+        <processes>yes</processes>
+        <synchronization>
+          <max_eps>10</max_eps>
+        </synchronization>
+      </wodle>
+
+      <sca>
+        <enabled>yes</enabled>
+        <scan_on_start>yes</scan_on_start>
+        <interval>12h</interval>
+        <skip_nfs>yes</skip_nfs>
+      </sca>
+
+      <rootcheck>
+        <disabled>no</disabled>
+        <check_files>yes</check_files>
+        <check_trojans>yes</check_trojans>
+        <check_dev>yes</check_dev>
+        <check_sys>yes</check_sys>
+        <check_pids>yes</check_pids>
+        <check_ports>yes</check_ports>
+        <check_if>yes</check_if>
+        <frequency>43200</frequency>
+        <skip_nfs>yes</skip_nfs>
+      </rootcheck>
+
+    </agent_config>

@@ -314,7 +314,7 @@ spec:
         - sh
         - -c
         - |
-          for group in arch debian freebsd kubernetes-node; do
+          for group in arch debian freebsd kubernetes-node macos; do
             mkdir -p /var/ossec/etc/shared/$group
             cp /agent-groups/$group.conf /var/ossec/etc/shared/$group/agent.conf
             chown 101:101 /var/ossec/etc/shared/$group/agent.conf
