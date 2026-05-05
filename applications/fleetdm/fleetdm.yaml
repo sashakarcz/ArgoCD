@@ -27,6 +27,9 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: longhorn
+  claimRef:
+    name: mysql-pvc
+    namespace: fleetdm
   csi:
     driver: driver.longhorn.io
     volumeHandle: fleetdm-mysql-restored
