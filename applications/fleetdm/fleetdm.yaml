@@ -41,7 +41,6 @@ spec:
   accessModes:
     - ReadWriteOnce
   storageClassName: longhorn
-  volumeName: fleetdm-mysql-restored-pv
   resources:
     requests:
       storage: 20Gi
