@@ -271,14 +271,6 @@ data:
           - "[STATUS] == 200"
         alerts:
           - type: discord
-      - name: "Signoz"
-        group: Cluster
-        url: "https://signoz.starnix.net"
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
       - name: "Longhorn UI"
         group: Cluster
         url: "https://longhorn.starnix.net"
