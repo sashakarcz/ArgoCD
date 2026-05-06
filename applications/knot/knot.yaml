@@ -172,6 +172,7 @@ spec:
         - --root=/data/git
         - --link=zones
         - --period=60s
+        - --max-failures=-1
         resources:
           requests:
             cpu: 10m
