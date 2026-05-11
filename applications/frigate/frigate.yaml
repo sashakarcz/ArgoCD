@@ -202,21 +202,20 @@ spec:
           mountPath: /media/frigate
         - name: dev-dri
           mountPath: /dev/dri
+        - name: shm
+          mountPath: /dev/shm
+        # TCP probes avoid Frigate's nginx rejecting kubelet IP-based HTTP requests
         livenessProbe:
-          httpGet:
-            path: /api/version
-            port: 8971
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 10
-          failureThreshold: 5
-        readinessProbe:
-          httpGet:
-            path: /api/version
+          tcpSocket:
             port: 8971
           initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 8971
+          initialDelaySeconds: 15
           periodSeconds: 10
-          timeoutSeconds: 5
           failureThreshold: 3
       volumes:
       - name: config
@@ -232,6 +231,10 @@ spec:
         hostPath:
           path: /dev/dri
           type: DirectoryOrCreate
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 256Mi
 
 ---
 # Web UI — accessed via Ingress/Traefik (HTTPS only, Authentik-gated).
