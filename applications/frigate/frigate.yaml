@@ -26,7 +26,7 @@ data:
     detectors:
       intel:
         type: openvino
-        device: AUTO
+        device: GPU
 
     model:
       width: 300
@@ -37,7 +37,7 @@ data:
       labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
     ffmpeg:
-      hwaccel_args: []
+      hwaccel_args: preset-intel-qsv-h264
       output_args:
         record: preset-record-generic-audio-aac
 
@@ -188,7 +188,9 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - talos-1yg-rc3
+                - talos-dg8-q1t
+                - talos-hb1-9mk
+                - talos-p93-8cq
       # Privileged access required for /dev/dri (Intel GPU) on Talos.
       securityContext:
         fsGroup: 0
