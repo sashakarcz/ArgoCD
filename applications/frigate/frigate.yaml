@@ -37,7 +37,7 @@ data:
       labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
     ffmpeg:
-      hwaccel_args: preset-intel-qsv-h264
+      hwaccel_args: preset-intel-qsv-h265
       output_args:
         record: preset-record-generic-audio-aac
 
