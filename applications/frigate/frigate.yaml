@@ -17,6 +17,10 @@ metadata:
   namespace: frigate
 data:
   config.yaml: |
+    # Traefik terminates TLS; Frigate listens plain HTTP internally.
+    tls:
+      enabled: false
+
     mqtt:
       # Enable once MQTT (mosquitto) is deployed to the cluster.
       enabled: false
