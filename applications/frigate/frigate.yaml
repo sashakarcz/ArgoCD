@@ -33,7 +33,7 @@ data:
     detectors:
       intel:
         type: openvino
-        device: GPU
+        device: AUTO
 
     model:
       width: 300
