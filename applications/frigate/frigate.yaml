@@ -21,6 +21,9 @@ data:
     tls:
       enabled: false
 
+    auth:
+      reset_admin_password: true
+
     mqtt:
       # Enable once MQTT (mosquitto) is deployed to the cluster.
       enabled: false
