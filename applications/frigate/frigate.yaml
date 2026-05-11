@@ -1,0 +1,387 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frigate
+  labels:
+    name: frigate
+
+---
+# Authentik forward-auth middleware.
+# Frigate's web UI is gated by Authentik — requests without a valid session
+# are redirected to auth.starnix.net for login.
+#
+# Before syncing, create the Authentik application:
+#   1. Authentik Admin → Applications → Providers → Create → Proxy Provider
+#   2. Mode: Forward auth (single application)
+#   3. External host: https://frigate.starnix.net
+#   4. Create Application, assign to the embedded outpost
+#
+# On first login, the Authentik username becomes the Frigate admin user.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authentik-forwardauth
+  namespace: frigate
+spec:
+  forwardAuth:
+    address: http://authentik-server.authentik.svc:9000/outpost.goauthentik.io/auth/traefik
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-authentik-username
+      - X-authentik-groups
+      - X-authentik-email
+      - X-authentik-name
+      - X-authentik-uid
+
+---
+# Main Frigate configuration.
+# Camera streams go here — add each camera under the `cameras:` key.
+# Reload config without restarting: kubectl exec -n frigate <pod> -- frigatectl reload
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frigate-config
+  namespace: frigate
+data:
+  config.yaml: |
+    mqtt:
+      # Enable once MQTT (mosquitto) is deployed to the cluster.
+      enabled: false
+      # host: mqtt.mqtt.svc.cluster.local
+      # port: 1883
+
+    detectors:
+      intel:
+        type: openvino
+        device: GPU
+
+    model:
+      width: 300
+      height: 300
+      input_tensor: nhwc
+      input_pixel_format: bgr
+      path: /openvino-model/ssdlite_mobilenet_v2.xml
+      labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+    ffmpeg:
+      # Hardware-accelerated decode via Intel QuickSync on /dev/dri
+      hwaccel_args: preset-intel-qsv-h264
+      output_args:
+        record: preset-record-generic-audio-aac
+
+    objects:
+      track:
+        - person
+        - car
+        - cat
+        - dog
+
+    record:
+      enabled: true
+      retain:
+        days: 7
+        mode: motion
+      events:
+        retain:
+          default: 14
+          mode: active_objects
+
+    snapshots:
+      enabled: true
+      retain:
+        default: 14
+
+    # Proxy auth: Authentik sets X-authentik-username; Frigate maps it to a
+    # local user. The first user to authenticate becomes admin.
+    auth:
+      enabled: true
+
+    proxy:
+      header_map:
+        user: X-authentik-username
+
+    cameras:
+      # Add your cameras here. Example:
+      #
+      # front_door:
+      #   ffmpeg:
+      #     inputs:
+      #       - path: rtsp://user:pass@192.168.x.x:554/stream
+      #         roles:
+      #           - detect
+      #           - record
+      #   detect:
+      #     width: 1920
+      #     height: 1080
+      #     fps: 5
+
+---
+# NFS PV — large sequential writes (recordings, clips, exports).
+# Create the directory on the NFS server before first sync:
+#   mkdir -p /mnt/Store/frigate/{recordings,clips,exports}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: frigate-media-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: "192.168.1.75"
+    path: "/mnt/Store/frigate"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-media-pvc
+  namespace: frigate
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  volumeName: frigate-media-pv
+  storageClassName: ""
+
+---
+# Longhorn PVC — SQLite event database + thumbnails require local block
+# storage; NFS latency causes write contention under continuous detection.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frigate-config-pvc
+  namespace: frigate
+  labels:
+    recurring-job-group.longhorn.io/default: enabled
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: frigate
+  labels:
+    app: frigate
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      # Pin to the node that has the i915 Talos extension (Arrow Lake iGPU on pve5).
+      # If you move the GPU passthrough to a different node, update this label.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - talos-1yg-rc3
+      # Privileged access required for /dev/dri (Intel GPU) on Talos.
+      securityContext:
+        fsGroup: 0
+      containers:
+      - name: frigate
+        image: ghcr.io/blakeblackshear/frigate:stable
+        ports:
+        - containerPort: 8971
+          name: http
+        - containerPort: 8554
+          name: rtsp
+          protocol: TCP
+        - containerPort: 8555
+          name: webrtc-tcp
+          protocol: TCP
+        - containerPort: 8555
+          name: webrtc-udp
+          protocol: UDP
+        securityContext:
+          privileged: true
+        env:
+        - name: TZ
+          value: America/Chicago
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 4000m
+            memory: 4Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: frigate-config
+          mountPath: /config/config.yaml
+          subPath: config.yaml
+        - name: media
+          mountPath: /media/frigate
+        - name: dev-dri
+          mountPath: /dev/dri
+        livenessProbe:
+          httpGet:
+            path: /api/version
+            port: 8971
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /api/version
+            port: 8971
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: frigate-config-pvc
+      - name: frigate-config
+        configMap:
+          name: frigate-config
+      - name: media
+        persistentVolumeClaim:
+          claimName: frigate-media-pvc
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
+          type: DirectoryOrCreate
+
+---
+# Web UI — accessed via Ingress/Traefik (HTTPS only, Authentik-gated).
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+  namespace: frigate
+  labels:
+    app: frigate
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Frigate"
+    gethomepage.dev/description: "NVR with AI Detection"
+    gethomepage.dev/group: "Home"
+    gethomepage.dev/icon: "frigate.png"
+    gethomepage.dev/href: "https://frigate.starnix.net"
+    gethomepage.dev/pod-selector: "app=frigate"
+spec:
+  selector:
+    app: frigate
+  ports:
+  - name: http
+    port: 8971
+    targetPort: 8971
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Media streams — external access for RTSP clients (e.g., go2rtc, NVR apps)
+# and WebRTC browser playback. Not gated by auth middleware since stream
+# clients use their own token-based auth.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate-streams
+  namespace: frigate
+  labels:
+    app: frigate
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.7.214
+  selector:
+    app: frigate
+  ports:
+  - name: rtsp
+    port: 8554
+    targetPort: 8554
+    protocol: TCP
+  - name: webrtc-tcp
+    port: 8555
+    targetPort: 8555
+    protocol: TCP
+  - name: webrtc-udp
+    port: 8555
+    targetPort: 8555
+    protocol: UDP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frigate-ingress
+  namespace: frigate
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      traefik-redirect-https@kubernetescrd,frigate-authentik-forwardauth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Frigate"
+    gethomepage.dev/description: "NVR with AI Detection"
+    gethomepage.dev/group: "Home"
+    gethomepage.dev/icon: "frigate.png"
+    gethomepage.dev/href: "https://frigate.starnix.net"
+    gethomepage.dev/pod-selector: "app=frigate"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: frigate.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frigate
+            port:
+              number: 8971
+  tls:
+  - hosts:
+    - frigate.starnix.net
+    secretName: frigate-tls
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: frigate
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: frigate
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
