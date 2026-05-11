@@ -191,6 +191,7 @@ spec:
                 - talos-dg8-q1t
                 - talos-hb1-9mk
                 - talos-p93-8cq
+                - talos-zv2-ov6
       # Privileged access required for /dev/dri (Intel GPU) on Talos.
       securityContext:
         fsGroup: 0
