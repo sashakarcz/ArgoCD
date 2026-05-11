@@ -71,7 +71,7 @@ data:
       retain:
         default: 14
 
-    cameras:
+    cameras: {}
       # Add your cameras here. Example:
       #
       # front_door:
