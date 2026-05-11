@@ -172,6 +172,16 @@ spec:
       # Privileged access required for /dev/dri (Intel GPU) on Talos.
       securityContext:
         fsGroup: 0
+      initContainers:
+      - name: config-init
+        image: busybox:latest
+        command: ['sh', '-c', 'cp /frigate-src-config/config.yaml /config/config.yaml']
+        volumeMounts:
+        - name: frigate-config
+          mountPath: /frigate-src-config
+          readOnly: true
+        - name: config
+          mountPath: /config
       containers:
       - name: frigate
         image: ghcr.io/blakeblackshear/frigate:stable
@@ -202,9 +212,6 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /config
-        - name: frigate-config
-          mountPath: /config/config.yaml
-          subPath: config.yaml
         - name: media
           mountPath: /media/frigate
         - name: dev-dri
