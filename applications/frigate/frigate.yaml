@@ -7,34 +7,6 @@ metadata:
     name: frigate
 
 ---
-# Authentik forward-auth middleware.
-# Frigate's web UI is gated by Authentik — requests without a valid session
-# are redirected to auth.starnix.net for login.
-#
-# Before syncing, create the Authentik application:
-#   1. Authentik Admin → Applications → Providers → Create → Proxy Provider
-#   2. Mode: Forward auth (single application)
-#   3. External host: https://frigate.starnix.net
-#   4. Create Application, assign to the embedded outpost
-#
-# On first login, the Authentik username becomes the Frigate admin user.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: authentik-forwardauth
-  namespace: frigate
-spec:
-  forwardAuth:
-    address: http://authentik-server.authentik.svc:9000/outpost.goauthentik.io/auth/traefik
-    trustForwardHeader: true
-    authResponseHeaders:
-      - X-authentik-username
-      - X-authentik-groups
-      - X-authentik-email
-      - X-authentik-name
-      - X-authentik-uid
-
----
 # Main Frigate configuration.
 # Camera streams go here — add each camera under the `cameras:` key.
 # Reload config without restarting: kubectl exec -n frigate <pod> -- frigatectl reload
@@ -91,15 +63,6 @@ data:
       enabled: true
       retain:
         default: 14
-
-    # Proxy auth: Authentik sets X-authentik-username; Frigate maps it to a
-    # local user. The first user to authenticate becomes admin.
-    auth:
-      enabled: true
-
-    proxy:
-      header_map:
-        user: X-authentik-username
 
     cameras:
       # Add your cameras here. Example:
@@ -336,8 +299,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: >-
-      traefik-redirect-https@kubernetescrd,frigate-authentik-forwardauth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-redirect-https@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls: "true"
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Frigate"
