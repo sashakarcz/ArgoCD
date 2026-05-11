@@ -17,18 +17,11 @@ metadata:
   namespace: frigate
 data:
   config.yaml: |
-    # Traefik terminates TLS; Frigate listens plain HTTP internally.
     tls:
       enabled: false
 
-    auth:
-      reset_admin_password: true
-
     mqtt:
-      # Enable once MQTT (mosquitto) is deployed to the cluster.
       enabled: false
-      # host: mqtt.mqtt.svc.cluster.local
-      # port: 1883
 
     detectors:
       intel:
@@ -44,8 +37,7 @@ data:
       labelmap_path: /openvino-model/coco_91cl_bkgr.txt
 
     ffmpeg:
-      # Hardware-accelerated decode via Intel QuickSync on /dev/dri
-      hwaccel_args: preset-intel-qsv-h264
+      hwaccel_args: []
       output_args:
         record: preset-record-generic-audio-aac
 
@@ -58,33 +50,61 @@ data:
 
     record:
       enabled: true
-      retain:
-        days: 7
-        mode: motion
-      events:
+      alerts:
         retain:
-          default: 14
-          mode: active_objects
+          days: 14
+      detections:
+        retain:
+          days: 14
+      continuous:
+        days: 0
+      motion:
+        days: 7
 
     snapshots:
       enabled: true
       retain:
         default: 14
 
-    cameras: {}
-      # Add your cameras here. Example:
-      #
-      # front_door:
-      #   ffmpeg:
-      #     inputs:
-      #       - path: rtsp://user:pass@192.168.x.x:554/stream
-      #         roles:
-      #           - detect
-      #           - record
-      #   detect:
-      #     width: 1920
-      #     height: 1080
-      #     fps: 5
+    cameras:
+      back_yard:
+        enabled: true
+        friendly_name: Back Yard
+        ffmpeg:
+          inputs:
+            - path: rtsp://admin:astrognome1007@172.16.5.219:554/Preview_01_main
+              roles:
+                - detect
+                - record
+                - audio
+        detect:
+          width: 2374
+          height: 720
+        live:
+          streams:
+            Stream 1: back_yard
+      driveway:
+        enabled: true
+        ffmpeg:
+          inputs:
+            - path: rtsp://admin:astrognome1007@172.16.5.202:554/Preview_01_main
+              roles:
+                - detect
+                - record
+                - audio
+        detect:
+          width: 1280
+          height: 720
+        live:
+          streams:
+            Stream 1: driveway
+
+    go2rtc:
+      streams:
+        back_yard:
+          - rtsp://admin:astrognome1007@172.16.5.219:554/Preview_01_main
+        driveway:
+          - rtsp://admin:astrognome1007@172.16.5.202:554/Preview_01_main
 
 ---
 # NFS PV — large sequential writes (recordings, clips, exports).
