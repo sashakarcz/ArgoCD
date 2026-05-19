@@ -100,6 +100,29 @@ spec:
         effect: "NoSchedule"
       securityContext:
         fsGroup: 1001
+      initContainers:
+      - name: chown-nfs
+        image: busybox:latest
+        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp /mnt/run']
+        volumeMounts:
+        - name: nfs-storage
+          mountPath: /mnt/ssh
+          subPath: ssh
+        - name: nfs-storage
+          mountPath: /mnt/ssh_host
+          subPath: ssh_host
+        - name: nfs-storage
+          mountPath: /mnt/repos
+          subPath: repos
+        - name: nfs-storage
+          mountPath: /mnt/logs
+          subPath: logs
+        - name: nfs-storage
+          mountPath: /mnt/tmp
+          subPath: tmp
+        - name: nfs-storage
+          mountPath: /mnt/run
+          subPath: run
       containers:
       - name: borgwarehouse
         image: borgwarehouse/borgwarehouse
