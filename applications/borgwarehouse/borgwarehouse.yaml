@@ -101,10 +101,12 @@ spec:
       securityContext:
         fsGroup: 1001
       initContainers:
-      - name: chown-nfs
+      - name: chown-volumes
         image: busybox:latest
-        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp /mnt/run']
+        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/config /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp /mnt/run']
         volumeMounts:
+        - name: config-storage
+          mountPath: /mnt/config
         - name: nfs-storage
           mountPath: /mnt/ssh
           subPath: ssh
