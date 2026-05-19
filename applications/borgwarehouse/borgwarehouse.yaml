@@ -99,8 +99,6 @@ spec:
         operator: "Exists"
         effect: "NoSchedule"
       securityContext:
-        runAsUser: 1001
-        runAsGroup: 1001
         fsGroup: 1001
       containers:
       - name: borgwarehouse
