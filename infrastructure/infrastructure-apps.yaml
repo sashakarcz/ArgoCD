@@ -1,6 +1,36 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: coredns-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/usenix17/ArgoCD.git
+    targetRevision: HEAD
+    path: infrastructure/coredns
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: metallb-helm
   namespace: argocd
   annotations:
