@@ -178,6 +178,7 @@ spec:
             - -c
             - 'curl -sk -u "admin:${INDEXER_ADMIN_PASSWORD}" https://localhost:9200/_cluster/health | grep -q "\"status\":\"green\"\|\"status\":\"yellow\""'
           initialDelaySeconds: 60
+          timeoutSeconds: 10
           periodSeconds: 15
           failureThreshold: 10
       volumes:
