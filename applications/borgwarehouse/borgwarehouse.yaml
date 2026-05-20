@@ -103,7 +103,7 @@ spec:
       initContainers:
       - name: chown-volumes
         image: busybox:latest
-        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/config /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp /mnt/run']
+        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/config /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp']
         volumeMounts:
         - name: config-storage
           mountPath: /mnt/config
@@ -122,9 +122,6 @@ spec:
         - name: nfs-storage
           mountPath: /mnt/tmp
           subPath: tmp
-        - name: nfs-storage
-          mountPath: /mnt/run
-          subPath: run
       containers:
       - name: borgwarehouse
         image: borgwarehouse/borgwarehouse
@@ -155,9 +152,8 @@ spec:
         - name: nfs-storage
           mountPath: /home/borgwarehouse/tmp
           subPath: tmp
-        - name: nfs-storage
+        - name: run-dir
           mountPath: /run
-          subPath: run
       volumes:
       - name: config-storage
         persistentVolumeClaim:
@@ -165,6 +161,8 @@ spec:
       - name: nfs-storage
         persistentVolumeClaim:
           claimName: borgwarehouse-nfs-pvc
+      - name: run-dir
+        emptyDir: {}
 
 ---
 apiVersion: v1
