@@ -19,7 +19,7 @@ metadata:
   namespace: borgwarehouse
 data:
   # Kept as borg.starnix.net per your request
-  NEXTAUTH_URL: "https://borg.starnix.net"
+  NEXTAUTH_URL: "https://borgwarehouse.starnix.net"
   FQDN: "borg.starnix.net"
   SSH_SERVER_PORT: "2222"
   MAIL_SMTP_FROM: "info@starnix.net"
