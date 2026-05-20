@@ -300,14 +300,6 @@ spec:
         app: wazuh-manager
     spec:
       initContainers:
-      - name: prepare-filebeat-config
-        image: busybox
-        command: ["cp", "/filebeat-template/filebeat.yml", "/filebeat-rendered/filebeat.yml"]
-        volumeMounts:
-        - name: filebeat-template
-          mountPath: /filebeat-template
-        - name: filebeat-rendered
-          mountPath: /filebeat-rendered
       - name: seed-agent-groups
         image: busybox
         command:
@@ -391,9 +383,6 @@ spec:
           mountPath: /var/ossec/agentless
         - name: wazuh-wodles
           mountPath: /var/ossec/wodles
-        - name: filebeat-rendered
-          mountPath: /etc/filebeat/filebeat.yml
-          subPath: filebeat.yml
         resources:
           requests:
             cpu: 500m
@@ -440,14 +429,6 @@ spec:
       - name: wazuh-wodles
         persistentVolumeClaim:
           claimName: wazuh-manager-wodles
-      - name: filebeat-template
-        configMap:
-          name: wazuh-manager-config
-          items:
-          - key: filebeat.yml
-            path: filebeat.yml
-      - name: filebeat-rendered
-        emptyDir: {}
       - name: agent-groups
         configMap:
           name: wazuh-agent-groups
