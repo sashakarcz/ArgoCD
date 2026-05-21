@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: say-time
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: say-time
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: say-time
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret at secret/cluster/say-time must contain:
+#   config.yaml - Full say_time config YAML (see configs/config.example.yaml in the say_time repo)
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: say-time-config
+  namespace: say-time
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/say-time
+  vaultAuthRef: default
+  destination:
+    name: say-time-config
+    create: true
+  refreshAfter: 1h
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: say-time
+  namespace: say-time
+  labels:
+    app: say-time
+spec:
+  # One replica only — a second instance would fight over the SIP registration on 3CX.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: say-time
+  template:
+    metadata:
+      labels:
+        app: say-time
+    spec:
+      # hostNetwork is required: RTP ports must be reachable on the node's real IP
+      # so 3CX can route media back. Without it, k8s NATs the source port and audio breaks.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: say-time
+          image: registry.starnix.net/library/say_time:latest
+          imagePullPolicy: Always
+          args: ["-config", "/etc/say_time/config.yaml"]
+          ports:
+            - name: sip
+              containerPort: 5060
+              protocol: UDP
+            - name: health
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/say_time
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 45
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          secret:
+            secretName: say-time-config
