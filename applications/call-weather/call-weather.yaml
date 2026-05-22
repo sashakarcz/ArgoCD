@@ -54,7 +54,7 @@ metadata:
     app: call-weather
 spec:
   # One replica only — a second instance would fight over the SIP registration on 3CX.
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: call-weather
@@ -67,6 +67,11 @@ spec:
       # so 3CX can route media back. Without it, k8s NATs the source port and audio breaks.
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      # Pin to the node whose SIP ALG pinhole is established (same node as say_time).
+      # This ensures the SIP ALG maps our Contact to 192.168.7.101:5060, the same
+      # stable external port (5061) that say_time proved works for inbound INVITEs.
+      nodeSelector:
+        kubernetes.io/hostname: talos-dg8-q1t
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"
@@ -81,7 +86,7 @@ spec:
           args: ["-config", "/etc/call_weather/config.yaml"]
           ports:
             - name: sip
-              containerPort: 5070
+              containerPort: 5060
               protocol: UDP
             - name: health
               containerPort: 9090
