@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: call-weather
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: call-weather
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: call-weather
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret at secret/cluster/call-weather must contain:
+#   config.yaml - Full call_weather config YAML (see configs/config.yaml in the call_weather repo)
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: call-weather-config
+  namespace: call-weather
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/call-weather
+  vaultAuthRef: default
+  destination:
+    name: call-weather-config
+    create: true
+  refreshAfter: 1h
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: call-weather
+  namespace: call-weather
+  labels:
+    app: call-weather
+spec:
+  # One replica only — a second instance would fight over the SIP registration on 3CX.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: call-weather
+  template:
+    metadata:
+      labels:
+        app: call-weather
+    spec:
+      # hostNetwork is required: RTP ports must be reachable on the node's real IP
+      # so 3CX can route media back. Without it, k8s NATs the source port and audio breaks.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: call-weather
+          image: registry.starnix.net/library/call_weather:latest
+          imagePullPolicy: Always
+          args: ["-config", "/etc/call_weather/config.yaml"]
+          ports:
+            - name: sip
+              containerPort: 5070
+              protocol: UDP
+            - name: health
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/call_weather
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 45
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          secret:
+            secretName: call-weather-config
