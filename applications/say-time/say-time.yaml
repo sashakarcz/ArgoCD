@@ -54,7 +54,7 @@ metadata:
     app: say-time
 spec:
   # One replica only — a second instance would fight over the SIP registration on 3CX.
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: say-time
