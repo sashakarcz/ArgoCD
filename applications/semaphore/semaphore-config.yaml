@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semaphore
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: semaphore
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: semaphore
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret at cluster/semaphore-secrets must contain:
+#   cookieHash          - 32+ byte random hex string
+#   cookieEncryption    - 32 byte random key
+#   accesskeyEncryption - 32 byte random key
+#   adminUsername       - admin login name (e.g. admin)
+#   adminFullname       - admin display name (e.g. Admin)
+#   adminEmail          - admin email address
+#   adminPassword       - admin user password
+#   oidcProviders       - JSON string, e.g.:
+#     {"authentik":{"display_name":"Sign in with Authentik",
+#      "provider_url":"https://auth.starnix.net/application/o/semaphore/",
+#      "client_id":"...","client_secret":"...",
+#      "username_claim":"preferred_username","name_claim":"name",
+#      "email_claim":"email","scopes":["openid","profile","email"]}}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: semaphore-secrets
+  namespace: semaphore
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/semaphore-secrets
+  vaultAuthRef: default
+  destination:
+    name: semaphore-secrets
+    create: true
+  refreshAfter: 1h
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: semaphore-workdir-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/semaphore/workdir
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: semaphore-database-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/semaphore/database
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semaphore-workdir
+  namespace: semaphore
+spec:
+  volumeName: semaphore-workdir-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: manual
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semaphore-database
+  namespace: semaphore
+spec:
+  volumeName: semaphore-database-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: manual
