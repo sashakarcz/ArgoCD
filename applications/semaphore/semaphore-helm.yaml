@@ -41,6 +41,8 @@ spec:
           username: semaphore
           existingSecret: semaphore-secrets
           passwordKey: dbPassword
+          options:
+            sslmode: disable
           persistence:
             enabled: false
 
