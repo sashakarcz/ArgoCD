@@ -34,8 +34,9 @@ spec:
 #   adminUsername       - admin login name (e.g. admin)
 #   adminFullname       - admin display name (e.g. Admin)
 #   adminEmail          - admin email address
-#   adminPassword       - admin user password
-#   oidcProviders       - JSON string, e.g.:
+#   adminPassword       - admin user password (no shell metacharacters)
+#   dbPassword          - PostgreSQL password for semaphore user
+#   oidcProviders       - single-line JSON string, e.g.:
 #     {"authentik":{"display_name":"Sign in with Authentik",
 #      "provider_url":"https://auth.starnix.net/application/o/semaphore/",
 #      "client_id":"...","client_secret":"...",
@@ -76,17 +77,17 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: semaphore-database-pv
+  name: semaphore-postgres-pv
 spec:
   capacity:
-    storage: 5Gi
+    storage: 10Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: manual
   nfs:
     server: 192.168.1.75
-    path: /mnt/Store/semaphore/database
+    path: /mnt/Store/semaphore/postgres
 
 ---
 apiVersion: v1
@@ -107,13 +108,89 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: semaphore-database
+  name: semaphore-postgres
   namespace: semaphore
 spec:
-  volumeName: semaphore-database-pv
+  volumeName: semaphore-postgres-pv
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
+      storage: 10Gi
   storageClassName: manual
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semaphore-postgres
+  namespace: semaphore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: semaphore-postgres
+  template:
+    metadata:
+      labels:
+        app: semaphore-postgres
+    spec:
+      securityContext:
+        fsGroup: 70
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        env:
+        - name: POSTGRES_DB
+          value: semaphore
+        - name: POSTGRES_USER
+          value: semaphore
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: semaphore-secrets
+              key: dbPassword
+        - name: POSTGRES_INITDB_ARGS
+          value: "--auth-host=scram-sha-256"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+          subPath: pgdata
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          exec:
+            command: [pg_isready, -U, semaphore]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command: [pg_isready, -U, semaphore]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: semaphore-postgres
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: semaphore-postgres
+  namespace: semaphore
+spec:
+  selector:
+    app: semaphore-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432

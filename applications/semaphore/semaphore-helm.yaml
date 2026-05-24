@@ -33,10 +33,16 @@ spec:
           existingClaim: semaphore-workdir
 
         database:
-          type: bolt
+          type: postgres
+          host: semaphore-postgres
+          port: 5432
+          name: semaphore
+          usernameFromSecret: false
+          username: semaphore
+          existingSecret: semaphore-secrets
+          passwordKey: dbPassword
           persistence:
-            enabled: true
-            existingClaim: semaphore-database
+            enabled: false
 
         secrets:
           existingSecret: semaphore-secrets
