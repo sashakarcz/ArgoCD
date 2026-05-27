@@ -149,7 +149,7 @@ spec:
               token_url: https://auth.starnix.net/application/o/token/
               api_url: https://auth.starnix.net/application/o/userinfo/
               signout_redirect_url: https://auth.starnix.net/application/o/grafana/end-session/
-              role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || email == 'sasha.karcz@gmail.com' && 'Admin' || 'Viewer'"
+              role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || email == 'sasha@starnix.net' && 'Admin' || 'Viewer'"
 
           dashboards:
             default:
