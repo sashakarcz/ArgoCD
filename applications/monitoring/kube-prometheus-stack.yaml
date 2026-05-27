@@ -1,0 +1,142 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 86.0.0
+    helm:
+      releaseName: monitoring
+      values: |
+        prometheus:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-production
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            hosts:
+              - prometheus.starnix.net
+            paths:
+              - /
+            pathType: Prefix
+            tls:
+              - secretName: prometheus-tls
+                hosts:
+                  - prometheus.starnix.net
+          prometheusSpec:
+            enableRemoteWriteReceiver: true
+            retention: 30d
+            storageSpec:
+              volumeClaimTemplate:
+                metadata:
+                  name: prometheus-db
+                spec:
+                  storageClassName: manual
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 50Gi
+
+        alertmanager:
+          alertmanagerSpec:
+            storage:
+              volumeClaimTemplate:
+                metadata:
+                  name: alertmanager-db
+                spec:
+                  storageClassName: manual
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+
+        grafana:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-production
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              gethomepage.dev/enabled: "true"
+              gethomepage.dev/name: "Grafana"
+              gethomepage.dev/description: "Metrics & Logs"
+              gethomepage.dev/group: "Admin"
+              gethomepage.dev/icon: "grafana.png"
+              gethomepage.dev/href: "https://grafana.starnix.net"
+            hosts:
+              - grafana.starnix.net
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.starnix.net
+
+          persistence:
+            enabled: true
+            existingClaim: grafana-data
+
+          admin:
+            existingSecret: monitoring-secrets
+            userKey: grafanaAdminUser
+            passwordKey: grafanaAdminPassword
+
+          envValueFrom:
+            GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
+              secretKeyRef:
+                name: monitoring-secrets
+                key: grafanaOidcClientId
+            GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+              secretKeyRef:
+                name: monitoring-secrets
+                key: grafanaOidcClientSecret
+
+          grafana.ini:
+            server:
+              root_url: https://grafana.starnix.net
+            auth:
+              oauth_auto_login: false
+              disable_login_form: false
+            auth.generic_oauth:
+              enabled: true
+              name: Authentik
+              allow_sign_up: true
+              auto_login: false
+              client_id: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_ID}
+              client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+              scopes: openid profile email
+              auth_url: https://auth.starnix.net/application/o/authorize/
+              token_url: https://auth.starnix.net/application/o/token/
+              api_url: https://auth.starnix.net/application/o/userinfo/
+              signout_redirect_url: https://auth.starnix.net/application/o/grafana/end-session/
+              role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || 'Viewer'"
+
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              url: http://loki.monitoring.svc.cluster.local:3100
+              access: proxy
+              isDefault: false
+
+        # Keep node-exporter and kube-state-metrics enabled (default)
+        nodeExporter:
+          enabled: true
+
+        kubeStateMetrics:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

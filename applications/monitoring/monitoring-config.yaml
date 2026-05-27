@@ -1,0 +1,150 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+# NFS Persistent Volumes
+# Before syncing, create these dirs on 192.168.1.75:
+#   /mnt/Store/monitoring/prometheus
+#   /mnt/Store/monitoring/alertmanager
+#   /mnt/Store/monitoring/grafana
+#   /mnt/Store/monitoring/loki
+# and chown -R 65534:65534 prometheus alertmanager loki  (nobody, Prometheus/Loki run as UID 65534)
+# and chown -R 472:472 grafana  (Grafana runs as UID 472)
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-data-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    name: prometheus-db-prometheus-monitoring-kube-prometheus-prometheus-0
+    namespace: monitoring
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/monitoring/prometheus
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-data-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    name: alertmanager-db-alertmanager-monitoring-kube-prometheus-alertmanager-0
+    namespace: monitoring
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/monitoring/alertmanager
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-data-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    name: grafana-data
+    namespace: monitoring
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/monitoring/grafana
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: loki-data-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    name: storage-loki-0
+    namespace: monitoring
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/monitoring/loki
+
+---
+# PVC for Grafana (Deployment uses existingClaim; Prometheus/Alertmanager/Loki PVCs are created by their StatefulSets)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: manual
+
+---
+# Vault Integration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: monitoring
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: monitoring
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# Vault secret must be created before syncing:
+#   vault kv put secret/cluster/monitoring-secrets \
+#     grafanaAdminUser=admin \
+#     grafanaAdminPassword='<strong-password>' \
+#     grafanaOidcClientId='<from-authentik>' \
+#     grafanaOidcClientSecret='<from-authentik>'
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: monitoring-secrets
+  namespace: monitoring
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/monitoring-secrets
+  vaultAuthRef: default
+  destination:
+    name: monitoring-secrets
+    create: true
+  refreshAfter: 1h
