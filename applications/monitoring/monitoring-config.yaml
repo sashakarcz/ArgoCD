@@ -21,8 +21,9 @@ metadata:
 #   /mnt/Store/monitoring/alertmanager
 #   /mnt/Store/monitoring/grafana
 #   /mnt/Store/monitoring/loki
-# and chown -R 65534:65534 prometheus alertmanager loki  (nobody, Prometheus/Loki run as UID 65534)
-# and chown -R 472:472 grafana  (Grafana runs as UID 472)
+# and chown -R 1000:2000 prometheus alertmanager  (runAsUser=1000, fsGroup=2000)
+# and chown -R 10001:10001 loki                  (runAsUser=10001, fsGroup=10001)
+# and chown -R 472:472 grafana                   (Grafana runs as UID 472)
 
 apiVersion: v1
 kind: PersistentVolume
