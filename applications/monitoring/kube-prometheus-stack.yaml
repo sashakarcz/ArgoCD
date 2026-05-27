@@ -44,7 +44,41 @@ spec:
                       storage: 50Gi
 
         alertmanager:
+          config:
+            global:
+              resolve_timeout: 5m
+              pagerduty_url: https://events.pagerduty.com/v2/enqueue
+            route:
+              group_by: ['alertname', 'cluster', 'namespace']
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 4h
+              receiver: pagerduty
+              routes:
+                - matchers:
+                    - alertname = Watchdog
+                  receiver: "null"
+                - matchers:
+                    - alertname = InfoInhibitor
+                  receiver: "null"
+                - matchers:
+                    - severity = info
+                  receiver: "null"
+            receivers:
+              - name: "null"
+              - name: pagerduty
+                pagerduty_configs:
+                  - routing_key_file: /etc/alertmanager/secrets/monitoring-secrets/pagerdutyRoutingKey
+                    send_resolved: true
+            inhibit_rules:
+              - source_matchers:
+                  - severity = critical
+                target_matchers:
+                  - severity = warning
+                equal: ['alertname', 'namespace']
           alertmanagerSpec:
+            secrets:
+              - monitoring-secrets
             storage:
               volumeClaimTemplate:
                 metadata:
