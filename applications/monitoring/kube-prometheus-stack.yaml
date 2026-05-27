@@ -149,7 +149,14 @@ spec:
               token_url: https://auth.starnix.net/application/o/token/
               api_url: https://auth.starnix.net/application/o/userinfo/
               signout_redirect_url: https://auth.starnix.net/application/o/grafana/end-session/
-              role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || 'Viewer'"
+              role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || email == 'sasha.karcz@gmail.com' && 'Admin' || 'Viewer'"
+
+          dashboards:
+            default:
+              loki-dashboard:
+                gnetId: 13186
+                revision: 1
+                datasource: Loki
 
           additionalDataSources:
             - name: Loki
