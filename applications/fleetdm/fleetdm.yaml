@@ -13,13 +13,13 @@ metadata:
 
 ---
 # MySQL Database
-# PV manually created to hold restored Longhorn volume (fleetdm-mysql-restored).
+# PV manually created to hold restored Longhorn volume.
 # If data is ever lost again, restore a new Longhorn volume from backup and
 # update the volumeHandle and PV name here accordingly.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: fleetdm-mysql-restored-pv
+  name: fleetdm-mysql-pre-incident-pv
 spec:
   capacity:
     storage: 20Gi
@@ -32,7 +32,7 @@ spec:
     namespace: fleetdm
   csi:
     driver: driver.longhorn.io
-    volumeHandle: fleetdm-mysql-restored
+    volumeHandle: fleetdm-mysql-pre-incident
     fsType: ext4
 ---
 apiVersion: v1
