@@ -126,19 +126,6 @@ spec:
   refreshAfter: 1h
 
 ---
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: rfc1918-allowlist
-  namespace: monitoring
-spec:
-  ipAllowList:
-    sourceRange:
-      - 10.0.0.0/8
-      - 172.16.0.0/12
-      - 192.168.0.0/16
-
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -147,7 +134,6 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: monitoring-rfc1918-allowlist@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
