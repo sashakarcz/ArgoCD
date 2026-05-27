@@ -44,6 +44,21 @@ spec:
                       storage: 50Gi
 
         alertmanager:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-production
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            hosts:
+              - alertmanager.starnix.net
+            paths:
+              - /
+            pathType: Prefix
+            tls:
+              - secretName: alertmanager-tls
+                hosts:
+                  - alertmanager.starnix.net
           config:
             global:
               resolve_timeout: 5m
