@@ -113,7 +113,8 @@ spec:
 
           persistence:
             enabled: true
-            existingClaim: grafana-data
+            storageClassName: longhorn
+            size: 5Gi
 
           admin:
             existingSecret: monitoring-secrets
