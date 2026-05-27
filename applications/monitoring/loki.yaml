@@ -53,6 +53,10 @@ spec:
         grafana-agent-operator:
           enabled: false
         monitoring:
+          dashboards:
+            enabled: true
+            labels:
+              grafana_dashboard: "1"
           selfMonitoring:
             enabled: false
             grafanaAgent:
