@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ghost-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: ghost
+    targetRevision: 25.0.4
+    helm:
+      releaseName: ghost
+      values: |
+        # Ghost public URL — Cloudflare tunnel routes sanitydeclines.com here
+        ghostHost: sanitydeclines.com
+        ghostUsername: sasha@starnix.net
+        ghostEmail: sasha@starnix.net
+        ghostBlogTitle: "Sanity Declines"
+
+        # Admin password from Vault-managed secret (key: ghost-password)
+        existingSecret: ghost-secrets
+
+        # NOTE: Ghost does not support OIDC for admin login natively.
+        # The /ghost admin panel uses Ghost's built-in email+password auth.
+        # To protect it, add a Traefik ForwardAuth middleware pointing at
+        # an Authentik proxy provider for ghost.starnix.net/ghost.
+
+        mysql:
+          auth:
+            database: ghost
+            username: ghost
+            existingSecret: ghost-secrets
+          primary:
+            persistence:
+              storageClass: longhorn
+              size: 8Gi
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+        persistence:
+          enabled: true
+          existingClaim: ghost-content-pvc
+
+        service:
+          type: ClusterIP
+
+        ingress:
+          enabled: false
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ghost
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

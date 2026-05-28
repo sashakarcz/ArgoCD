@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ghost
+
+---
+# NFS PV for Ghost content (themes, images, uploads)
+# Before syncing, create on mimir: mkdir -p /mnt/Store/ghost
+# No chown needed — Ghost runs as root in the Bitnami image
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ghost-content-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  mountOptions:
+    - noatime
+    - rsize=1048576
+    - wsize=1048576
+    - hard
+    - nfsvers=4.1
+  claimRef:
+    name: ghost-content-pvc
+    namespace: ghost
+  nfs:
+    server: mimir
+    path: /mnt/Store/ghost
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ghost-content-pvc
+  namespace: ghost
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: manual
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ghost
+  namespace: ghost
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ghost.starnix.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ghost
+                port:
+                  number: 80
+  tls:
+    - secretName: ghost-tls
+      hosts:
+        - ghost.starnix.net
+
+---
+# Vault Integration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: ghost
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: ghost
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# vault kv put secret/cluster/ghost-secrets \
+#   ghost-password='...' \
+#   mysql-password='...' \
+#   mysql-root-password='...'
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: ghost-secrets
+  namespace: ghost
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/ghost-secrets
+  vaultAuthRef: default
+  destination:
+    name: ghost-secrets
+    create: true
+  refreshAfter: 1h
