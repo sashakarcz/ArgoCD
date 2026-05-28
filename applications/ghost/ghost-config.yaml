@@ -5,8 +5,51 @@ metadata:
   name: ghost
 
 ---
+# Vault Integration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: ghost
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: ghost
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+# vault kv put secret/cluster/ghost-secrets \
+#   ghost-password='...' \
+#   mysql-password='...' \
+#   mysql-root-password='...'
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: ghost-secrets
+  namespace: ghost
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/ghost-secrets
+  vaultAuthRef: default
+  destination:
+    name: ghost-secrets
+    create: true
+  refreshAfter: 1h
+
+---
 # NFS PV for Ghost content (themes, images, uploads)
-# Before syncing, create on mimir: mkdir -p /mnt/Store/ghost
+# Before syncing, create on NAS: mkdir -p /mnt/Store/ghost
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -46,7 +89,7 @@ spec:
   storageClassName: manual
 
 ---
-# MySQL using official Docker Hub image (avoids Bitnami registry issues)
+# MySQL using official Docker Hub image
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -131,6 +174,88 @@ spec:
     targetPort: 3306
 
 ---
+# Ghost using official Docker Hub image (ghost:5)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+  template:
+    metadata:
+      labels:
+        app: ghost
+    spec:
+      initContainers:
+      - name: wait-for-mysql
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z ghost-mysql 3306; do echo waiting for mysql; sleep 2; done']
+      containers:
+      - name: ghost
+        image: ghost:5
+        env:
+        - name: url
+          value: https://sanitydeclines.com
+        - name: database__client
+          value: mysql
+        - name: database__connection__host
+          value: ghost-mysql
+        - name: database__connection__port
+          value: "3306"
+        - name: database__connection__database
+          value: ghost
+        - name: database__connection__user
+          value: ghost
+        - name: database__connection__password
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secrets
+              key: mysql-password
+        - name: NODE_ENV
+          value: production
+        ports:
+        - containerPort: 2368
+        volumeMounts:
+        - name: content
+          mountPath: /var/lib/ghost/content
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /ghost/api/admin/site/
+            port: 2368
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+      volumes:
+      - name: content
+        persistentVolumeClaim:
+          claimName: ghost-content-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  selector:
+    app: ghost
+  ports:
+  - port: 80
+    targetPort: 2368
+
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -156,46 +281,3 @@ spec:
     - secretName: ghost-tls
       hosts:
         - ghost.starnix.net
-
----
-# Vault Integration
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: ghost
-
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: ghost
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# vault kv put secret/cluster/ghost-secrets \
-#   ghost-password='...' \
-#   mysql-password='...' \
-#   mysql-root-password='...'
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
-metadata:
-  name: ghost-secrets
-  namespace: ghost
-spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/ghost-secrets
-  vaultAuthRef: default
-  destination:
-    name: ghost-secrets
-    create: true
-  refreshAfter: 1h
