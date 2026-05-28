@@ -73,10 +73,12 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: mariadb
-        image: mariadb:10.11
+        image: mariadb:10.6
         ports:
         - containerPort: 3306
         env:
+        - name: MARIADB_AUTO_UPGRADE
+          value: "1"
         - name: MARIADB_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
