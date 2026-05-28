@@ -28,7 +28,7 @@ spec:
     name: ghost-content-pvc
     namespace: ghost
   nfs:
-    server: mimir
+    server: 192.168.1.75
     path: /mnt/Store/ghost
 
 ---
