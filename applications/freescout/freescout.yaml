@@ -73,26 +73,24 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: mariadb
-        image: tiredofit/mariadb:latest
+        image: mariadb:10.11
         ports:
         - containerPort: 3306
         env:
-        - name: ROOT_PASS
+        - name: MARIADB_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: freescout-secrets
               key: db-root-password
-        - name: DB_NAME
+        - name: MARIADB_DATABASE
           value: freescout
-        - name: DB_USER
+        - name: MARIADB_USER
           value: freescout
-        - name: DB_PASS
+        - name: MARIADB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: freescout-secrets
               key: db-password
-        - name: CONTAINER_NAME
-          value: freescout-db
         volumeMounts:
         - name: mariadb-data
           mountPath: /var/lib/mysql
