@@ -73,7 +73,7 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: mariadb
-        image: mariadb:10.6
+        image: mariadb:10.11
         ports:
         - containerPort: 3306
         env:
