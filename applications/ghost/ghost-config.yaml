@@ -7,7 +7,6 @@ metadata:
 ---
 # NFS PV for Ghost content (themes, images, uploads)
 # Before syncing, create on mimir: mkdir -p /mnt/Store/ghost
-# No chown needed — Ghost runs as root in the Bitnami image
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -45,6 +44,91 @@ spec:
     requests:
       storage: 20Gi
   storageClassName: manual
+
+---
+# MySQL using official Docker Hub image (avoids Bitnami registry issues)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ghost-mysql-pvc
+  namespace: ghost
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 8Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost-mysql
+  namespace: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost-mysql
+  template:
+    metadata:
+      labels:
+        app: ghost-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_DATABASE
+          value: ghost
+        - name: MYSQL_USER
+          value: ghost
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secrets
+              key: mysql-password
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secrets
+              key: mysql-root-password
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: ghost-mysql-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost-mysql
+  namespace: ghost
+spec:
+  selector:
+    app: ghost-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
 
 ---
 apiVersion: networking.k8s.io/v1

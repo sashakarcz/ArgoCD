@@ -26,22 +26,18 @@ spec:
         # To protect it, add a Traefik ForwardAuth middleware pointing at
         # an Authentik proxy provider for ghost.starnix.net/ghost.
 
+        # Use our own MySQL deployment (official mysql:8.0 image) instead
+        # of the Bitnami subchart which requires images not on Docker Hub
         mysql:
-          auth:
-            database: ghost
-            username: ghost
-            existingSecret: ghost-secrets
-          primary:
-            persistence:
-              storageClass: longhorn
-              size: 8Gi
-            resources:
-              requests:
-                cpu: 100m
-                memory: 256Mi
-              limits:
-                cpu: 500m
-                memory: 512Mi
+          enabled: false
+
+        externalDatabase:
+          host: ghost-mysql
+          port: 3306
+          database: ghost
+          user: ghost
+          existingSecret: ghost-secrets
+          existingSecretPasswordKey: mysql-password
 
         persistence:
           enabled: true
