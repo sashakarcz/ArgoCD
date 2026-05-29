@@ -200,6 +200,8 @@ spec:
         env:
         - name: url
           value: https://sanitydeclines.com
+        - name: admin__url
+          value: https://ghost.starnix.net
         - name: database__client
           value: mysql
         - name: database__connection__host
