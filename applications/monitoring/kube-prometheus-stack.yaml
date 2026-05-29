@@ -196,6 +196,15 @@ spec:
         kubeStateMetrics:
           enabled: true
 
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: prometheus-monitoring-kube-prometheus-prometheus
+      namespace: monitoring
+      jqPathExpressions:
+        - .spec.template.spec.containers[].livenessProbe
+        - .spec.template.spec.containers[].readinessProbe
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
