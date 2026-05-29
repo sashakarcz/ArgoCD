@@ -31,6 +31,13 @@ spec:
           prometheusSpec:
             enableRemoteWriteReceiver: true
             retention: 30d
+            # WAL on emptyDir keeps write-heavy I/O off NFS, preventing liveness probe timeouts
+            volumes:
+              - name: prometheus-wal
+                emptyDir: {}
+            volumeMounts:
+              - name: prometheus-wal
+                mountPath: /prometheus/wal
             storageSpec:
               volumeClaimTemplate:
                 metadata:
@@ -85,9 +92,8 @@ spec:
                 pagerduty_configs:
                   - routing_key_file: /etc/alertmanager/secrets/monitoring-secrets/pagerdutyRoutingKey
                     send_resolved: true
-                discord_configs:
-                  - webhook_url_file: /etc/alertmanager/secrets/monitoring-secrets/discordWebhookUrl
-                    send_resolved: true
+              # Discord: webhook_url_file not supported by prometheus-operator v0.91 schema.
+              # Add a separate discord receiver via alertmanager.starnix.net UI or use webhook_url inline.
             inhibit_rules:
               - source_matchers:
                   - severity = critical
