@@ -199,7 +199,7 @@ spec:
         image: ghost:5
         env:
         - name: url
-          value: https://sanitydeclines.com
+          value: https://ghost.starnix.net
         - name: database__client
           value: mysql
         - name: database__connection__host
