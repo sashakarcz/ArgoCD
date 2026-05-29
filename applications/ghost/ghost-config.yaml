@@ -215,6 +215,8 @@ spec:
             secretKeyRef:
               name: ghost-secrets
               key: mysql-password
+        - name: server__trustedProxies__0
+          value: "10.0.0.0/8"
         - name: NODE_ENV
           value: production
         ports:
