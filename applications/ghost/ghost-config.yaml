@@ -254,7 +254,7 @@ spec:
             port: 2368
             httpHeaders:
               - name: Host
-                value: ghost.starnix.net
+                value: sanitydeclines.com
               - name: X-Forwarded-Proto
                 value: https
           initialDelaySeconds: 30
