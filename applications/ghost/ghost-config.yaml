@@ -217,6 +217,21 @@ spec:
               key: mysql-password
         - name: server__trustedProxies__0
           value: "10.0.0.0/8"
+        - name: mail__transport
+          value: SMTP
+        - name: mail__from
+          value: '"Sanity Declines" <info@starnix.net>'
+        - name: mail__options__host
+          value: smtp.gmail.com
+        - name: mail__options__port
+          value: "587"
+        - name: mail__options__auth__user
+          value: info@starnix.net
+        - name: mail__options__auth__pass
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secrets
+              key: smtp-password
         - name: NODE_ENV
           value: production
         ports:
