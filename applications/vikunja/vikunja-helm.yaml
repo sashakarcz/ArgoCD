@@ -60,29 +60,20 @@ spec:
                   name: vikunja-secrets
                   key: dbPassword
             VIKUNJA_SERVICE_PUBLICURL: "https://project.starnix.net"
-            VIKUNJA_AUTH_LOCAL_ENABLED: "false"
-            VIKUNJA_AUTH_OPENID_ENABLED: "true"
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_NAME: "Authentik"
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_OPENIDCONNECTURL: "https://auth.starnix.net/application/o/vikunja/"
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_LOGOUTURL: "https://auth.starnix.net/application/o/vikunja/end-session/"
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_SCOPE: "openid email profile"
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_CLIENTID:
-              valueFrom:
-                secretKeyRef:
-                  name: vikunja-secrets
-                  key: clientId
-            VIKUNJA_AUTH_OPENID_PROVIDERS_0_CLIENTSECRET:
-              valueFrom:
-                secretKeyRef:
-                  name: vikunja-secrets
-                  key: clientSecret
-
           configMaps:
             config:
-              enabled: true
-              data:
-                config.yml: |
-                  # Non-secret config — sensitive values set via env vars
+              enabled: false
+
+          # Mount the Vault-rendered config.yml secret (contains OIDC clientid/secret)
+          additionalVolumes:
+            - name: vikunja-config
+              secret:
+                secretName: vikunja-config
+          additionalVolumeMounts:
+            - name: vikunja-config
+              mountPath: /etc/vikunja/config.yml
+              subPath: config.yml
+              readOnly: true
 
   destination:
     server: https://kubernetes.default.svc

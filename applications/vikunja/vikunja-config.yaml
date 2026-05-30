@@ -42,6 +42,38 @@ spec:
   refreshAfter: 1h
 
 ---
+# Renders config.yml with OIDC secrets from Vault using VSO templates
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: vikunja-config
+  namespace: vikunja
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/vikunja-secrets
+  vaultAuthRef: default
+  destination:
+    name: vikunja-config
+    create: true
+    transformation:
+      templates:
+        config.yml:
+          text: |
+            auth:
+              local:
+                enabled: false
+              openid:
+                enabled: true
+                providers:
+                  - name: "Authentik"
+                    authurl: "https://auth.starnix.net/application/o/vikunja/"
+                    logouturl: "https://auth.starnix.net/application/o/vikunja/end-session/"
+                    clientid: "{{ .Secrets.clientId }}"
+                    clientsecret: "{{ .Secrets.clientSecret }}"
+  refreshAfter: 1h
+
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
