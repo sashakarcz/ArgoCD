@@ -67,9 +67,11 @@ spec:
               openid:
                 enabled: true
                 providers:
-                  - name: "Authentik"
+                  authentik:
+                    name: "Authentik"
                     authurl: "https://auth.starnix.net/application/o/vikunja/"
                     logouturl: "https://auth.starnix.net/application/o/vikunja/end-session/"
+                    scope: "openid profile email"
                     clientid: "{{ .Secrets.clientId }}"
                     clientsecret: "{{ .Secrets.clientSecret }}"
   refreshAfter: 1h
