@@ -56,6 +56,7 @@ spec:
   destination:
     name: vikunja-config
     create: true
+    type: configmap
     transformation:
       templates:
         config.yml:
