@@ -62,15 +62,18 @@ spec:
             VIKUNJA_SERVICE_PUBLICURL: "https://project.starnix.net"
           configMaps:
             config:
-              enabled: false
+              enabled: true
+              data:
+                config.yml: |
+                  # Placeholder — real config.yml mounted from vikunja-oidc-config secret below
 
-          # Mount the Vault-rendered config.yml secret (contains OIDC clientid/secret)
+          # Mount the Vault-rendered config.yml (with OIDC credentials) over the configmap
           additionalVolumes:
-            - name: vikunja-config
+            - name: vikunja-oidc-config
               secret:
                 secretName: vikunja-config
           additionalVolumeMounts:
-            - name: vikunja-config
+            - name: vikunja-oidc-config
               mountPath: /etc/vikunja/config.yml
               subPath: config.yml
               readOnly: true
