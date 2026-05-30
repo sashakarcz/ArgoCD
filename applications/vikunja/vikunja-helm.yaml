@@ -62,7 +62,10 @@ spec:
             VIKUNJA_SERVICE_PUBLICURL: "https://project.starnix.net"
           configMaps:
             config:
-              enabled: false
+              enabled: true
+              data:
+                config.yml: |
+                  # managed by ArgoCD ignoreDifferences + VSO patch
 
   ignoreDifferences:
     - group: ""
