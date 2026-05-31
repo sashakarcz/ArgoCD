@@ -31,13 +31,17 @@ spec:
           prometheusSpec:
             enableRemoteWriteReceiver: true
             retention: 30d
-            # WAL on emptyDir keeps write-heavy I/O off NFS
+            # WAL and chunks_head on emptyDir to keep compaction I/O off NFS
             volumes:
               - name: prometheus-wal
+                emptyDir: {}
+              - name: prometheus-chunks-head
                 emptyDir: {}
             volumeMounts:
               - name: prometheus-wal
                 mountPath: /prometheus/wal
+              - name: prometheus-chunks-head
+                mountPath: /prometheus/chunks_head
             # Strategic merge patch to increase probe timeouts for NFS-backed storage
             containers:
               - name: prometheus
