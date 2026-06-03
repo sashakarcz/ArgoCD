@@ -231,14 +231,17 @@ spec:
           httpGet:
             path: /templates
             port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 15
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 5
         readinessProbe:
           httpGet:
             path: /templates
             port: 5000
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 15
 
 ---
 apiVersion: v1
