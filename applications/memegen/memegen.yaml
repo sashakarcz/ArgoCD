@@ -1,0 +1,447 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: memegen
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memegen-config
+  namespace: memegen
+data:
+  DB_HOST: "memegen-postgres"
+  DB_PORT: "5432"
+  DB_USER: "memegen"
+  DB_NAME: "memegen"
+  REDIS_HOST: "memegen-redis"
+  REDIS_PORT: "6379"
+  MEMEGEN_API_URL: "http://memegen-api:5000"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: memegen-postgres-data
+  namespace: memegen
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: longhorn
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memegen-postgres
+  namespace: memegen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: memegen-postgres
+  template:
+    metadata:
+      labels:
+        app: memegen-postgres
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_NAME
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: memegen-secrets
+              key: db-password
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - memegen
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - memegen
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: memegen-postgres-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memegen-postgres
+  namespace: memegen
+spec:
+  selector:
+    app: memegen-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memegen-redis
+  namespace: memegen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: memegen-redis
+  template:
+    metadata:
+      labels:
+        app: memegen-redis
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memegen-redis
+  namespace: memegen
+spec:
+  selector:
+    app: memegen-redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memegen-api
+  namespace: memegen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: memegen-api
+  template:
+    metadata:
+      labels:
+        app: memegen-api
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: memegen-api
+        image: astrognome/memegen
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /templates
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /templates
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memegen-api
+  namespace: memegen
+spec:
+  selector:
+    app: memegen-api
+  ports:
+  - port: 5000
+    targetPort: 5000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memegen-app
+  namespace: memegen
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: memegen-app
+  template:
+    metadata:
+      labels:
+        app: memegen-app
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:15-alpine
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h memegen-postgres -U memegen; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+      containers:
+      - name: memegen-app
+        image: registry.starnix.net/library/memegen-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8181
+          name: http
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_PORT
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_USER
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: DB_NAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: memegen-secrets
+              key: db-password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: REDIS_PORT
+        - name: MEMEGEN_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: memegen-config
+              key: MEMEGEN_API_URL
+        - name: ADMIN_KEY
+          valueFrom:
+            secretKeyRef:
+              name: memegen-secrets
+              key: admin-key
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8181
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8181
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memegen-app
+  namespace: memegen
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Memegen"
+    gethomepage.dev/description: "Meme Generator"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-image-text"
+    gethomepage.dev/href: "https://memegen.starnix.net"
+    gethomepage.dev/pod-selector: "app=memegen-app"
+spec:
+  selector:
+    app: memegen-app
+  ports:
+  - port: 8181
+    targetPort: 8181
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: memegen-ingress
+  namespace: memegen
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - memegen.starnix.net
+    secretName: memegen-tls
+  rules:
+  - host: memegen.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: memegen-app
+            port:
+              number: 8181
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: memegen
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: memegen
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: memegen-secrets
+  namespace: memegen
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/memegen-secrets
+  vaultAuthRef: default
+  destination:
+    name: memegen-secrets
+    create: true
+  refreshAfter: 1h
