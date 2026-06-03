@@ -79,6 +79,8 @@ spec:
             secretKeyRef:
               name: memegen-secrets
               key: db-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
