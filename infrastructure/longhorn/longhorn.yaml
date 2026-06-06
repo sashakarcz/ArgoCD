@@ -16,9 +16,15 @@ spec:
       values: |
         persistence:
           defaultClassReplicaCount: 3
+          migratable: true
           recurringJobSelector:
             enable: true
             jobList: '[{"name":"daily-backup","isGroup":false},{"name":"hourly-snapshot","isGroup":false}]'
+        defaultSettings:
+          # Delete pods on downed nodes so StatefulSets reschedule instead of sitting Pending
+          nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
+          # Rebuild replicas faster after a node recovers (was 600s)
+          replicaReplenishmentWaitInterval: 60
         tolerations:
           - key: "node-role.kubernetes.io/control-plane"
             operator: "Exists"
