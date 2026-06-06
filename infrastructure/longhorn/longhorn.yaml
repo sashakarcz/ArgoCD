@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.longhorn.io
     chart: longhorn
-    targetRevision: 1.10.1
+    targetRevision: 1.11.2
     helm:
       releaseName: longhorn
       values: |
@@ -25,6 +25,14 @@ spec:
           nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
           # Rebuild replicas faster after a node recovers (was 600s)
           replicaReplenishmentWaitInterval: 60
+          # Match storage class replica count so UI-created volumes also get 3 replicas
+          defaultReplicaCount: 3
+          # Rebalance replicas gradually when nodes recover (was disabled)
+          replicaAutoBalance: least-effort
+          # Rebuild degraded replicas on detached volumes proactively
+          offlineReplicaRebuilding: enabled
+          # Allow enough time for large volume backups to complete (was 1 min)
+          backupExecutionTimeout: 30
         tolerations:
           - key: "node-role.kubernetes.io/control-plane"
             operator: "Exists"
