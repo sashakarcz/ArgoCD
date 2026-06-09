@@ -49,6 +49,7 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: longhorn
+  volumeName: nocodb-app-data-restored-pv
 
 ---
 apiVersion: apps/v1

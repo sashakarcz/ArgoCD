@@ -24,6 +24,7 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: longhorn
+  volumeName: kutt-postgres-restored-pv
 
 ---
 apiVersion: v1

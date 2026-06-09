@@ -22,6 +22,7 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: longhorn
+  volumeName: overseerr-config-restored-pv
 
 
 ---
