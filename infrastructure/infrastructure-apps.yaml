@@ -201,8 +201,6 @@ spec:
             exposedPort: 443
             http3:
               enabled: false
-            tls:
-              enabled: true
           metrics:
             port: 9100
             expose:
