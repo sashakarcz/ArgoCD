@@ -30,7 +30,7 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: interstellar
-        image: ***REMOVED***/interstellar:latest  # Build from the repo's Dockerfile
+        image: astrognome/interstellar:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080  # Interstellar's default port
