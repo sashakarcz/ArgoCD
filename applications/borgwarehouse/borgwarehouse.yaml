@@ -172,7 +172,7 @@ metadata:
   namespace: borgwarehouse
   annotations:
     # MetalLB Dedicated IP for SSH
-    metallb.universe.tf/loadBalancerIPs: "192.168.7.204"
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.209"
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "BorgWarehouse"
     gethomepage.dev/description: "Backup Repository Manager"

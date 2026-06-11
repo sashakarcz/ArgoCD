@@ -1,7 +1,7 @@
 $ORIGIN starnix.net.
 $TTL 86400
 @                       IN  SOA   ns1.starnix.net. admin.starnix.net. (
-                                  2025021001 ; serial
+                                  2026061001 ; serial
                                   3600       ; refresh
                                   900        ; retry
                                   1209600    ; expire
@@ -24,7 +24,7 @@ amadeus                 IN  A     172.67.75.83
 amadeus                 IN  A     104.26.7.194
 blog                    IN  A     172.66.47.197
 blog                    IN  A     172.66.44.59
-borg                    IN  A     192.168.7.204
+borg                    IN  A     192.168.7.209
 bork            1200    IN  A     192.168.1.86
 cometdb                 IN  A     192.168.1.33
 finnmac                 IN  A     192.168.1.15
@@ -37,7 +37,7 @@ hello                   IN  A     192.168.1.169
 help                    IN  A     104.26.6.194
 help                    IN  A     172.67.75.83
 help                    IN  A     104.26.7.194
-ingress                 IN  A     192.168.7.203
+ingress                 IN  A     192.168.7.207
 ipa                     IN  A     104.26.6.194
 ipa                     IN  A     104.26.7.194
 ipa                     IN  A     172.67.75.83
