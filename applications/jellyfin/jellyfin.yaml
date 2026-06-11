@@ -387,6 +387,8 @@ kind: Service
 metadata:
   name: jellyfin-service
   namespace: jellyfin
+  labels:
+    app: jellyfin
   annotations:
     metallb.universe.tf/loadBalancerIPs: "192.168.7.208"
     gethomepage.dev/enabled: "true"
@@ -577,6 +579,8 @@ kind: Service
 metadata:
   name: jellyfin-json-exporter
   namespace: jellyfin
+  labels:
+    app: jellyfin-json-exporter
 spec:
   selector:
     app: jellyfin-json-exporter
