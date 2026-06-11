@@ -535,7 +535,7 @@ spec:
       initContainers:
       - name: config-init
         image: busybox:latest
-        command: [sh, -c, "envsubst < /tmpl/config.yaml.tmpl > /config/config.yaml"]
+        command: [sh, -c, 'sed "s|\${JELLYFIN_API_KEY}|$JELLYFIN_API_KEY|g" /tmpl/config.yaml.tmpl > /config/config.yaml']
         env:
         - name: JELLYFIN_API_KEY
           valueFrom:
