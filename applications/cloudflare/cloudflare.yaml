@@ -1,0 +1,298 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflare
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: cloudflare
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: cloudflare
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudflare-secrets
+  namespace: cloudflare
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/cloudflared-secrets
+  vaultAuthRef: default
+  destination:
+    name: cloudflare-secrets
+    create: true
+  refreshAfter: 1h
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tunnel-config
+  namespace: cloudflare
+data:
+  account-id: "f4bee6a7808c0215d33dee04ef9da0e3"
+  tunnel-id: "ab9094f8-d05c-47d2-b660-1a403a2e739e"
+  # Edit ingress.yaml to add/remove/change tunnel routes.
+  # ArgoCD will apply changes to Cloudflare automatically on next sync.
+  ingress.yaml: |
+    # --- Jellyfin (direct to service IP, bypasses Traefik) ---
+    - hostname: jellyfin.starnix.net
+      service: http://192.168.7.208:8096
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: jellyfin.service.starnix.net
+
+    # --- Traefik ingress (192.168.7.207) ---
+    - hostname: media.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: media.starnix.net
+    - hostname: auth.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: auth.starnix.net
+    - hostname: status.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: status.starnix.net
+    - hostname: memegen.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        originServerName: memegen.starnix.net
+    - hostname: matrix.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: matrix.starnix.net
+    - hostname: db.bairlabs.org
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: db.bairlabs.org
+    - hostname: nova.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: proxy.starnix.net
+    - hostname: krampus.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: krampus.starnix.net
+    - hostname: sanitydeclines.com
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: ghost.starnix.net
+
+    # --- Self-hosted services with own ingress/TLS ---
+    - hostname: ha.starnix.net
+      service: https://ha.service.starnix.net
+      originRequest:
+        noTLSVerify: false
+        httpHostHeader: ha.service.starnix.net
+    - hostname: privatebin.starnix.net
+      service: https://privatebin.starnix.net
+      originRequest:
+        httpHostHeader: privatebin.starnix.net
+    - hostname: ntfy.starnix.net
+      service: https://ntfy.service.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: ntfy.service.starnix.net
+    - hostname: go.starnix.net
+      service: https://go.service.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: go.service.starnix.net
+    - hostname: ouija.starnix.net
+      service: https://ouija.service.starnix.net
+      originRequest:
+        httpHostHeader: ouija.service.starnix.net
+    - hostname: help.starnix.net
+      service: https://help.starnix.net
+      originRequest:
+        http2Origin: true
+        noTLSVerify: true
+        httpHostHeader: help.starnix.net
+    - hostname: data.bairlabs.org
+      service: https://metabase.starnix.net
+      originRequest:
+        httpHostHeader: metabase.starnix.net
+    - hostname: fleet.starnix.net
+      service: https://fleet.starnix.net
+    - hostname: drop.starnix.net
+      service: https://drop.service.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: drop.service.starnix.net
+    - hostname: coturn.starnix.net
+      service: https://coturn.service.starnix.net
+      originRequest:
+        httpHostHeader: coturn.service.starnix.net
+    - hostname: tarot.starnix.net
+      service: https://tarot.starnix.net
+      originRequest:
+        httpHostHeader: tarot.starnix.net
+    - hostname: radiacode.starnix.net
+      service: https://radiacode.starnix.net
+      originRequest:
+        httpHostHeader: radiacode.starnix.net
+    - hostname: repeater.starnix.net
+      service: https://repeater.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: repeater.starnix.net
+    - hostname: argocd.starnix.net
+      service: https://argocd.starnix.net
+      originRequest:
+        noTLSVerify: true
+    - hostname: project.starnix.net
+      service: https://project.starnix.net
+      originRequest:
+        noTLSVerify: true
+    - hostname: seafile.starnix.net
+      service: https://seafile.starnix.net
+      originRequest:
+        noTLSVerify: true
+    - hostname: clock.bairlabs.org
+      service: https://bair-sky.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: bair-sky.starnix.net
+        originServerName: bair-sky.starnix.net
+    - hostname: lofiweather.net
+      service: https://weather.starnix.net
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: weather.starnix.net
+
+    # --- Direct LAN services ---
+    - hostname: password.starnix.net
+      service: http://192.168.1.86:8081
+      originRequest:
+        noTLSVerify: true
+    - hostname: music.starnix.net
+      service: http://bork.starnix.net:4533
+    - hostname: send.starnix.net
+      service: http://192.168.1.86:8883
+    - hostname: llama.starnix.net
+      service: http://192.168.1.86:3000
+    - hostname: s3.starnix.net
+      service: http://192.168.1.150:9000
+    - hostname: vance.starnix.net
+      service: http://192.168.8.69
+    - hostname: python.bairlabs.org
+      service: http://192.168.1.86:8888
+      originRequest:
+        httpHostHeader: python.starnix.net
+    - hostname: inv.bidetcams.com
+      service: https://vid.starnix.net
+      originRequest:
+        httpHostHeader: vid.starnix.net
+    - hostname: gellyfin.starnix.net
+      service: http://192.168.1.86:8889
+    - hostname: sky.bairlabs.org
+      service: https://172.16.5.198:8443
+      originRequest:
+        noTLSVerify: true
+    - hostname: warp.starnix.net
+      service: https://192.168.1.106
+      originRequest:
+        noTLSVerify: true
+
+    # --- SSH ---
+    - hostname: tron.starnix.net
+      service: ssh://192.168.1.52:2022
+
+    # --- Catch-all ---
+    - service: http_status:404
+
+---
+# Sync hook: applies ingress.yaml to Cloudflare on every ArgoCD sync.
+# Uses CF_API_TOKEN from Vault-managed cloudflare-secrets.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-tunnel-config
+  namespace: cloudflare
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: sync
+        image: python:3-alpine
+        command:
+        - sh
+        - -c
+        - |
+          pip install pyyaml --quiet --no-cache-dir && python3 - <<'PYEOF'
+          import yaml, json, urllib.request, os, sys
+
+          ingress = yaml.safe_load(open('/config/ingress.yaml'))
+          account_id = open('/config/account-id').read().strip()
+          tunnel_id  = open('/config/tunnel-id').read().strip()
+          token = os.environ['CF_API_TOKEN']
+
+          payload = json.dumps({'config': {'ingress': ingress}}).encode()
+          url = (f'https://api.cloudflare.com/client/v4/accounts/'
+                 f'{account_id}/cfd_tunnel/{tunnel_id}/configurations')
+
+          req = urllib.request.Request(url, data=payload, method='PUT')
+          req.add_header('Authorization', f'Bearer {token}')
+          req.add_header('Content-Type', 'application/json')
+
+          try:
+              resp = urllib.request.urlopen(req)
+              result = json.load(resp)
+          except urllib.error.HTTPError as e:
+              print('HTTP error:', e.code, e.read().decode(), file=sys.stderr)
+              sys.exit(1)
+
+          if result['success']:
+              print(f'Tunnel {tunnel_id} config applied ({len(ingress)-1} routes + catch-all)')
+          else:
+              print('Cloudflare errors:', result['errors'], file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+        env:
+        - name: CF_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secrets
+              key: CF_API_TOKEN
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: config
+        configMap:
+          name: tunnel-config
