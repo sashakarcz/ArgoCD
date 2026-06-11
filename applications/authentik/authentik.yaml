@@ -351,6 +351,9 @@ spec:
   - name: https
     port: 9443
     targetPort: 9443
+  - name: metrics
+    port: 9300
+    targetPort: 9300
 
 ---
 # Authentik Worker
@@ -470,3 +473,19 @@ spec:
     name: authentik-secrets
     create: true
   refreshAfter: 1h
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: authentik
+  namespace: authentik
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: authentik-server
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
