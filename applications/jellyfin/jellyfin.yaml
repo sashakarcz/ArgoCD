@@ -442,3 +442,187 @@ spec:
   - hosts:
     - jellyfin.starnix.net
     secretName: jellyfin-tls
+
+---
+# Vault integration for Jellyfin API key
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: jellyfin
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: jellyfin
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: jellyfin-secrets
+  namespace: jellyfin
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/jellyfin-secrets
+  vaultAuthRef: default
+  destination:
+    name: jellyfin-secrets
+    create: true
+  refreshAfter: 1h
+
+---
+# ConfigMap: prometheus-json-exporter module template.
+# ${JELLYFIN_API_KEY} is substituted at pod start by the init container.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyfin-json-exporter-config
+  namespace: jellyfin
+data:
+  config.yaml.tmpl: |
+    modules:
+      jellyfin:
+        headers:
+          Authorization: "MediaBrowser Token=${JELLYFIN_API_KEY}"
+          Content-Type: application/json
+          accept: application/json
+        metrics:
+        - name: jellyfin
+          type: object
+          help: User playback metrics from Jellyfin
+          path: '{ [?(@.NowPlayingItem)] }'
+          labels:
+            user_name: '{ .UserName }'
+            item_type: '{ .NowPlayingItem.Type }'
+            item_name: '{ .NowPlayingItem.Name }'
+            series_name: '{ .NowPlayingItem.SeriesName }'
+            episode_index: 'e{ .NowPlayingItem.IndexNumber }'
+            season_index: 's{ .NowPlayingItem.ParentIndexNumber }'
+            client_name: '{ .Client }'
+            device_name: '{ .DeviceName }'
+            session_id: '{ .Id }'
+          values:
+            is_paused: '{ .PlayState.IsPaused }'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin-json-exporter
+  namespace: jellyfin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin-json-exporter
+  template:
+    metadata:
+      labels:
+        app: jellyfin-json-exporter
+    spec:
+      initContainers:
+      - name: config-init
+        image: busybox:latest
+        command: [sh, -c, "envsubst < /tmpl/config.yaml.tmpl > /config/config.yaml"]
+        env:
+        - name: JELLYFIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: jellyfin-secrets
+              key: JELLYFIN_API_KEY
+        volumeMounts:
+        - name: config-tmpl
+          mountPath: /tmpl
+        - name: config
+          mountPath: /config
+      containers:
+      - name: json-exporter
+        image: quay.io/prometheuscommunity/json-exporter:latest
+        args: ["--config.file=/config/config.yaml"]
+        ports:
+        - name: metrics
+          containerPort: 7979
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      volumes:
+      - name: config-tmpl
+        configMap:
+          name: jellyfin-json-exporter-config
+      - name: config
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-json-exporter
+  namespace: jellyfin
+spec:
+  selector:
+    app: jellyfin-json-exporter
+  ports:
+  - name: metrics
+    port: 7979
+    targetPort: 7979
+
+---
+# Native Jellyfin /metrics (enabled via system.xml EnableMetrics=true)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jellyfin-native
+  namespace: jellyfin
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: jellyfin
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+
+---
+# Playback session metrics via prometheus-json-exporter + Jellyfin Sessions API
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jellyfin-sessions
+  namespace: jellyfin
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: jellyfin-json-exporter
+  endpoints:
+  - port: metrics
+    path: /probe
+    interval: 30s
+    params:
+      module: [jellyfin]
+      target: ['http://jellyfin-service.jellyfin.svc.cluster.local:8096/Sessions']
+    relabelings:
+    - sourceLabels: [__param_target]
+      targetLabel: instance
