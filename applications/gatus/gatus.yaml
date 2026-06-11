@@ -550,3 +550,19 @@ spec:
     name: gatus-secrets
     create: true
   refreshAfter: 1h
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: gatus
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
