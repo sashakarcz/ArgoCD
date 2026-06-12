@@ -50,7 +50,10 @@ spec:
                 - -c
                 - |
                   set -e
-                  export GNUPGHOME=/gpg
+                  # Use a subdir of the mount: with fsGroup the mount root
+                  # (/gpg) is owned root:1000 and can't be chmod'd by uid 1000.
+                  # A subdir we create ourselves is owned 1000:1000.
+                  export GNUPGHOME=/gpg/gnupg
                   mkdir -p "$GNUPGHOME"
                   chmod 700 "$GNUPGHOME"
                   echo "$GPG_PRIVATE_KEY" | gpg --batch --import
@@ -76,7 +79,7 @@ spec:
                 - /usr/local/bin/aur-build-all
               env:
                 - name: GNUPGHOME
-                  value: /gpg
+                  value: /gpg/gnupg
                 - name: GPG_KEY_ID
                   valueFrom:
                     secretKeyRef:
