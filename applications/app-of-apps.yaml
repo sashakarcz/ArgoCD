@@ -882,6 +882,28 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: unifi-poller
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/usenix17/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/unifi-poller
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unifi-poller
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: cloudflare
   namespace: argocd
 spec:
