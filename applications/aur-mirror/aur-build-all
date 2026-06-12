@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""
+AUR build pipeline: reads allowlist, builds approved packages, scans with
+Trivy, signs with GPG, and publishes to the pacman repo on the shared PV.
+
+Exit codes:
+  0 — all approved packages built and published (or already up to date)
+  1 — one or more packages failed (Trivy finding, build error, etc.)
+"""
+import os
+import subprocess
+import sys
+import logging
+from pathlib import Path
+
+import yaml
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+log = logging.getLogger(__name__)
+
+REPO_DIR     = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
+BUILD_DIR    = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
+ALLOWLIST    = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
+REPO_NAME    = os.environ["REPO_NAME"]            # aur-mirror
+GPG_KEY_ID   = os.environ["GPG_KEY_ID"]
+FAIL_SEVS    = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
+
+
+def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
+    log.info("+ %s", " ".join(str(c) for c in cmd))
+    return subprocess.run(cmd, check=True, **kwargs)
+
+
+def aur_version(pkg: str) -> str | None:
+    """Return the current AUR version string, or None if not found."""
+    r = subprocess.run(
+        ["aur", "search", "--raw", pkg],
+        capture_output=True, text=True,
+    )
+    for line in r.stdout.splitlines():
+        if line.startswith("Version:"):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def installed_version(pkg: str) -> str | None:
+    """Return the version already in the local repo db, or None."""
+    db = REPO_DIR / f"{REPO_NAME}.db.tar.gz"
+    if not db.exists():
+        return None
+    r = subprocess.run(
+        ["tar", "-tzf", str(db)],
+        capture_output=True, text=True,
+    )
+    for entry in r.stdout.splitlines():
+        # Entries look like: pkgname-1.2.3-1/
+        name, *rest = entry.rstrip("/").rsplit("-", 2)
+        if name == pkg and len(rest) == 2:
+            return "-".join(rest)
+    return None
+
+
+def build_package(pkg: str) -> list[Path]:
+    """Fetch PKGBUILD and build; return list of produced .pkg.tar.zst paths."""
+    pkg_dir = BUILD_DIR / pkg
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+
+    # Fetch / update the PKGBUILD
+    run(["aur", "fetch", pkg], cwd=pkg_dir)
+    run(
+        ["makepkg", "-s", "--noconfirm", "--noprogressbar", "--needed"],
+        cwd=pkg_dir / pkg,
+    )
+    return list((pkg_dir / pkg).glob("*.pkg.tar.zst"))
+
+
+def trivy_scan(artifact: Path) -> bool:
+    """Return True if Trivy finds no findings at FAIL_SEVS or above."""
+    result = subprocess.run(
+        [
+            "trivy", "fs",
+            "--exit-code", "1",
+            "--severity", FAIL_SEVS,
+            "--no-progress",
+            str(artifact),
+        ],
+    )
+    return result.returncode == 0
+
+
+def sign_and_publish(artifacts: list[Path]) -> None:
+    """GPG-sign each artifact and add to the pacman repo database."""
+    REPO_DIR.mkdir(parents=True, exist_ok=True)
+    db = REPO_DIR / f"{REPO_NAME}.db.tar.gz"
+
+    for artifact in artifacts:
+        dest = REPO_DIR / artifact.name
+        artifact.rename(dest)
+
+        run([
+            "gpg", "--batch", "--yes",
+            "--local-user", GPG_KEY_ID,
+            "--detach-sign", str(dest),
+        ])
+        log.info("Signed: %s", dest.name)
+
+    run([
+        "repo-add", "--sign", "--key", GPG_KEY_ID,
+        str(db),
+        *[str(REPO_DIR / a.name) for a in artifacts],
+    ])
+
+
+def main() -> int:
+    with ALLOWLIST.open() as f:
+        config = yaml.safe_load(f)
+
+    packages = [
+        p["name"]
+        for p in config.get("packages", [])
+        if p.get("approved") is True
+    ]
+
+    log.info("Allowlist: %d approved packages", len(packages))
+    failed = []
+
+    for pkg in packages:
+        log.info("── Processing: %s ──", pkg)
+
+        aur_ver = aur_version(pkg)
+        repo_ver = installed_version(pkg)
+
+        if aur_ver and aur_ver == repo_ver:
+            log.info("Up to date (%s), skipping.", aur_ver)
+            continue
+
+        try:
+            artifacts = build_package(pkg)
+        except subprocess.CalledProcessError:
+            log.error("Build FAILED for %s", pkg)
+            failed.append(pkg)
+            continue
+
+        clean = True
+        for artifact in artifacts:
+            if not trivy_scan(artifact):
+                log.error(
+                    "Trivy found %s vulnerabilities in %s — NOT publishing",
+                    FAIL_SEVS, artifact.name,
+                )
+                clean = False
+
+        if not clean:
+            failed.append(pkg)
+            continue
+
+        try:
+            sign_and_publish(artifacts)
+            log.info("Published: %s", pkg)
+        except subprocess.CalledProcessError:
+            log.error("Publish FAILED for %s", pkg)
+            failed.append(pkg)
+
+    if failed:
+        log.error("Failed packages: %s", ", ".join(failed))
+        return 1
+
+    log.info("All packages processed successfully.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

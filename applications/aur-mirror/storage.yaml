@@ -1,0 +1,32 @@
+---
+# NFS-backed PV on mimir — same pattern as harbor-registry.
+# Create the directory first: mkdir -p /mnt/Store/aur-mirror/repo
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: aur-mirror-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/aur-mirror/repo
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aur-mirror-pvc
+  namespace: aur-mirror
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: manual
+  volumeName: aur-mirror-pv
+  resources:
+    requests:
+      storage: 20Gi

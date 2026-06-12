@@ -1,0 +1,111 @@
+---
+# Builder image: registry.starnix.net/library/aur-builder
+# See applications/aur-mirror/Dockerfile for the image definition.
+# Harbor's built-in Trivy will scan the builder image itself.
+#
+# Build and push manually once, then Harbor keeps it updated:
+#   docker build -t registry.starnix.net/library/aur-builder:latest .
+#   docker push registry.starnix.net/library/aur-builder:latest
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aur-builder
+  namespace: aur-mirror
+spec:
+  # Run nightly at 02:00
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      # Abort if still running after 4 hours
+      activeDeadlineSeconds: 14400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          volumes:
+            - name: repo
+              persistentVolumeClaim:
+                claimName: aur-mirror-pvc
+            - name: allowlist
+              configMap:
+                name: aur-allowlist
+            - name: gpg-home
+              emptyDir: {}
+            - name: build-dir
+              emptyDir:
+                medium: Memory
+                sizeLimit: 8Gi
+          initContainers:
+            # Import GPG signing key from Vault secret before main build starts
+            - name: gpg-init
+              image: registry.starnix.net/library/aur-builder:latest
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  export GNUPGHOME=/gpg
+                  mkdir -p "$GNUPGHOME"
+                  chmod 700 "$GNUPGHOME"
+                  echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+                  echo "GPG key imported: $GPG_KEY_ID"
+              env:
+                - name: GPG_PRIVATE_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aur-signing-key
+                      key: GPG_PRIVATE_KEY
+                - name: GPG_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aur-signing-key
+                      key: GPG_KEY_ID
+              volumeMounts:
+                - name: gpg-home
+                  mountPath: /gpg
+          containers:
+            - name: builder
+              image: registry.starnix.net/library/aur-builder:latest
+              command:
+                - /usr/local/bin/aur-build-all
+              env:
+                - name: GNUPGHOME
+                  value: /gpg
+                - name: GPG_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aur-signing-key
+                      key: GPG_KEY_ID
+                - name: REPO_DIR
+                  value: /repo
+                - name: BUILD_DIR
+                  value: /build
+                - name: ALLOWLIST
+                  value: /config/allowlist.yaml
+                - name: REPO_NAME
+                  value: aur-mirror
+                # Fail the build if Trivy finds vulns at this severity or above
+                - name: TRIVY_FAIL_SEVERITY
+                  value: "HIGH,CRITICAL"
+              volumeMounts:
+                - name: repo
+                  mountPath: /repo
+                - name: allowlist
+                  mountPath: /config
+                - name: gpg-home
+                  mountPath: /gpg
+                - name: build-dir
+                  mountPath: /build
+              resources:
+                requests:
+                  cpu: 2
+                  memory: 4Gi
+                limits:
+                  cpu: 4
+                  memory: 8Gi

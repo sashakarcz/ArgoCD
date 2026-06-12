@@ -1,0 +1,118 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aur-repo-server
+  namespace: aur-mirror
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aur-repo-server
+  template:
+    metadata:
+      labels:
+        app: aur-repo-server
+    spec:
+      volumes:
+        - name: repo
+          persistentVolumeClaim:
+            claimName: aur-mirror-pvc
+        - name: nginx-config
+          configMap:
+            name: aur-nginx-config
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: repo
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aur-nginx-config
+  namespace: aur-mirror
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        autoindex on;
+
+        # Serve .sig files with correct MIME type
+        types {
+            application/octet-stream  pkg.tar.zst sig db tar.gz;
+        }
+
+        location / {
+            try_files $uri $uri/ =404;
+        }
+
+        # Health check endpoint
+        location /healthz {
+            return 200 "ok\n";
+            add_header Content-Type text/plain;
+        }
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aur-repo-server
+  namespace: aur-mirror
+spec:
+  selector:
+    app: aur-repo-server
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aur-repo-ingress
+  namespace: aur-mirror
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "AUR Mirror"
+    gethomepage.dev/description: "Private AUR package repository"
+    gethomepage.dev/group: "Infrastructure"
+    gethomepage.dev/icon: "archlinux.png"
+    gethomepage.dev/href: "https://aur.starnix.net"
+    gethomepage.dev/pod-selector: "app=aur-repo-server"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - aur.starnix.net
+      secretName: aur-repo-tls
+  rules:
+    - host: aur.starnix.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aur-repo-server
+                port:
+                  number: 80

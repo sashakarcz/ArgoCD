@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aur-allowlist
+  namespace: aur-mirror
+data:
+  # Editing this file is the review gate — a PR here is the approval process.
+  # Packages are only built if they appear in this list with approved: "true".
+  # Prefer Flatpak alternatives where noted; include here only for hosts that
+  # can't run Flatpak or need system integration.
+  allowlist.yaml: |
+    packages:
+      # ── Build tooling ──────────────────────────────────────────────────────
+      - name: yay-bin
+        approved: true
+        note: AUR helper for bootstrap only; prefer aur-mirror for all else
+
+      # ── Anthropic / AI tools ───────────────────────────────────────────────
+      - name: claude-code
+        approved: true
+        note: Official Anthropic CLI; no Flatpak available
+
+      - name: gemini-cli
+        approved: true
+        note: Official Google Gemini CLI; no Flatpak available
+
+      # ── Browsers ───────────────────────────────────────────────────────────
+      - name: google-chrome
+        approved: true
+        note: Required for some internal web apps; prefer Flatpak on desktops
+        flatpak_alt: com.google.Chrome
+
+      - name: vivaldi
+        approved: true
+        flatpak_alt: com.vivaldi.Vivaldi
+
+      - name: zen-browser-bin
+        approved: true
+        flatpak_alt: app.zen_browser.zen
+
+      - name: ungoogled-chromium-bin
+        approved: true
+        flatpak_alt: io.github.ungoogled_software.ungoogled_chromium
+
+      # ── Communication ──────────────────────────────────────────────────────
+      - name: discord
+        approved: true
+        flatpak_alt: com.discordapp.Discord
+
+      - name: signal-desktop
+        approved: true
+        flatpak_alt: org.signal.Signal
+
+      - name: element-desktop
+        approved: true
+        flatpak_alt: io.element.Element
+
+      - name: protonmail-bridge
+        approved: true
+        note: Requires system tray integration; Flatpak has sandboxing issues
+
+      # ── VPN ────────────────────────────────────────────────────────────────
+      - name: proton-vpn-gtk-app
+        approved: true
+        flatpak_alt: com.protonvpn.www
+
+      - name: protonvpn-cli-community
+        approved: true
+        note: CLI-only, used in scripts
+
+      - name: openpyn-nordvpn
+        approved: true
+
+      # ── Media ──────────────────────────────────────────────────────────────
+      - name: freetube-bin
+        approved: true
+        flatpak_alt: io.frama.tractor.FreeTube
+
+      - name: jellyfin-media-player
+        approved: true
+        flatpak_alt: com.github.iwalton3.jellyfin-media-player
+
+      # ── Developer tools ────────────────────────────────────────────────────
+      - name: visual-studio-code-bin
+        approved: true
+        flatpak_alt: com.visualstudio.code
+
+      - name: sublime-text-4
+        approved: true
+
+      - name: github-cli
+        approved: true
+        note: Check if now in official repos before next review
+
+      # ── Security / monitoring ──────────────────────────────────────────────
+      - name: wazuh-agent
+        approved: true
+        note: Required for Wazuh SIEM integration
+
+      - name: osquery
+        approved: true
+
+      # ── Infrastructure ─────────────────────────────────────────────────────
+      - name: starnixremote
+        approved: true
+        note: Internal remote access tooling
+
+      - name: rustdesk-bin
+        approved: true
+
+      - name: terraform
+        approved: true
+        note: Check if now in official repos before next review
+
+      - name: vault
+        approved: true
+        note: Check if now in official repos before next review
+
+      # ── Hardware / drivers ─────────────────────────────────────────────────
+      - name: fingerprint-gui
+        approved: true
+
+      - name: python-validity
+        approved: true
+        note: Validity fingerprint sensor driver
+
+      # ── Astronomy ──────────────────────────────────────────────────────────
+      - name: phd2
+        approved: true
+        note: Check if now in official repos before next review
+
+      - name: libindi_3rdparty
+        approved: true
+
+      # ── Gaming ─────────────────────────────────────────────────────────────
+      - name: playonlinux
+        approved: true
+
+      # ── Office ─────────────────────────────────────────────────────────────
+      - name: wps-office
+        approved: true
+
+      # ── Networking tools ───────────────────────────────────────────────────
+      - name: mqtt-explorer
+        approved: true
+
+      - name: lagrange
+        approved: true
+        note: Gemini browser
+
+      # ── Packages under review (not yet approved) ───────────────────────────
+      # Add packages here pending security review; set approved: false
+      - name: chess-electron
+        approved: false
+        note: Electron app, large attack surface; review before approving
+
+      - name: knime-desktop
+        approved: false
+        note: Large Java analytics platform; review PKGBUILD before approving
