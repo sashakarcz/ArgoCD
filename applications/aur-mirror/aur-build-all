@@ -118,6 +118,51 @@ def sign_and_publish(artifacts: list[Path]) -> None:
     ])
 
 
+def prune_repo(approved: set[str]) -> None:
+    """Remove repo packages whose base name isn't in the approved set.
+
+    Keeps the mirror in sync with the allowlist so packages that were
+    removed from it (or built during earlier testing) stop being served.
+    A package's -debug variant is kept iff its base is approved. The DB is
+    re-signed atomically via repo-remove --sign.
+
+    Note: split packages whose pkgname differs from the pkgbase are only
+    retained if that pkgname is itself in the allowlist — which holds here
+    because the allowlist is generated from installed pkgnames (pacman -Qmq).
+    """
+    db = REPO_DIR / f"{REPO_NAME}.db.tar.gz"
+    if not db.exists():
+        return
+
+    r = subprocess.run(["tar", "-tzf", str(db)], capture_output=True, text=True)
+    # DB entries look like "pkgname-version-rel/"; pkgname is everything
+    # before the last two hyphen-separated fields (version, rel).
+    db_pkgnames = {
+        e.rstrip("/").rsplit("-", 2)[0]
+        for e in r.stdout.splitlines()
+        if e.endswith("/")
+    }
+
+    stale = [
+        name for name in db_pkgnames
+        if (name[:-6] if name.endswith("-debug") else name) not in approved
+    ]
+    if not stale:
+        return
+
+    log.info("Pruning %d stale package(s): %s", len(stale), ", ".join(sorted(stale)))
+    run(["repo-remove", "--sign", "--key", GPG_KEY_ID, str(db), *sorted(stale)])
+
+    # Delete the orphaned package files + signatures from disk.
+    for name in stale:
+        for f in REPO_DIR.glob(f"{name}-*.pkg.tar.zst"):
+            if f.name.rsplit("-", 3)[0] == name:  # guard against prefix over-match
+                f.unlink()
+                sig = f.with_name(f.name + ".sig")
+                if sig.exists():
+                    sig.unlink()
+
+
 def main() -> int:
     with ALLOWLIST.open() as f:
         config = yaml.safe_load(f)
@@ -168,6 +213,11 @@ def main() -> int:
             # Never let one package's publish error abort the whole run.
             log.error("Publish FAILED for %s: %s", pkg, exc)
             failed.append(pkg)
+
+    try:
+        prune_repo(set(packages))
+    except (subprocess.CalledProcessError, OSError) as exc:
+        log.error("Repo prune failed: %s", exc)
 
     if failed:
         log.error("Failed packages: %s", ", ".join(failed))
