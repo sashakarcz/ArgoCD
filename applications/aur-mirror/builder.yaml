@@ -38,9 +38,13 @@ spec:
             - name: gpg-home
               emptyDir: {}
             - name: build-dir
+              # Node-disk-backed scratch (NOT medium: Memory) so build trees
+              # don't count against the container memory limit. Nodes have
+              # ~86Gi ephemeral; 50Gi caps runaway while leaving headroom.
+              # aur-build-all cleans each package's dir after publish, so peak
+              # usage stays at roughly one package.
               emptyDir:
-                medium: Memory
-                sizeLimit: 8Gi
+                sizeLimit: 50Gi
           initContainers:
             # Import GPG signing key from Vault secret before main build starts
             - name: gpg-init
@@ -111,6 +115,11 @@ spec:
                 requests:
                   cpu: 2
                   memory: 4Gi
+                  ephemeral-storage: 10Gi
                 limits:
                   cpu: 4
-                  memory: 8Gi
+                  # Headroom for C++-heavy compiles (qt5-webengine, webkit,
+                  # build2). With /build on node disk this is now real compiler
+                  # memory, not build-tree storage.
+                  memory: 12Gi
+                  ephemeral-storage: 50Gi

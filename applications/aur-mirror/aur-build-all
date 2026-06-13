@@ -258,33 +258,39 @@ def main() -> int:
             skipped += 1
             continue
 
+        pkg_dir = BUILD_DIR / pkg
         try:
-            artifacts = build_package(pkg)
-        except subprocess.CalledProcessError:
-            log.error("Build FAILED for %s", pkg)
-            failed[pkg] = "build_error"
-            continue
+            try:
+                artifacts = build_package(pkg)
+            except subprocess.CalledProcessError:
+                log.error("Build FAILED for %s", pkg)
+                failed[pkg] = "build_error"
+                continue
 
-        clean = True
-        for artifact in artifacts:
-            if not trivy_scan(artifact):
-                log.error(
-                    "Trivy found %s vulnerabilities in %s — NOT publishing",
-                    FAIL_SEVS, artifact.name,
-                )
-                clean = False
+            clean = True
+            for artifact in artifacts:
+                if not trivy_scan(artifact):
+                    log.error(
+                        "Trivy found %s vulnerabilities in %s — NOT publishing",
+                        FAIL_SEVS, artifact.name,
+                    )
+                    clean = False
 
-        if not clean:
-            failed[pkg] = "trivy"
-            continue
+            if not clean:
+                failed[pkg] = "trivy"
+                continue
 
-        try:
-            sign_and_publish(artifacts)
-            log.info("Published: %s", pkg)
-        except (subprocess.CalledProcessError, OSError) as exc:
-            # Never let one package's publish error abort the whole run.
-            log.error("Publish FAILED for %s: %s", pkg, exc)
-            failed[pkg] = "publish_error"
+            try:
+                sign_and_publish(artifacts)
+                log.info("Published: %s", pkg)
+            except (subprocess.CalledProcessError, OSError) as exc:
+                # Never let one package's publish error abort the whole run.
+                log.error("Publish FAILED for %s: %s", pkg, exc)
+                failed[pkg] = "publish_error"
+        finally:
+            # Reclaim scratch: drop this package's build tree so peak /build
+            # usage stays at ~one package (the node-disk emptyDir is bounded).
+            shutil.rmtree(pkg_dir, ignore_errors=True)
 
     try:
         prune_repo(set(packages))
