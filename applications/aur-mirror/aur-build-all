@@ -8,6 +8,7 @@ Exit codes:
   1 — one or more packages failed (Trivy finding, build error, etc.)
 """
 import os
+import shutil
 import subprocess
 import sys
 import logging
@@ -98,7 +99,10 @@ def sign_and_publish(artifacts: list[Path]) -> None:
 
     for artifact in artifacts:
         dest = REPO_DIR / artifact.name
-        artifact.rename(dest)
+        # shutil.move (not Path.rename): /build is tmpfs and /repo is NFS,
+        # so os.rename fails with EXDEV (cross-device link). shutil.move
+        # falls back to copy+unlink across filesystems.
+        shutil.move(str(artifact), str(dest))
 
         run([
             "gpg", "--batch", "--yes",
@@ -160,8 +164,9 @@ def main() -> int:
         try:
             sign_and_publish(artifacts)
             log.info("Published: %s", pkg)
-        except subprocess.CalledProcessError:
-            log.error("Publish FAILED for %s", pkg)
+        except (subprocess.CalledProcessError, OSError) as exc:
+            # Never let one package's publish error abort the whole run.
+            log.error("Publish FAILED for %s: %s", pkg, exc)
             failed.append(pkg)
 
     if failed:
