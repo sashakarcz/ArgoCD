@@ -61,6 +61,13 @@ data:
         noTLSVerify: true
         httpHostHeader: jellyfin.service.starnix.net
 
+    # --- AUR mirror ---
+    - hostname: aur.starnix.net
+      service: https://192.16.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: aur.starnix.net
+
     # --- Traefik ingress (192.168.7.207) ---
     - hostname: media.starnix.net
       service: https://192.168.7.207
