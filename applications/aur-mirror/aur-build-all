@@ -11,7 +11,9 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import logging
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -22,12 +24,13 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-REPO_DIR     = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
-BUILD_DIR    = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
-ALLOWLIST    = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
-REPO_NAME    = os.environ["REPO_NAME"]            # aur-mirror
-GPG_KEY_ID   = os.environ["GPG_KEY_ID"]
-FAIL_SEVS    = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
+REPO_DIR        = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
+BUILD_DIR       = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
+ALLOWLIST       = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
+REPO_NAME       = os.environ["REPO_NAME"]            # aur-mirror
+GPG_KEY_ID      = os.environ["GPG_KEY_ID"]
+FAIL_SEVS       = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
+PUSHGATEWAY_URL = os.environ.get("PUSHGATEWAY_URL", "")
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -163,6 +166,56 @@ def prune_repo(approved: set[str]) -> None:
                     sig.unlink()
 
 
+def push_metrics(total: int, skipped: int, failed: dict[str, str]) -> None:
+    """Push build result metrics to Prometheus Pushgateway."""
+    if not PUSHGATEWAY_URL:
+        return
+
+    succeeded = total - skipped - len(failed)
+    lines = [
+        "# HELP aur_mirror_package_held Package held back from the mirror (1=held)",
+        "# TYPE aur_mirror_package_held gauge",
+    ]
+    for pkg, reason in failed.items():
+        lines.append(f'aur_mirror_package_held{{package="{pkg}",reason="{reason}"}} 1')
+
+    lines += [
+        "# HELP aur_mirror_last_run_timestamp_seconds Unix timestamp of the last build run",
+        "# TYPE aur_mirror_last_run_timestamp_seconds gauge",
+        f"aur_mirror_last_run_timestamp_seconds {int(time.time())}",
+
+        "# HELP aur_mirror_last_run_success 1 if no packages failed in the last run",
+        "# TYPE aur_mirror_last_run_success gauge",
+        f"aur_mirror_last_run_success {0 if failed else 1}",
+
+        "# HELP aur_mirror_packages_total Total approved packages in the allowlist",
+        "# TYPE aur_mirror_packages_total gauge",
+        f"aur_mirror_packages_total {total}",
+
+        "# HELP aur_mirror_packages_succeeded_total Packages successfully built in the last run",
+        "# TYPE aur_mirror_packages_succeeded_total gauge",
+        f"aur_mirror_packages_succeeded_total {succeeded}",
+
+        "# HELP aur_mirror_packages_skipped_total Packages skipped (already up to date) in the last run",
+        "# TYPE aur_mirror_packages_skipped_total gauge",
+        f"aur_mirror_packages_skipped_total {skipped}",
+
+        "# HELP aur_mirror_packages_held_total Packages held back in the last run",
+        "# TYPE aur_mirror_packages_held_total gauge",
+        f"aur_mirror_packages_held_total {len(failed)}",
+    ]
+
+    body = "\n".join(lines) + "\n"
+    url = f"{PUSHGATEWAY_URL.rstrip('/')}/metrics/job/aur-mirror"
+    req = urllib.request.Request(url, data=body.encode(), method="PUT")
+    req.add_header("Content-Type", "text/plain; version=0.0.4")
+    try:
+        urllib.request.urlopen(req)
+        log.info("Metrics pushed to Pushgateway (%d held)", len(failed))
+    except Exception as exc:
+        log.warning("Failed to push metrics to Pushgateway: %s", exc)
+
+
 def main() -> int:
     with ALLOWLIST.open() as f:
         config = yaml.safe_load(f)
@@ -174,7 +227,8 @@ def main() -> int:
     ]
 
     log.info("Allowlist: %d approved packages", len(packages))
-    failed = []
+    failed: dict[str, str] = {}  # pkg -> reason
+    skipped = 0
 
     for pkg in packages:
         log.info("── Processing: %s ──", pkg)
@@ -184,13 +238,14 @@ def main() -> int:
 
         if aur_ver and aur_ver == repo_ver:
             log.info("Up to date (%s), skipping.", aur_ver)
+            skipped += 1
             continue
 
         try:
             artifacts = build_package(pkg)
         except subprocess.CalledProcessError:
             log.error("Build FAILED for %s", pkg)
-            failed.append(pkg)
+            failed[pkg] = "build_error"
             continue
 
         clean = True
@@ -203,7 +258,7 @@ def main() -> int:
                 clean = False
 
         if not clean:
-            failed.append(pkg)
+            failed[pkg] = "trivy"
             continue
 
         try:
@@ -212,12 +267,14 @@ def main() -> int:
         except (subprocess.CalledProcessError, OSError) as exc:
             # Never let one package's publish error abort the whole run.
             log.error("Publish FAILED for %s: %s", pkg, exc)
-            failed.append(pkg)
+            failed[pkg] = "publish_error"
 
     try:
         prune_repo(set(packages))
     except (subprocess.CalledProcessError, OSError) as exc:
         log.error("Repo prune failed: %s", exc)
+
+    push_metrics(total=len(packages), skipped=skipped, failed=failed)
 
     if failed:
         log.error("Failed packages: %s", ", ".join(failed))

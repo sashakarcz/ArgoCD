@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aur-mirror
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+  - name: aur-mirror
+    rules:
+    - alert: AURPackageHeld
+      expr: aur_mirror_package_held == 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "AUR package {{ $labels.package }} held back ({{ $labels.reason }})"
+        description: >
+          Package {{ $labels.package }} was not published to the AUR mirror
+          because of a {{ $labels.reason }} failure. Check the builder logs
+          for details.
+
+    - alert: AURMirrorBuildFailed
+      expr: aur_mirror_last_run_success == 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "AUR mirror nightly build had failures"
+        description: >
+          One or more packages failed to build or were held back by Trivy.
+          Check aur_mirror_package_held metrics for which packages and why.
+
+    - alert: AURMirrorStaleBuild
+      expr: time() - aur_mirror_last_run_timestamp_seconds > 90000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "AUR mirror build hasn't run in over 25 hours"
+        description: >
+          The last AUR mirror build was {{ $value | humanizeDuration }} ago.
+          The nightly build may have failed to start or timed out.

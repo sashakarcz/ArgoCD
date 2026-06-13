@@ -96,6 +96,8 @@ spec:
                 # Fail the build if Trivy finds vulns at this severity or above
                 - name: TRIVY_FAIL_SEVERITY
                   value: "HIGH,CRITICAL"
+                - name: PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
               volumeMounts:
                 - name: repo
                   mountPath: /repo
