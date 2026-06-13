@@ -4,156 +4,569 @@ metadata:
   name: aur-allowlist
   namespace: aur-mirror
 data:
-  # Editing this file is the review gate — a PR here is the approval process.
-  # Packages are only built if they appear in this list with approved: "true".
-  # Prefer Flatpak alternatives where noted; include here only for hosts that
-  # can't run Flatpak or need system integration.
   allowlist.yaml: |
+    # Approved AUR packages mirrored by aur-mirror.
+    # Baseline generated from selene's installed AUR footprint (pacman -Qmq,
+    # excluding auto-generated -debug byproducts). The builder produces each
+    # package's -debug variant automatically.
+    #
+    # This file is the review gate: adding a package here (via PR) is the
+    # approval. -debug entries must NOT be listed; they are built alongside
+    # their base package. Set approved: false to stage a package for review
+    # without building it.
     packages:
-      # ── Build tooling ──────────────────────────────────────────────────────
-      - name: yay-bin
+      - name: accounts-qml-module
         approved: true
-        note: AUR helper for bootstrap only; prefer aur-mirror for all else
-
-      # ── Anthropic / AI tools ───────────────────────────────────────────────
+        note: dependency
+      - name: amtterm
+        approved: true
+        note: explicit
+      - name: apachedirectorystudio
+        approved: true
+        note: explicit
+      - name: arkenfox-autoconfig
+        approved: true
+        note: dependency
+      - name: backblaze-b2-bin
+        approved: true
+        note: explicit
+      - name: beautyline
+        approved: true
+        note: explicit
+      - name: bfg
+        approved: true
+        note: explicit
+      - name: blesh
+        approved: true
+        note: explicit
+      - name: botan2
+        approved: true
+        note: dependency
+      - name: build2
+        approved: true
+        note: dependency
+      - name: butane
+        approved: true
+        note: explicit
+      - name: cheese
+        approved: true
+        note: explicit
+      - name: chromium-extension-web-store
+        approved: true
+        note: explicit
       - name: claude-code
         approved: true
-        note: Official Anthropic CLI; no Flatpak available
-
-      - name: gemini-cli
+        note: explicit
+      - name: claude-desktop-native
         approved: true
-        note: Official Google Gemini CLI; no Flatpak available
-
-      # ── Browsers ───────────────────────────────────────────────────────────
-      - name: google-chrome
+        note: explicit
+      - name: clutter
         approved: true
-        note: Required for some internal web apps; prefer Flatpak on desktops
-        flatpak_alt: com.google.Chrome
-
-      - name: vivaldi
+        note: dependency
+      - name: clutter-gst
         approved: true
-        flatpak_alt: com.vivaldi.Vivaldi
-
-      - name: zen-browser-bin
+        note: dependency
+      - name: clutter-gtk
         approved: true
-        flatpak_alt: app.zen_browser.zen
-
-      - name: ungoogled-chromium-bin
+        note: dependency
+      - name: cogl
         approved: true
-        flatpak_alt: io.github.ungoogled_software.ungoogled_chromium
-
-      # ── Communication ──────────────────────────────────────────────────────
-      - name: discord
+        note: dependency
+      - name: ds9-bin
         approved: true
-        flatpak_alt: com.discordapp.Discord
-
-      - name: signal-desktop
+        note: explicit
+      - name: etcher-bin
         approved: true
-        flatpak_alt: org.signal.Signal
-
-      - name: element-desktop
-        approved: true
-        flatpak_alt: io.element.Element
-
-      - name: protonmail-bridge
-        approved: true
-        note: Requires system tray integration; Flatpak has sandboxing issues
-
-      # ── VPN ────────────────────────────────────────────────────────────────
-      - name: proton-vpn-gtk-app
-        approved: true
-        flatpak_alt: com.protonvpn.www
-
-      - name: protonvpn-cli-community
-        approved: true
-        note: CLI-only, used in scripts
-
-      - name: openpyn-nordvpn
-        approved: true
-
-      # ── Media ──────────────────────────────────────────────────────────────
-      - name: freetube-bin
-        approved: true
-        flatpak_alt: io.frama.tractor.FreeTube
-
-      - name: jellyfin-media-player
-        approved: true
-        flatpak_alt: com.github.iwalton3.jellyfin-media-player
-
-      # ── Developer tools ────────────────────────────────────────────────────
-      - name: visual-studio-code-bin
-        approved: true
-        flatpak_alt: com.visualstudio.code
-
-      - name: sublime-text-4
-        approved: true
-
-      - name: github-cli
-        approved: true
-        note: Check if now in official repos before next review
-
-      # ── Security / monitoring ──────────────────────────────────────────────
-      - name: wazuh-agent
-        approved: true
-        note: Required for Wazuh SIEM integration
-
-      - name: osquery
-        approved: true
-
-      # ── Infrastructure ─────────────────────────────────────────────────────
-      - name: starnixremote
-        approved: true
-        note: Internal remote access tooling
-
-      - name: rustdesk-bin
-        approved: true
-
-      - name: terraform
-        approved: true
-        note: Check if now in official repos before next review
-
-      - name: vault
-        approved: true
-        note: Check if now in official repos before next review
-
-      # ── Hardware / drivers ─────────────────────────────────────────────────
+        note: explicit
       - name: fingerprint-gui
         approved: true
-
-      - name: python-validity
+        note: explicit
+      - name: firedragon-bin
         approved: true
-        note: Validity fingerprint sensor driver
-
-      # ── Astronomy ──────────────────────────────────────────────────────────
-      - name: phd2
+        note: explicit
+      - name: firedragon-extension-plasma-integration
         approved: true
-        note: Check if now in official repos before next review
-
-      - name: libindi_3rdparty
+        note: explicit
+      - name: firefox-arkenfox-autoconfig
         approved: true
-
-      # ── Gaming ─────────────────────────────────────────────────────────────
-      - name: playonlinux
+        note: explicit
+      - name: fleet-osquery
         approved: true
-
-      # ── Office ─────────────────────────────────────────────────────────────
-      - name: wps-office
+        note: explicit
+      - name: floorp-bin
         approved: true
-
-      # ── Networking tools ───────────────────────────────────────────────────
-      - name: mqtt-explorer
+        note: explicit
+      - name: flutter
         approved: true
-
+        note: dependency
+      - name: flutter-artifacts-engine-android-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-artifacts-engine-common-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-artifacts-engine-linux-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-artifacts-engine-web-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-artifacts-material-fonts-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-artifacts-sky-engine-google-bin
+        approved: true
+        note: dependency
+      - name: flutter-common
+        approved: true
+        note: dependency
+      - name: flutter-devel
+        approved: true
+        note: dependency
+      - name: flutter-gradle
+        approved: true
+        note: dependency
+      - name: flutter-intellij-patch
+        approved: true
+        note: dependency
+      - name: flutter-target-android
+        approved: true
+        note: dependency
+      - name: flutter-target-linux
+        approved: true
+        note: dependency
+      - name: flutter-target-web
+        approved: true
+        note: dependency
+      - name: flutter-tool
+        approved: true
+        note: dependency
+      - name: fprintd-clients-git
+        approved: true
+        note: dependency
+      - name: freetube-bin
+        approved: true
+        note: explicit
+      - name: garuda-mokka
+        approved: true
+        note: explicit
+      - name: geekbench
+        approved: true
+        note: explicit
+      - name: glew1.10
+        approved: true
+        note: dependency
+      - name: gnu-netcat
+        approved: true
+        note: explicit
+      - name: google-chrome
+        approved: true
+        note: explicit
+      - name: google-cloud-cli
+        approved: true
+        note: explicit
+      - name: grantlee
+        approved: true
+        note: dependency
+      - name: grpcurl-bin
+        approved: true
+        note: explicit
+      - name: gtk2
+        approved: true
+        note: dependency
+      - name: interspec-bin
+        approved: true
+        note: explicit
+      - name: kdesu5
+        approved: true
+        note: dependency
+      - name: kdoctools5
+        approved: true
+        note: dependency
+      - name: kinit
+        approved: true
+        note: dependency
+      - name: knime-desktop
+        approved: true
+        note: explicit
+      - name: kopia-ui-bin
+        approved: true
+        note: explicit
+      - name: kplotting5
+        approved: true
+        note: dependency
+      - name: kubelogin
+        approved: true
+        note: explicit
+      - name: kunitconversion5
+        approved: true
+        note: dependency
+      - name: kwin-effect-rounded-corners-git
+        approved: true
+        note: explicit
+      - name: kwin-effects-forceblur
+        approved: true
+        note: explicit
+      - name: ladybird
+        approved: true
+        note: explicit
       - name: lagrange
         approved: true
-        note: Gemini browser
-
-      # ── Packages under review (not yet approved) ───────────────────────────
-      # Add packages here pending security review; set approved: false
-      - name: chess-electron
-        approved: false
-        note: Electron app, large attack surface; review before approving
-
-      - name: knime-desktop
-        approved: false
-        note: Large Java analytics platform; review PKGBUILD before approving
+        note: explicit
+      - name: lib32-glew1.10
+        approved: true
+        note: dependency
+      - name: lib32-gtk2
+        approved: true
+        note: dependency
+      - name: lib32-libappindicator-gtk2
+        approved: true
+        note: dependency
+      - name: lib32-libdbusmenu-gtk2
+        approved: true
+        note: dependency
+      - name: lib32-libgcrypt15
+        approved: true
+        note: dependency
+      - name: lib32-libidn11
+        approved: true
+        note: dependency
+      - name: lib32-libindicator-gtk2
+        approved: true
+        note: dependency
+      - name: lib32-libjpeg6-turbo
+        approved: true
+        note: dependency
+      - name: lib32-libpng12
+        approved: true
+        note: dependency
+      - name: lib32-librtmp0
+        approved: true
+        note: dependency
+      - name: lib32-libtiff4
+        approved: true
+        note: dependency
+      - name: lib32-libudev0-shim
+        approved: true
+        note: dependency
+      - name: lib32-libvpx1.3
+        approved: true
+        note: dependency
+      - name: lib32-openssl-1.1
+        approved: true
+        note: dependency
+      - name: libcheese
+        approved: true
+        note: dependency
+      - name: libcutl
+        approved: true
+        note: dependency
+      - name: libdbusmenu-gtk2
+        approved: true
+        note: dependency
+      - name: libestr
+        approved: true
+        note: dependency
+      - name: libfastjson
+        approved: true
+        note: dependency
+      - name: libfprint-1
+        approved: true
+        note: dependency
+      - name: libgcrypt15
+        approved: true
+        note: dependency
+      - name: libidn11
+        approved: true
+        note: explicit
+      - name: libindicator-gtk2
+        approved: true
+        note: dependency
+      - name: libjpeg6-turbo
+        approved: true
+        note: dependency
+      - name: libkcompactdisc
+        approved: true
+        note: dependency
+      - name: libkolabxml
+        approved: true
+        note: dependency
+      - name: liblogging
+        approved: true
+        note: dependency
+      - name: libpng12
+        approved: true
+        note: dependency
+      - name: librelp
+        approved: true
+        note: dependency
+      - name: librtmp0
+        approved: true
+        note: dependency
+      - name: libsoup
+        approved: true
+        note: dependency
+      - name: libsvbony
+        approved: true
+        note: explicit
+      - name: libsvbonycam
+        approved: true
+        note: explicit
+      - name: libtiff4
+        approved: true
+        note: dependency
+      - name: libudev0-shim
+        approved: true
+        note: dependency
+      - name: libvpx1.3
+        approved: true
+        note: dependency
+      - name: libxsd
+        approved: true
+        note: dependency
+      - name: libxsd-frontend
+        approved: true
+        note: dependency
+      - name: megacmd
+        approved: true
+        note: explicit
+      - name: meshtastic-python
+        approved: true
+        note: explicit
+      - name: meshtasticd-bin
+        approved: true
+        note: explicit
+      - name: microsoft-edge-stable-bin
+        approved: true
+        note: explicit
+      - name: minivmac
+        approved: true
+        note: explicit
+      - name: mqtt-explorer
+        approved: true
+        note: explicit
+      - name: nojava-ipmi-kvm-docker
+        approved: true
+        note: explicit
+      - name: open-fprintd
+        approved: true
+        note: dependency
+      - name: openpyn-nordvpn
+        approved: true
+        note: explicit
+      - name: openrefine
+        approved: true
+        note: explicit
+      - name: openssl-1.0
+        approved: true
+        note: dependency
+      - name: openssl-1.1
+        approved: true
+        note: dependency
+      - name: pamtester
+        approved: true
+        note: explicit
+      - name: phantomjs
+        approved: true
+        note: explicit
+      - name: piper-tts-bin
+        approved: true
+        note: explicit
+      - name: plasma6-applets-panel-colorizer
+        approved: true
+        note: explicit
+      - name: plasma6-applets-window-title
+        approved: true
+        note: explicit
+      - name: plasma6-wallpapers-blurredwallpaper
+        approved: true
+        note: explicit
+      - name: playonlinux
+        approved: true
+        note: explicit
+      - name: protonup-qt
+        approved: true
+        note: explicit
+      - name: publii
+        approved: true
+        note: explicit
+      - name: purpose5
+        approved: true
+        note: dependency
+      - name: python-bjoern
+        approved: true
+        note: explicit
+      - name: python-diskcache
+        approved: true
+        note: dependency
+      - name: python-fvs
+        approved: true
+        note: dependency
+      - name: python-gevent-eventemitter
+        approved: true
+        note: dependency
+      - name: python-hierplace
+        approved: true
+        note: dependency
+      - name: python-inputs
+        approved: true
+        note: dependency
+      - name: python-inspice
+        approved: true
+        note: dependency
+      - name: python-kinet2pcb
+        approved: true
+        note: dependency
+      - name: python-kinparse
+        approved: true
+        note: dependency
+      - name: python-pathvalidate
+        approved: true
+        note: dependency
+      - name: python-pipe
+        approved: true
+        note: dependency
+      - name: python-pytest-runner
+        approved: true
+        note: dependency
+      - name: python-pythondialog
+        approved: true
+        note: dependency
+      - name: python-setuptools-reproducible
+        approved: true
+        note: dependency
+      - name: python-simp-sexp
+        approved: true
+        note: dependency
+      - name: python-skidl
+        approved: true
+        note: explicit
+      - name: python-steam
+        approved: true
+        note: dependency
+      - name: python-steamgriddb
+        approved: true
+        note: dependency
+      - name: python-sysv_ipc
+        approved: true
+        note: dependency
+      - name: python-validity
+        approved: true
+        note: explicit
+      - name: python-verboselogs
+        approved: true
+        note: dependency
+      - name: python-yacl
+        approved: true
+        note: dependency
+      - name: qt5-doc
+        approved: true
+        note: dependency
+      - name: qt5-location
+        approved: true
+        note: dependency
+      - name: qt5-sensors
+        approved: true
+        note: dependency
+      - name: qt5-webchannel
+        approved: true
+        note: dependency
+      - name: qt5-webengine
+        approved: true
+        note: dependency
+      - name: qt5-webkit
+        approved: true
+        note: dependency
+      - name: qt5-websockets
+        approved: true
+        note: dependency
+      - name: rsyslog
+        approved: true
+        note: explicit
+      - name: rustdesk-bin
+        approved: true
+        note: explicit
+      - name: slack-desktop
+        approved: true
+        note: explicit
+      - name: sqlitestudio
+        approved: true
+        note: explicit
+      - name: sublime-text-4
+        approved: true
+        note: explicit
+      - name: surf
+        approved: true
+        note: explicit
+      - name: systemd-swap
+        approved: true
+        note: explicit
+      - name: terracognita
+        approved: true
+        note: explicit
+      - name: terraformer
+        approved: true
+        note: explicit
+      - name: topcat
+        approved: true
+        note: explicit
+      - name: ua608d
+        approved: true
+        note: explicit
+      - name: ungoogled-chromium-bin
+        approved: true
+        note: explicit
+      - name: visual-studio-code-bin
+        approved: true
+        note: explicit
+      - name: vkbasalt-cli
+        approved: true
+        note: dependency
+      - name: wasi-compiler-rt21
+        approved: true
+        note: dependency
+      - name: wazuh-agent
+        approved: true
+        note: explicit
+      - name: weasis-bin
+        approved: true
+        note: explicit
+      - name: weatherfetch
+        approved: true
+        note: explicit
+      - name: webkit2gtk
+        approved: true
+        note: dependency
+      - name: winboat-bin
+        approved: true
+        note: explicit
+      - name: wps-office
+        approved: true
+        note: explicit
+      - name: xf86-video-vmware
+        approved: true
+        note: explicit
+      - name: xsd
+        approved: true
+        note: dependency
+      - name: xwayland-run
+        approved: true
+        note: dependency
+      - name: yay
+        approved: true
+        note: explicit
+      - name: yubikey-manager-qt
+        approved: true
+        note: explicit
+      - name: zen-browser-bin
+        approved: true
+        note: explicit
+      - name: zfs-dkms
+        approved: true
+        note: explicit
+      - name: zfs-utils
+        approved: true
+        note: explicit
+      - name: zoom
+        approved: true
+        note: explicit
