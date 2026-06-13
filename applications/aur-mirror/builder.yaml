@@ -19,8 +19,11 @@ spec:
   failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
-      # Abort if still running after 4 hours
-      activeDeadlineSeconds: 14400
+      # Abort if still running after 8 hours (headroom for a full from-scratch
+      # build of all packages, incl. monster C++ compiles like ladybird,
+      # qt5-webengine, webkit2gtk). Steady-state nightlies skip unchanged
+      # packages and finish far faster.
+      activeDeadlineSeconds: 28800
       template:
         spec:
           restartPolicy: OnFailure
