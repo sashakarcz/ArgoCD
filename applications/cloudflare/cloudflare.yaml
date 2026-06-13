@@ -63,7 +63,7 @@ data:
 
     # --- AUR mirror ---
     - hostname: aur.starnix.net
-      service: https://192.16.7.207
+      service: https://192.168.7.207
       originRequest:
         noTLSVerify: true
         httpHostHeader: aur.starnix.net
@@ -262,33 +262,72 @@ spec:
         - -c
         - |
           pip install pyyaml --quiet --no-cache-dir && python3 - <<'PYEOF'
-          import yaml, json, urllib.request, os, sys
+          import yaml, json, urllib.request, urllib.parse, os, sys
 
-          ingress = yaml.safe_load(open('/config/ingress.yaml'))
+          ingress    = yaml.safe_load(open('/config/ingress.yaml'))
           account_id = open('/config/account-id').read().strip()
           tunnel_id  = open('/config/tunnel-id').read().strip()
-          token = os.environ['CF_API_TOKEN']
+          token      = os.environ['CF_API_TOKEN']
+          headers    = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
-          payload = json.dumps({'config': {'ingress': ingress}}).encode()
-          url = (f'https://api.cloudflare.com/client/v4/accounts/'
-                 f'{account_id}/cfd_tunnel/{tunnel_id}/configurations')
+          def cf(method, path, data=None):
+              url = f'https://api.cloudflare.com/client/v4{path}'
+              body = json.dumps(data).encode() if data is not None else None
+              req = urllib.request.Request(url, data=body, method=method)
+              for k, v in headers.items():
+                  req.add_header(k, v)
+              try:
+                  resp = urllib.request.urlopen(req)
+                  return json.load(resp)
+              except urllib.error.HTTPError as e:
+                  print(f'HTTP {e.code} {method} {path}:', e.read().decode(), file=sys.stderr)
+                  sys.exit(1)
 
-          req = urllib.request.Request(url, data=payload, method='PUT')
-          req.add_header('Authorization', f'Bearer {token}')
-          req.add_header('Content-Type', 'application/json')
-
-          try:
-              resp = urllib.request.urlopen(req)
-              result = json.load(resp)
-          except urllib.error.HTTPError as e:
-              print('HTTP error:', e.code, e.read().decode(), file=sys.stderr)
+          # 1. Push tunnel ingress config
+          result = cf('PUT', f'/accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations',
+                      {'config': {'ingress': ingress}})
+          if not result['success']:
+              print('Tunnel config error:', result['errors'], file=sys.stderr)
               sys.exit(1)
+          routes = len([r for r in ingress if 'hostname' in r])
+          print(f'Tunnel {tunnel_id} config applied ({routes} routes + catch-all)')
 
-          if result['success']:
-              print(f'Tunnel {tunnel_id} config applied ({len(ingress)-1} routes + catch-all)')
-          else:
-              print('Cloudflare errors:', result['errors'], file=sys.stderr)
-              sys.exit(1)
+          # 2. Build zone map: root domain -> zone_id
+          zones_result = cf('GET', f'/accounts/{account_id}/zones?per_page=100')
+          zone_map = {z['name']: z['id'] for z in zones_result['result']}
+
+          def find_zone(hostname):
+              parts = hostname.split('.')
+              for i in range(len(parts) - 1):
+                  candidate = '.'.join(parts[i:])
+                  if candidate in zone_map:
+                      return candidate, zone_map[candidate]
+              return None, None
+
+          # 3. Upsert CNAME for every hostname in the ingress config
+          cname_target = f'{tunnel_id}.cfargotunnel.com'
+          for route in ingress:
+              hostname = route.get('hostname')
+              if not hostname:
+                  continue
+              _, zone_id = find_zone(hostname)
+              if not zone_id:
+                  print(f'  SKIP {hostname}: no matching zone found')
+                  continue
+
+              existing = cf('GET', f'/zones/{zone_id}/dns_records?type=CNAME&name={urllib.parse.quote(hostname)}')
+              records  = existing.get('result', [])
+
+              if not records:
+                  cf('POST', f'/zones/{zone_id}/dns_records',
+                     {'type': 'CNAME', 'name': hostname, 'content': cname_target, 'proxied': True})
+                  print(f'  CREATED  {hostname} -> {cname_target}')
+              elif records[0]['content'] != cname_target or not records[0]['proxied']:
+                  cf('PUT', f'/zones/{zone_id}/dns_records/{records[0]["id"]}',
+                     {'type': 'CNAME', 'name': hostname, 'content': cname_target, 'proxied': True})
+                  print(f'  UPDATED  {hostname} -> {cname_target}')
+              else:
+                  print(f'  OK       {hostname}')
           PYEOF
         env:
         - name: CF_API_TOKEN
