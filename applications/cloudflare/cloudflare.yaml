@@ -268,6 +268,7 @@ spec:
           account_id = open('/config/account-id').read().strip()
           tunnel_id  = open('/config/tunnel-id').read().strip()
           token      = os.environ['CF_API_TOKEN']
+          dns_token  = os.environ['CF_DNS_TOKEN']
           headers    = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
           def cf(method, path, data=None):
@@ -292,7 +293,8 @@ spec:
           routes = len([r for r in ingress if 'hostname' in r])
           print(f'Tunnel {tunnel_id} config applied ({routes} routes + catch-all)')
 
-          # 2. Build zone map: root domain -> zone_id
+          # 2. Build zone map using DNS token (has Zone:Read + DNS:Edit)
+          headers['Authorization'] = f'Bearer {dns_token}'
           zones_result = cf('GET', f'/zones?account.id={account_id}&per_page=100')
           zone_map = {z['name']: z['id'] for z in zones_result['result']}
 
@@ -335,6 +337,11 @@ spec:
             secretKeyRef:
               name: cloudflare-secrets
               key: CF_API_TOKEN
+        - name: CF_DNS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secrets
+              key: CF_DNS_TOKEN
         volumeMounts:
         - name: config
           mountPath: /config
