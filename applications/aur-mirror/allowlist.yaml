@@ -186,9 +186,6 @@ data:
       - name: kinit
         approved: true
         note: dependency
-      - name: knime-desktop
-        approved: true
-        note: explicit
       - name: kopia-ui-bin
         approved: true
         note: explicit
@@ -205,9 +202,6 @@ data:
         approved: true
         note: explicit
       - name: kwin-effects-forceblur
-        approved: true
-        note: explicit
-      - name: ladybird
         approved: true
         note: explicit
       - name: lagrange
