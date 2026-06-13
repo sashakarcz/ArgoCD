@@ -42,9 +42,6 @@ data:
       - name: botan2
         approved: true
         note: dependency
-      - name: build2
-        approved: true
-        note: dependency
       - name: butane
         approved: true
         note: explicit
