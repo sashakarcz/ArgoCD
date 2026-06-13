@@ -293,7 +293,7 @@ spec:
           print(f'Tunnel {tunnel_id} config applied ({routes} routes + catch-all)')
 
           # 2. Build zone map: root domain -> zone_id
-          zones_result = cf('GET', f'/accounts/{account_id}/zones?per_page=100')
+          zones_result = cf('GET', f'/zones?account.id={account_id}&per_page=100')
           zone_map = {z['name']: z['id'] for z in zones_result['result']}
 
           def find_zone(hostname):
