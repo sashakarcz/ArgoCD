@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import logging
 import urllib.request
@@ -82,17 +83,33 @@ def build_package(pkg: str) -> list[Path]:
 
 
 def trivy_scan(artifact: Path) -> bool:
-    """Return True if Trivy finds no findings at FAIL_SEVS or above."""
-    result = subprocess.run(
-        [
-            "trivy", "fs",
-            "--exit-code", "1",
-            "--severity", FAIL_SEVS,
-            "--no-progress",
-            str(artifact),
-        ],
-    )
-    return result.returncode == 0
+    """Extract the package and scan its contents. Returns True if clean.
+
+    Trivy must scan the EXTRACTED tree, not the .pkg.tar.zst itself: pointed
+    at the tarball it finds num=0 language files and scans nothing (a silent
+    pass). Extracting lets Trivy see the actual supply-chain surface —
+    bundled language deps (npm/pip/go/cargo/jars), Go/Rust binaries via SCA,
+    and embedded secrets. Fails closed: any extraction/scan error holds the
+    package rather than letting it through unscanned.
+    """
+    try:
+        with tempfile.TemporaryDirectory(dir=BUILD_DIR) as tmp:
+            subprocess.run(
+                ["bsdtar", "-xpf", str(artifact), "-C", tmp],
+                check=True,
+            )
+            result = subprocess.run([
+                "trivy", "rootfs",
+                "--exit-code", "1",
+                "--severity", FAIL_SEVS,
+                "--scanners", "vuln,secret",
+                "--no-progress",
+                tmp,
+            ])
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, OSError) as exc:
+        log.error("Trivy scan error for %s (holding): %s", artifact.name, exc)
+        return False
 
 
 def sign_and_publish(artifacts: list[Path]) -> None:
