@@ -1,0 +1,123 @@
+---
+# On-add build trigger. ArgoCD runs this Job as a PostSync hook whenever the
+# aur-mirror app syncs -- notably when a package is added to allowlist.yaml --
+# so a new package is built within minutes instead of waiting for the 02:00
+# nightly cron. aur-build-all skips up-to-date packages, so a sync-triggered
+# run only builds what changed.
+#
+# hook-delete-policy BeforeHookCreation: ArgoCD deletes the previous instance
+# of this Job before each new sync, so re-runs use the stable name and the last
+# run stays visible for debugging.
+#
+# IMPORTANT: the pod spec below intentionally mirrors the CronJob in
+# builder.yaml (YAML anchors cannot span the two documents). Keep them in sync
+# -- image, env, volumes, resources. The flock on /repo/.build.lock serializes
+# this job against the nightly cron so they never write the repo db / sign
+# concurrently.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aur-builder-onsync
+  namespace: aur-mirror
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  # Build time plus headroom to wait on the flock if a nightly run is still
+  # in progress when an add lands.
+  activeDeadlineSeconds: 36000
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      volumes:
+        - name: repo
+          persistentVolumeClaim:
+            claimName: aur-mirror-pvc
+        - name: allowlist
+          configMap:
+            name: aur-allowlist
+        - name: gpg-home
+          emptyDir: {}
+        - name: build-dir
+          emptyDir:
+            sizeLimit: 50Gi
+      initContainers:
+        # Import GPG signing key from Vault secret before the build starts.
+        - name: gpg-init
+          image: registry.starnix.net/library/aur-builder:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              export GNUPGHOME=/gpg/gnupg
+              mkdir -p "$GNUPGHOME"
+              chmod 700 "$GNUPGHOME"
+              echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+              echo "GPG key imported: $GPG_KEY_ID"
+          env:
+            - name: GPG_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aur-signing-key
+                  key: GPG_PRIVATE_KEY
+            - name: GPG_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aur-signing-key
+                  key: GPG_KEY_ID
+          volumeMounts:
+            - name: gpg-home
+              mountPath: /gpg
+      containers:
+        - name: builder
+          image: registry.starnix.net/library/aur-builder:latest
+          # flock: see header. Blocks until the nightly cron (if running)
+          # releases the lock, then builds.
+          command:
+            - flock
+            - /repo/.build.lock
+            - /usr/local/bin/aur-build-all
+          env:
+            - name: GNUPGHOME
+              value: /gpg/gnupg
+            - name: GPG_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aur-signing-key
+                  key: GPG_KEY_ID
+            - name: REPO_DIR
+              value: /repo
+            - name: BUILD_DIR
+              value: /build
+            - name: ALLOWLIST
+              value: /config/allowlist.yaml
+            - name: REPO_NAME
+              value: aur-mirror
+            - name: TRIVY_FAIL_SEVERITY
+              value: "HIGH,CRITICAL"
+            - name: PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+            - name: allowlist
+              mountPath: /config
+            - name: gpg-home
+              mountPath: /gpg
+            - name: build-dir
+              mountPath: /build
+          resources:
+            requests:
+              cpu: 2
+              memory: 4Gi
+              ephemeral-storage: 10Gi
+            limits:
+              cpu: 4
+              memory: 12Gi
+              ephemeral-storage: 50Gi

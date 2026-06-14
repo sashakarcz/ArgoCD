@@ -82,7 +82,12 @@ spec:
           containers:
             - name: builder
               image: registry.starnix.net/library/aur-builder:latest
+              # Serialize repo writes against the PostSync on-add job
+              # (builder-hook.yaml) with a flock on the shared NFS PVC, so a
+              # nightly run and an on-add run never repo-add/sign concurrently.
               command:
+                - flock
+                - /repo/.build.lock
                 - /usr/local/bin/aur-build-all
               env:
                 - name: GNUPGHOME
