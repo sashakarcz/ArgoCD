@@ -10,3 +10,5 @@ cluster/talos/talosconfig
 *.pem
 **/secrets/*.yaml
 !**/secrets/.gitkeep
+__pycache__/
+*.pyc

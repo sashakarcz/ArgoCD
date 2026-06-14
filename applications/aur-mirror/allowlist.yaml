@@ -354,6 +354,10 @@ data:
       - name: openssl-1.1
         approved: true
         note: dependency
+      - name: pac
+        approved: true
+        note: explicit
+        source: https://github.com/usenix17/pac.git
       - name: pamtester
         approved: true
         note: explicit

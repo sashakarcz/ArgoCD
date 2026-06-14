@@ -68,13 +68,31 @@ def installed_version(pkg: str) -> str | None:
     return None
 
 
-def build_package(pkg: str) -> list[Path]:
-    """Fetch PKGBUILD and build; return list of produced .pkg.tar.zst paths."""
+def refresh_system() -> None:
+    """Sync + upgrade the build container's pacman db so `makepkg -s` installs
+    current makedep versions. The image's baked db (a cached Docker layer) goes
+    stale and 404s on packages the mirrors have since rotated. The container is
+    ephemeral, so a full -Syu each run is cheap insurance against partial-
+    upgrade breakage.
+    """
+    run(["sudo", "pacman", "-Syu", "--noconfirm"])
+
+
+def build_package(pkg: str, source: str | None = None) -> list[Path]:
+    """Fetch PKGBUILD and build; return list of produced .pkg.tar.zst paths.
+
+    If source (a git URL) is given the PKGBUILD is cloned from it instead of
+    fetched from the AUR -- this lets us mirror first-party packages (e.g. pac)
+    that live in our own git, not the AUR.
+    """
     pkg_dir = BUILD_DIR / pkg
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     # Fetch / update the PKGBUILD
-    run(["aur", "fetch", pkg], cwd=pkg_dir)
+    if source:
+        run(["git", "clone", "--depth", "1", source, pkg], cwd=pkg_dir)
+    else:
+        run(["aur", "fetch", pkg], cwd=pkg_dir)
     run(
         ["makepkg", "-s", "--noconfirm", "--noprogressbar", "--needed"],
         cwd=pkg_dir / pkg,
@@ -238,7 +256,7 @@ def main() -> int:
         config = yaml.safe_load(f)
 
     packages = [
-        p["name"]
+        p
         for p in config.get("packages", [])
         if p.get("approved") is True
     ]
@@ -247,21 +265,31 @@ def main() -> int:
     failed: dict[str, str] = {}  # pkg -> reason
     skipped = 0
 
-    for pkg in packages:
+    # Refresh the pacman db once up front so makepkg -s resolves current
+    # makedep versions instead of 404ing on the stale baked-in image db.
+    try:
+        refresh_system()
+    except subprocess.CalledProcessError as exc:
+        log.warning("System refresh failed (continuing): %s", exc)
+
+    for entry in packages:
+        pkg = entry["name"]
+        source = entry.get("source")  # git URL for first-party (non-AUR) packages
         log.info("── Processing: %s ──", pkg)
 
-        aur_ver = aur_version(pkg)
-        repo_ver = installed_version(pkg)
-
-        if aur_ver and aur_ver == repo_ver:
-            log.info("Up to date (%s), skipping.", aur_ver)
-            skipped += 1
-            continue
+        # Git-sourced packages have no AUR version; always (re)build them.
+        if not source:
+            aur_ver = aur_version(pkg)
+            repo_ver = installed_version(pkg)
+            if aur_ver and aur_ver == repo_ver:
+                log.info("Up to date (%s), skipping.", aur_ver)
+                skipped += 1
+                continue
 
         pkg_dir = BUILD_DIR / pkg
         try:
             try:
-                artifacts = build_package(pkg)
+                artifacts = build_package(pkg, source)
             except subprocess.CalledProcessError:
                 log.error("Build FAILED for %s", pkg)
                 failed[pkg] = "build_error"
@@ -293,7 +321,7 @@ def main() -> int:
             shutil.rmtree(pkg_dir, ignore_errors=True)
 
     try:
-        prune_repo(set(packages))
+        prune_repo({entry["name"] for entry in packages})
     except (subprocess.CalledProcessError, OSError) as exc:
         log.error("Repo prune failed: %s", exc)
 
