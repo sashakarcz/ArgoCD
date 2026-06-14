@@ -561,3 +561,6 @@ data:
       - name: zoom
         approved: true
         note: explicit
+      - name: spotify
+        approved: true
+        note: explicit
