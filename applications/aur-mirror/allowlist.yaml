@@ -339,9 +339,6 @@ data:
       - name: open-fprintd
         approved: true
         note: dependency
-      - name: openpyn-nordvpn
-        approved: true
-        note: explicit
       - name: openrefine
         approved: true
         note: explicit
@@ -445,9 +442,6 @@ data:
       - name: python-validity
         approved: true
         note: explicit
-      - name: python-verboselogs
-        approved: true
-        note: dependency
       - name: python-yacl
         approved: true
         note: dependency
