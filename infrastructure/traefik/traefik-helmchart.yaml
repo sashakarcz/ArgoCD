@@ -68,6 +68,10 @@ spec:
         metrics:
           prometheus:
             entryPoint: metrics
+            serviceMonitor:
+              enabled: true
+              additionalLabels:
+                release: monitoring
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik
