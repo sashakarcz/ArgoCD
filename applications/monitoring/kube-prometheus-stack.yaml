@@ -109,6 +109,13 @@ spec:
                 - matchers:
                     - severity = info
                   receiver: "null"
+                - matchers:
+                    - alertname =~ "KubeControllerManagerInstanceUnreachable|KubeSchedulerInstanceUnreachable|KubeProxyInstanceUnreachable"
+                  receiver: "null"
+                - matchers:
+                    - alertname = TargetDown
+                    - job =~ "kube-controller-manager|kube-scheduler|kube-proxy"
+                  receiver: "null"
             receivers:
               - name: "null"
               - name: pagerduty

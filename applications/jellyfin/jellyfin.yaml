@@ -464,6 +464,30 @@ spec:
   refreshAfter: 1h
 
 ---
+# Derived secret for Prometheus scraping. Jellyfin 10.10+ requires
+# "Authorization: MediaBrowser Token=<key>" on the /metrics endpoint.
+# VSO templates format the key from jellyfin-secrets into the right shape.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: jellyfin-metrics-auth
+  namespace: jellyfin
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/jellyfin-secrets
+  vaultAuthRef: default
+  destination:
+    name: jellyfin-metrics-auth
+    create: true
+    transformation:
+      excludeRaw: true
+      templates:
+        token:
+          text: 'Token={{ get .Secrets "JELLYFIN_API_KEY" }}'
+  refreshAfter: 1h
+
+---
 # ConfigMap: prometheus-json-exporter module template.
 # ${JELLYFIN_API_KEY} is substituted at pod start by the init container.
 apiVersion: v1
@@ -570,6 +594,8 @@ spec:
 
 ---
 # Native Jellyfin /metrics (enabled via system.xml EnableMetrics=true)
+# Jellyfin 10.10+ requires "Authorization: MediaBrowser Token=<key>".
+# The jellyfin-metrics-auth secret is produced by the VSO transformation above.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -585,6 +611,11 @@ spec:
   - port: http
     path: /metrics
     interval: 30s
+    authorization:
+      type: MediaBrowser
+      credentials:
+        name: jellyfin-metrics-auth
+        key: token
 
 ---
 # Playback session metrics via prometheus-json-exporter + Jellyfin Sessions API
