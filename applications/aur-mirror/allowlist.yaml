@@ -21,9 +21,6 @@ data:
       - name: amtterm
         approved: true
         note: explicit
-      - name: apachedirectorystudio
-        approved: true
-        note: explicit
       - name: arkenfox-autoconfig
         approved: true
         note: dependency
