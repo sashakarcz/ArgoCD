@@ -228,6 +228,10 @@ spec:
         metrics:
           prometheus:
             entryPoint: metrics
+            serviceMonitor:
+              enabled: true
+              additionalLabels:
+                release: monitoring
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik
@@ -364,6 +368,10 @@ spec:
             service:
               enabled: true
               servicePort: 8082
+            serviceMonitor:
+              enabled: true
+              additionalLabels:
+                release: monitoring
 
         server:
           metrics:
@@ -371,6 +379,10 @@ spec:
             service:
               enabled: true
               servicePort: 8083
+            serviceMonitor:
+              enabled: true
+              additionalLabels:
+                release: monitoring
           ingress:
             enabled: false  # We manage this separately via Traefik
 
@@ -402,6 +414,10 @@ spec:
             service:
               enabled: true
               servicePort: 8084
+            serviceMonitor:
+              enabled: true
+              additionalLabels:
+                release: monitoring
 
         applicationSet:
           enabled: true
