@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aur-mirror-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  aur-mirror.json: |
+    {
+      "title": "AUR Mirror -- Package Hold Report",
+      "uid": "aur-mirror-holds",
+      "description": "Packages held back by Trivy CVE/secret scanning or build errors in the nightly AUR mirror build",
+      "tags": ["aur", "security"],
+      "timezone": "browser",
+      "refresh": "10m",
+      "schemaVersion": 39,
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": {
+        "list": [{
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "hide": 0,
+          "label": "Datasource",
+          "current": {}
+        }]
+      },
+      "panels": [
+
+        { "type": "row", "title": "Build Summary", "id": 1, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+        {
+          "id": 2, "title": "Last Build", "type": "stat",
+          "gridPos": { "x": 0, "y": 1, "w": 5, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_last_run_timestamp_seconds * 1000", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": { "defaults": { "unit": "dateTimeAsLocal", "noValue": "Never" } }
+        },
+
+        {
+          "id": 3, "title": "Build Status", "type": "stat",
+          "gridPos": { "x": 5, "y": 1, "w": 4, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_last_run_success", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "Failed",  "color": "red",   "index": 0 } } },
+                { "type": "value", "options": { "1": { "text": "Success", "color": "green", "index": 1 } } }
+              ],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+            }
+          }
+        },
+
+        {
+          "id": 4, "title": "Time Since Last Build", "type": "stat",
+          "gridPos": { "x": 9, "y": 1, "w": 5, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "time() - aur_mirror_last_run_timestamp_seconds", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green",  "value": null  },
+                { "color": "orange", "value": 86400 },
+                { "color": "red",    "value": 90000 }
+              ]}
+            }
+          }
+        },
+
+        {
+          "id": 5, "title": "Total Packages", "type": "stat",
+          "gridPos": { "x": 14, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_packages_total", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": { "defaults": {} }
+        },
+
+        {
+          "id": 6, "title": "Built", "type": "stat",
+          "gridPos": { "x": 16, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_packages_succeeded_total", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "green" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            }
+          }
+        },
+
+        {
+          "id": 7, "title": "Skipped", "type": "stat",
+          "gridPos": { "x": 18, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_packages_skipped_total", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "blue" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            }
+          }
+        },
+
+        {
+          "id": 8, "title": "Held (all)", "type": "stat",
+          "gridPos": { "x": 20, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "aur_mirror_packages_held_total", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green",  "value": null },
+                { "color": "orange", "value": 1    },
+                { "color": "red",    "value": 10   }
+              ]}
+            }
+          }
+        },
+
+        {
+          "id": 9, "title": "CVE / Secret Held", "type": "stat",
+          "gridPos": { "x": 22, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "count(aur_mirror_package_held{reason=\"trivy\"}) or vector(0)", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null },
+                { "color": "red",   "value": 1    }
+              ]}
+            }
+          }
+        },
+
+        { "type": "row", "title": "CVE / Secret Holds", "id": 10, "gridPos": { "x": 0, "y": 4, "w": 24, "h": 1 }, "collapsed": false },
+
+        {
+          "id": 11,
+          "title": "Packages Held by Trivy (CVE or Secret Scan)",
+          "description": "These packages built successfully but were blocked from the mirror because Trivy flagged HIGH/CRITICAL CVEs or embedded secrets. Click a package name to open its AUR page.",
+          "type": "table",
+          "gridPos": { "x": 0, "y": 5, "w": 24, "h": 12 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{
+            "expr": "aur_mirror_package_held{reason=\"trivy\"}",
+            "instant": true,
+            "legendFormat": "__auto",
+            "refId": "A"
+          }],
+          "transformations": [
+            { "id": "labelsToFields", "options": { "mode": "columns" } },
+            { "id": "filterFieldsByName", "options": { "include": { "names": ["package"] } } },
+            { "id": "sortBy", "options": { "fields": [{ "desc": false, "displayName": "package" }] } }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "align": "left", "displayMode": "auto", "filterable": true },
+              "links": [{
+                "title": "Open AUR page",
+                "url": "https://aur.archlinux.org/packages/${__data.fields.package}",
+                "targetBlank": true
+              }]
+            },
+            "overrides": [{
+              "matcher": { "id": "byName", "options": "package" },
+              "properties": [
+                { "id": "displayName", "value": "Package" },
+                { "id": "custom.width", "value": 420 }
+              ]
+            }]
+          },
+          "options": {
+            "showHeader": true,
+            "footer": { "show": true, "countRows": true, "reducer": ["count"], "fields": "" }
+          }
+        },
+
+        {
+          "type": "row",
+          "title": "Build Error Holds",
+          "id": 20,
+          "gridPos": { "x": 0, "y": 17, "w": 24, "h": 1 },
+          "collapsed": true,
+          "panels": [{
+            "id": 21,
+            "title": "Packages Held by Build Error",
+            "description": "These packages failed to compile or package. They are separate from CVE holds -- fix by updating the PKGBUILD or checking the builder logs.",
+            "type": "table",
+            "gridPos": { "x": 0, "y": 18, "w": 24, "h": 12 },
+            "datasource": { "type": "prometheus", "uid": "${datasource}" },
+            "targets": [{
+              "expr": "aur_mirror_package_held{reason=\"build_error\"}",
+              "instant": true,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }],
+            "transformations": [
+              { "id": "labelsToFields", "options": { "mode": "columns" } },
+              { "id": "filterFieldsByName", "options": { "include": { "names": ["package"] } } },
+              { "id": "sortBy", "options": { "fields": [{ "desc": false, "displayName": "package" }] } }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "custom": { "align": "left", "displayMode": "auto", "filterable": true },
+                "links": [{
+                  "title": "Open AUR page",
+                  "url": "https://aur.archlinux.org/packages/${__data.fields.package}",
+                  "targetBlank": true
+                }]
+              },
+              "overrides": [{
+                "matcher": { "id": "byName", "options": "package" },
+                "properties": [
+                  { "id": "displayName", "value": "Package" },
+                  { "id": "custom.width", "value": 420 }
+                ]
+              }]
+            },
+            "options": {
+              "showHeader": true,
+              "footer": { "show": true, "countRows": true, "reducer": ["count"], "fields": "" }
+            }
+          }]
+        }
+
+      ]
+    }
