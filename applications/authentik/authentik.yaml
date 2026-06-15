@@ -334,6 +334,8 @@ kind: Service
 metadata:
   name: authentik-server
   namespace: authentik
+  labels:
+    app: authentik-server
   annotations:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Authentik"
