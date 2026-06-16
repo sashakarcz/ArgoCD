@@ -110,6 +110,12 @@ spec:
                   value: "HIGH,CRITICAL"
                 - name: PUSHGATEWAY_URL
                   value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+                - name: ANTHROPIC_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aur-api-key
+                      key: ANTHROPIC_API_KEY
+                      optional: true
               volumeMounts:
                 - name: repo
                   mountPath: /repo

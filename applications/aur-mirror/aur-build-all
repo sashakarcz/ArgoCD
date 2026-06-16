@@ -7,6 +7,7 @@ Exit codes:
   0 — all approved packages built and published (or already up to date)
   1 — one or more packages failed (Trivy finding, build error, etc.)
 """
+import json
 import os
 import shutil
 import subprocess
@@ -19,19 +20,26 @@ from pathlib import Path
 
 import yaml
 
+try:
+    import anthropic as _anthropic
+    _HAS_ANTHROPIC = True
+except ImportError:
+    _HAS_ANTHROPIC = False
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger(__name__)
 
-REPO_DIR        = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
-BUILD_DIR       = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
-ALLOWLIST       = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
-REPO_NAME       = os.environ["REPO_NAME"]            # aur-mirror
-GPG_KEY_ID      = os.environ["GPG_KEY_ID"]
-FAIL_SEVS       = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
-PUSHGATEWAY_URL = os.environ.get("PUSHGATEWAY_URL", "")
+REPO_DIR          = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
+BUILD_DIR         = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
+ALLOWLIST         = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
+REPO_NAME         = os.environ["REPO_NAME"]            # aur-mirror
+GPG_KEY_ID        = os.environ["GPG_KEY_ID"]
+FAIL_SEVS         = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
+PUSHGATEWAY_URL   = os.environ.get("PUSHGATEWAY_URL", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -78,26 +86,96 @@ def refresh_system() -> None:
     run(["sudo", "pacman", "-Syu", "--noconfirm"])
 
 
-def build_package(pkg: str, source: str | None = None) -> list[Path]:
-    """Fetch PKGBUILD and build; return list of produced .pkg.tar.zst paths.
+def fetch_pkgbuild(pkg: str, source: str | None, pkg_dir: Path) -> Path:
+    """Fetch PKGBUILD into pkg_dir and return the package subdirectory.
 
     If source (a git URL) is given the PKGBUILD is cloned from it instead of
     fetched from the AUR -- this lets us mirror first-party packages (e.g. pac)
     that live in our own git, not the AUR.
     """
-    pkg_dir = BUILD_DIR / pkg
-    pkg_dir.mkdir(parents=True, exist_ok=True)
-
-    # Fetch / update the PKGBUILD
     if source:
         run(["git", "clone", "--depth", "1", source, pkg], cwd=pkg_dir)
     else:
         run(["aur", "fetch", pkg], cwd=pkg_dir)
+    return pkg_dir / pkg
+
+
+def build_fetched(pkg_subdir: Path) -> list[Path]:
+    """Build from an already-fetched PKGBUILD directory."""
     run(
         ["makepkg", "-s", "--noconfirm", "--noprogressbar", "--needed"],
-        cwd=pkg_dir / pkg,
+        cwd=pkg_subdir,
     )
-    return list((pkg_dir / pkg).glob("*.pkg.tar.zst"))
+    return list(pkg_subdir.glob("*.pkg.tar.zst"))
+
+
+def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> bool:
+    """Scan PKGBUILD with Claude for suspicious or malicious content.
+
+    Returns True if the package appears safe to build, False to hold it.
+    Fails closed: any API or parse error holds the package rather than
+    letting it through unscanned.
+    """
+    if not ANTHROPIC_API_KEY or not _HAS_ANTHROPIC:
+        return True  # No key configured -- skip scan
+
+    pkgbuild = pkg_subdir / "PKGBUILD"
+    if not pkgbuild.exists():
+        log.error("No PKGBUILD at %s -- holding package", pkgbuild)
+        return False
+
+    # Gather PKGBUILD + .SRCINFO + .install files, cap at 64 KiB total
+    parts = [f"--- PKGBUILD ---\n{pkgbuild.read_text(errors='replace')}"]
+    for extra in [pkg_subdir / ".SRCINFO", *sorted(pkg_subdir.glob("*.install"))]:
+        if extra.exists():
+            parts.append(f"--- {extra.name} ---\n{extra.read_text(errors='replace')}")
+    content = "\n\n".join(parts)[:65536]
+
+    system_prompt = (
+        "You are a security auditor reviewing Arch Linux PKGBUILD files for supply chain threats.\n\n"
+        "Analyze the provided PKGBUILD (and any .SRCINFO / .install files) and respond with JSON only.\n\n"
+        "Flag HIGH or CRITICAL for:\n"
+        "- Network downloads not declared in source=() (curl/wget in build/package/install functions)\n"
+        "- Downloaded content piped to a shell (curl ... | bash)\n"
+        "- Writes to paths outside $pkgdir in package()\n"
+        "- Obfuscated commands: eval of encoded strings, base64 -d | sh\n"
+        "- Source URLs from unexpected domains for the claimed package name\n"
+        "- Data exfiltration (credentials, SSH keys, /etc/shadow, /etc/passwd)\n"
+        "- Setuid bits on unusual binaries\n"
+        "- Cron jobs / systemd timers that phone home\n\n"
+        "Flag MEDIUM for:\n"
+        "- sudo calls in build/package functions\n"
+        "- Post-install network calls not declared in source()\n\n"
+        "LOW / SAFE: standard build patterns, normal makepkg practices.\n\n"
+        "Set safe=false only for HIGH or CRITICAL risk. MEDIUM is informational only.\n\n"
+        'Respond with JSON only, no other text: {"safe": true|false, "risk": "low|medium|high|critical", '
+        '"findings": ["..."], "summary": "one-sentence verdict"}'
+    )
+
+    try:
+        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": f"Package: {pkg}\n\n{content}"}],
+        )
+        result = json.loads(message.content[0].text.strip())
+        risk     = result.get("risk", "low")
+        safe     = result.get("safe", True)
+        findings = result.get("findings", [])
+        summary  = result.get("summary", "")
+
+        for finding in findings:
+            log.info("Claude [%s] %s: %s", risk.upper(), pkg, finding)
+        log.info("Claude PKGBUILD scan %s: risk=%s safe=%s -- %s", pkg, risk, safe, summary)
+        return bool(safe)
+    except json.JSONDecodeError as exc:
+        log.error("Claude returned non-JSON for %s (holding): %s", pkg, exc)
+        return False
+    except Exception as exc:
+        log.error("Claude PKGBUILD scan error for %s (holding): %s", pkg, exc)
+        return False
 
 
 def trivy_scan(artifact: Path) -> bool:
@@ -105,7 +183,7 @@ def trivy_scan(artifact: Path) -> bool:
 
     Trivy must scan the EXTRACTED tree, not the .pkg.tar.zst itself: pointed
     at the tarball it finds num=0 language files and scans nothing (a silent
-    pass). Extracting lets Trivy see the actual supply-chain surface —
+    pass). Extracting lets Trivy see the actual supply-chain surface --
     bundled language deps (npm/pip/go/cargo/jars), Go/Rust binaries via SCA,
     and embedded secrets. Fails closed: any extraction/scan error holds the
     package rather than letting it through unscanned.
@@ -165,7 +243,7 @@ def prune_repo(approved: set[str]) -> None:
     re-signed atomically via repo-remove --sign.
 
     Note: split packages whose pkgname differs from the pkgbase are only
-    retained if that pkgname is itself in the allowlist — which holds here
+    retained if that pkgname is itself in the allowlist -- which holds here
     because the allowlist is generated from installed pkgnames (pacman -Qmq).
     """
     db = REPO_DIR / f"{REPO_NAME}.db.tar.gz"
@@ -275,7 +353,7 @@ def main() -> int:
     for entry in packages:
         pkg = entry["name"]
         source = entry.get("source")  # git URL for first-party (non-AUR) packages
-        log.info("── Processing: %s ──", pkg)
+        log.info("-- Processing: %s --", pkg)
 
         # Git-sourced packages have no AUR version; always (re)build them.
         if not source:
@@ -287,19 +365,36 @@ def main() -> int:
                 continue
 
         pkg_dir = BUILD_DIR / pkg
+        pkg_dir.mkdir(parents=True, exist_ok=True)
         try:
+            # 1. Fetch PKGBUILD (does not execute any package code)
             try:
-                artifacts = build_package(pkg, source)
+                pkg_subdir = fetch_pkgbuild(pkg, source, pkg_dir)
+            except subprocess.CalledProcessError:
+                log.error("Fetch FAILED for %s", pkg)
+                failed[pkg] = "build_error"
+                continue
+
+            # 2. Claude PKGBUILD scan -- before any code runs
+            if not claude_scan_pkgbuild(pkg_subdir, pkg):
+                log.error("Claude flagged suspicious PKGBUILD for %s -- NOT building", pkg)
+                failed[pkg] = "pkgbuild"
+                continue
+
+            # 3. Build
+            try:
+                artifacts = build_fetched(pkg_subdir)
             except subprocess.CalledProcessError:
                 log.error("Build FAILED for %s", pkg)
                 failed[pkg] = "build_error"
                 continue
 
+            # 4. Trivy scan on the built artifacts
             clean = True
             for artifact in artifacts:
                 if not trivy_scan(artifact):
                     log.error(
-                        "Trivy found %s vulnerabilities in %s — NOT publishing",
+                        "Trivy found %s vulnerabilities in %s -- NOT publishing",
                         FAIL_SEVS, artifact.name,
                     )
                     clean = False
@@ -308,6 +403,7 @@ def main() -> int:
                 failed[pkg] = "trivy"
                 continue
 
+            # 5. Sign and publish
             try:
                 sign_and_publish(artifacts)
                 log.info("Published: %s", pkg)

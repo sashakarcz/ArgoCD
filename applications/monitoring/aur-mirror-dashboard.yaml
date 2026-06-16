@@ -32,7 +32,7 @@ data:
 
         {
           "id": 2, "title": "Last Build", "type": "stat",
-          "gridPos": { "x": 0, "y": 1, "w": 5, "h": 3 },
+          "gridPos": { "x": 0, "y": 1, "w": 4, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_last_run_timestamp_seconds * 1000", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "auto" },
@@ -41,7 +41,7 @@ data:
 
         {
           "id": 3, "title": "Build Status", "type": "stat",
-          "gridPos": { "x": 5, "y": 1, "w": 4, "h": 3 },
+          "gridPos": { "x": 4, "y": 1, "w": 4, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_last_run_success", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
@@ -58,7 +58,7 @@ data:
 
         {
           "id": 4, "title": "Time Since Last Build", "type": "stat",
-          "gridPos": { "x": 9, "y": 1, "w": 5, "h": 3 },
+          "gridPos": { "x": 8, "y": 1, "w": 4, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "time() - aur_mirror_last_run_timestamp_seconds", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
@@ -76,7 +76,7 @@ data:
 
         {
           "id": 5, "title": "Total Packages", "type": "stat",
-          "gridPos": { "x": 14, "y": 1, "w": 2, "h": 3 },
+          "gridPos": { "x": 12, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_packages_total", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "auto" },
@@ -85,7 +85,7 @@ data:
 
         {
           "id": 6, "title": "Built", "type": "stat",
-          "gridPos": { "x": 16, "y": 1, "w": 2, "h": 3 },
+          "gridPos": { "x": 14, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_packages_succeeded_total", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
@@ -99,7 +99,7 @@ data:
 
         {
           "id": 7, "title": "Skipped", "type": "stat",
-          "gridPos": { "x": 18, "y": 1, "w": 2, "h": 3 },
+          "gridPos": { "x": 16, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_packages_skipped_total", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
@@ -113,7 +113,7 @@ data:
 
         {
           "id": 8, "title": "Held (all)", "type": "stat",
-          "gridPos": { "x": 20, "y": 1, "w": 2, "h": 3 },
+          "gridPos": { "x": 18, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "aur_mirror_packages_held_total", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
@@ -130,9 +130,25 @@ data:
 
         {
           "id": 9, "title": "CVE / Secret Held", "type": "stat",
-          "gridPos": { "x": 22, "y": 1, "w": 2, "h": 3 },
+          "gridPos": { "x": 20, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "targets": [{ "expr": "count(aur_mirror_package_held{reason=\"trivy\"}) or vector(0)", "instant": true, "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null },
+                { "color": "red",   "value": 1    }
+              ]}
+            }
+          }
+        },
+
+        {
+          "id": 12, "title": "PKGBUILD Held", "type": "stat",
+          "gridPos": { "x": 22, "y": 1, "w": 2, "h": 3 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [{ "expr": "count(aur_mirror_package_held{reason=\"pkgbuild\"}) or vector(0)", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
           "fieldConfig": {
             "defaults": {
@@ -202,6 +218,54 @@ data:
             "datasource": { "type": "prometheus", "uid": "${datasource}" },
             "targets": [{
               "expr": "aur_mirror_package_held{reason=\"build_error\"}",
+              "instant": true,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }],
+            "transformations": [
+              { "id": "labelsToFields", "options": { "mode": "columns" } },
+              { "id": "filterFieldsByName", "options": { "include": { "names": ["package"] } } },
+              { "id": "sortBy", "options": { "fields": [{ "desc": false, "displayName": "package" }] } }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "custom": { "align": "left", "displayMode": "auto", "filterable": true },
+                "links": [{
+                  "title": "Open AUR page",
+                  "url": "https://aur.archlinux.org/packages/${__data.fields.package}",
+                  "targetBlank": true
+                }]
+              },
+              "overrides": [{
+                "matcher": { "id": "byName", "options": "package" },
+                "properties": [
+                  { "id": "displayName", "value": "Package" },
+                  { "id": "custom.width", "value": 420 }
+                ]
+              }]
+            },
+            "options": {
+              "showHeader": true,
+              "footer": { "show": true, "countRows": true, "reducer": ["count"], "fields": "" }
+            }
+          }]
+        },
+
+        {
+          "type": "row",
+          "title": "PKGBUILD Holds (Claude)",
+          "id": 30,
+          "gridPos": { "x": 0, "y": 18, "w": 24, "h": 1 },
+          "collapsed": true,
+          "panels": [{
+            "id": 31,
+            "title": "Packages Held by Claude PKGBUILD Scan",
+            "description": "These packages were flagged HIGH or CRITICAL by Claude before building -- no package code was executed. Check the builder logs for findings.",
+            "type": "table",
+            "gridPos": { "x": 0, "y": 19, "w": 24, "h": 12 },
+            "datasource": { "type": "prometheus", "uid": "${datasource}" },
+            "targets": [{
+              "expr": "aur_mirror_package_held{reason=\"pkgbuild\"}",
               "instant": true,
               "legendFormat": "__auto",
               "refId": "A"

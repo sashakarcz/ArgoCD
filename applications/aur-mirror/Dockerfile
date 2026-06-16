@@ -18,6 +18,9 @@ RUN useradd -m -G wheel builder \
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
     | sh -s -- -b /usr/local/bin
 
+# Install Anthropic SDK for Claude PKGBUILD scanning
+RUN pip install anthropic --break-system-packages
+
 # Install aurutils
 RUN su - builder -c ' \
     git clone https://aur.archlinux.org/aurutils.git /tmp/aurutils \
