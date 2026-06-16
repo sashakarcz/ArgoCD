@@ -17,6 +17,18 @@
 ipam:
   mode: kubernetes
 
+# --- MetalLB coexistence (CRITICAL) ---
+# MetalLB owns LoadBalancer services (L2 mode, pool 192.168.7.206-250). Cilium
+# ships with LB-IPAM enabled by default (enable-lb-ipam: true), which would arm
+# a SECOND controller to hand out LoadBalancer IPs. Disable all of Cilium's
+# service-LB features so MetalLB stays the sole owner -- no dueling announcers.
+enableLBIPAM: false
+loadBalancer:
+  l2:
+    enabled: false        # no Cilium L2 announcements (MetalLB does L2/ARP)
+bgpControlPlane:
+  enabled: false          # no Cilium BGP
+
 kubeProxyReplacement: false
 # --- Pass 2 (KPR) -- uncomment together with cluster.proxy.disabled: true ---
 # kubeProxyReplacement: true

@@ -37,6 +37,40 @@ services), plus Hubble flow observability.
    plane stay up (host network). Per-node low-downtime migration is the
    alternative if a window isn't acceptable.
 
+## MetalLB coverage (verified 2026-06-15)
+MetalLB was hard-won; it must survive the cutover untouched. Status:
+- **Mode**: L2 (L2Advertisement on interface `eth0`), pool `192.168.7.206-250`
+- **Speaker is `hostNetwork: true`** → announces via the node's eth0 directly,
+  independent of pod networking, so the CNI swap doesn't break announcements
+- **Cilium LB features DISABLED** in our values (`enableLBIPAM: false`,
+  `loadBalancer.l2.enabled: false`, `bgpControlPlane.enabled: false`) →
+  Cilium can never claim a LoadBalancer service; MetalLB stays sole owner.
+  (Cilium ships `enable-lb-ipam: true` by default — this is the key override.)
+- **kube-proxy retained** (pass 1) → LoadBalancer datapath unchanged
+- **eth0 unchanged**: Cilium adds cilium_host/lxc* but does NOT rename the host
+  NIC, so the L2Advertisement `eth0` pin stays valid (confirm in validation)
+
+### Baseline LoadBalancer IPs (must all return identical after cutover)
+```
+authentik/authentik-ldap     192.168.7.212  Cluster
+authentik/authentik-radius   192.168.7.213  Cluster
+borgwarehouse/borgwarehouse  192.168.7.209  Cluster
+cometdb/cometdb-service      192.168.7.233  Cluster
+jellyfin/jellyfin-service    192.168.7.208  Cluster
+knot/knot                    192.168.7.211  Cluster
+rustdesk/rustdesk-hbbr+hbbs  192.168.7.221  Cluster
+traefik/traefik              192.168.7.207  Cluster   (ingress -- most critical)
+wazuh/wazuh-manager-lb       192.168.7.220  Local     (extTrafficPolicy Local -- watch closely)
+```
+
+### MetalLB validation (add to Phase 3)
+- [ ] All 5 `metallb-speaker` pods Running (hostNetwork); `metallb-controller` Running
+- [ ] Every LB service above still has its SAME external IP (no reassignment)
+- [ ] `ping`/curl traefik `192.168.7.207` from the LAN (ingress reachable)
+- [ ] wazuh `192.168.7.220` (Local policy) reachable -- announced from its pod's node
+- [ ] No `CiliumLoadBalancerIPPool` exists; `cilium` configmap shows `enable-lb-ipam: false`
+- [ ] MetalLB speaker logs show L2 announcements on eth0 (no interface errors)
+
 ## Open questions (confirm before executing)
 - [ ] Maintenance window acceptable? (expect minutes of in-cluster service
       disruption — ingress, DNS, ArgoCD, apps — while pods restart)
