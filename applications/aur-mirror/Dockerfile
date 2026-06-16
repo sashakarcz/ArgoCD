@@ -7,6 +7,7 @@ RUN pacman -Syu --noconfirm \
     git \
     gnupg \
     python \
+    python-pip \
     python-yaml \
     && pacman -Sc --noconfirm
 
@@ -19,7 +20,7 @@ RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/
     | sh -s -- -b /usr/local/bin
 
 # Install Anthropic SDK for Claude PKGBUILD scanning
-RUN pip install anthropic --break-system-packages
+RUN python -m pip install anthropic --break-system-packages
 
 # Install aurutils
 RUN su - builder -c ' \
