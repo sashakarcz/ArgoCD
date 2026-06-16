@@ -559,3 +559,9 @@ data:
       - name: dmemcg-booster
         approved: true
         note: explicit
+      - name: kcgroups-dmemcg
+        approved: true
+        note: dependency
+      - name: plasma-foreground-booster-dmemcg
+        approved: true
+        note: explicit
