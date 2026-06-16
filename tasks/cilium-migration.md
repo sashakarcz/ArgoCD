@@ -1,5 +1,32 @@
 # Flannel → Cilium CNI Migration
 
+## OUTCOME (completed 2026-06-16)
+DONE and verified green: Cilium 1.19.4 on all 5 nodes, 0 not-ready pods,
+Longhorn 37/37 healthy, MetalLB all 10 LB IPs intact, ArgoCD apps Healthy,
+Hubble UI live at https://hubble.starnix.net. kube-proxy retained (KPR = future).
+
+### What went wrong + the key lesson
+The cutover wedged Longhorn for ~30 min. Root cause: a mass
+`kubectl rollout restart deploy,sts,ds` does NOT cover operator-managed
+STANDALONE pods -- specifically Longhorn `instance-manager` pods. They kept
+running with their old flannel netns (now dead; Cilium can't retrofit a running
+pod's networking), so longhorn-manager → instance-manager:8501 TCP was silently
+dropped (SYN blackholed → i/o timeout), while pod→service/DNS still worked. That
+froze every volume. Fix: find all non-hostNetwork pods created BEFORE the
+cutover and force-delete them so they recreate on Cilium.
+
+Secondary cleanup after the storage recovered:
+- RWO Multi-Attach deadlocks from duplicate ReplicaSets (rollout left old+new
+  pods both claiming one volume) -> delete the stale ReplicaSet.
+- Prometheus CrashLoop (exit 137) -> node-level OOM during the restart thundering
+  herd (no mem limit, overcommitted node). Resolved by restarting once settled.
+
+### Diagnostic that saved a needless rollback
+`nc` to a closed port returns "refused" (RST); a policy/blackhole drop returns
+"timeout". CoreDNS pod TCP = refused/succeeded (dataplane fine), instance-manager
+TCP = timeout (that pod's netns dead). Proved Cilium itself was healthy.
+
+
 ## Why
 Flannel does not enforce NetworkPolicy. Migrating to Cilium enables real
 pod-level network policy cluster-wide (the original goal: lock down the
