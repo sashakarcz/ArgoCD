@@ -556,3 +556,6 @@ data:
       - name: spotify
         approved: true
         note: explicit
+      - name: dmemcg-booster
+        approved: true
+        note: explicit
