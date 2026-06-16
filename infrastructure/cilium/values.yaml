@@ -74,3 +74,17 @@ hubble:
     enabled: true
   ui:
     enabled: true
+    # Exposed via Traefik at https://hubble.starnix.net (cert-manager TLS,
+    # ExternalDNS publishes the record from the ingress).
+    ingress:
+      enabled: true
+      className: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-production
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      hosts:
+        - hubble.starnix.net
+      tls:
+        - hosts:
+            - hubble.starnix.net
+          secretName: hubble-ui-tls
