@@ -3,9 +3,22 @@
 AUR build pipeline: reads allowlist, builds approved packages, scans with
 Trivy, signs with GPG, and publishes to the pacman repo on the shared PV.
 
-Exit codes:
-  0 — all approved packages built and published (or already up to date)
-  1 — one or more packages failed (Trivy finding, build error, etc.)
+Runs in two phases (BUILD_PHASE env), so the GPG signing key is never present
+in any container that executes untrusted PKGBUILD code:
+
+  build  -- fetch PKGBUILD, Claude scan, makepkg, Trivy. Vetted artifacts are
+            staged under BUILD_DIR/.staging and recorded in a manifest. NO GPG
+            key is mounted in this phase. Always exits 0 (per-package failures
+            are recorded) so the sign phase still publishes what passed.
+  sign   -- read the manifest, GPG-sign and publish each staged artifact, prune
+            the repo, push metrics. Runs in a container that has the key but
+            NEVER runs PKGBUILD code.
+  all    -- run build then sign in one process (local/manual use only; no
+            isolation).
+
+Exit codes (sign / all phase):
+  0 -- all approved packages built and published (or already up to date)
+  1 -- one or more packages failed (Claude hold, Trivy finding, build error)
 """
 import json
 import os
@@ -33,13 +46,21 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 REPO_DIR          = Path(os.environ["REPO_DIR"])      # /repo — NFS PVC
-BUILD_DIR         = Path(os.environ["BUILD_DIR"])      # /build — emptyDir
-ALLOWLIST         = Path(os.environ["ALLOWLIST"])      # /config/allowlist.yaml
-REPO_NAME         = os.environ["REPO_NAME"]            # aur-mirror
-GPG_KEY_ID        = os.environ["GPG_KEY_ID"]
+BUILD_DIR         = Path(os.environ.get("BUILD_DIR", "/build"))   # emptyDir
+ALLOWLIST         = Path(os.environ.get("ALLOWLIST", "/config/allowlist.yaml"))
+REPO_NAME         = os.environ.get("REPO_NAME", "aur-mirror")
+GPG_KEY_ID        = os.environ.get("GPG_KEY_ID", "")  # not secret; sign phase only
 FAIL_SEVS         = os.environ.get("TRIVY_FAIL_SEVERITY", "HIGH,CRITICAL")
 PUSHGATEWAY_URL   = os.environ.get("PUSHGATEWAY_URL", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+BUILD_PHASE       = os.environ.get("BUILD_PHASE", "all")  # build | sign | all
+
+# Vetted artifacts are staged here by the build phase and consumed by the sign
+# phase. Both containers share BUILD_DIR (the same per-pod emptyDir), so the
+# handoff needs no extra volume. The sign phase shutil.move()s each artifact
+# across to the NFS repo (cross-device copy+unlink).
+STAGING_DIR = BUILD_DIR / ".staging"
+MANIFEST    = STAGING_DIR / "manifest.json"
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -208,6 +229,14 @@ def trivy_scan(artifact: Path) -> bool:
         return False
 
 
+def stage_artifacts(pkg: str, artifacts: list[Path]) -> None:
+    """Move vetted artifacts into the staging area for the sign phase."""
+    dest = STAGING_DIR / pkg
+    dest.mkdir(parents=True, exist_ok=True)
+    for artifact in artifacts:
+        shutil.move(str(artifact), str(dest / artifact.name))
+
+
 def sign_and_publish(artifacts: list[Path]) -> None:
     """GPG-sign each artifact and add to the pacman repo database."""
     REPO_DIR.mkdir(parents=True, exist_ok=True)
@@ -215,8 +244,8 @@ def sign_and_publish(artifacts: list[Path]) -> None:
 
     for artifact in artifacts:
         dest = REPO_DIR / artifact.name
-        # shutil.move (not Path.rename): /build is tmpfs and /repo is NFS,
-        # so os.rename fails with EXDEV (cross-device link). shutil.move
+        # shutil.move (not Path.rename): staging is the build emptyDir and /repo
+        # is NFS, so os.rename fails with EXDEV (cross-device link). shutil.move
         # falls back to copy+unlink across filesystems.
         shutil.move(str(artifact), str(dest))
 
@@ -329,19 +358,24 @@ def push_metrics(total: int, skipped: int, failed: dict[str, str]) -> None:
         log.warning("Failed to push metrics to Pushgateway: %s", exc)
 
 
-def main() -> int:
+def run_build_phase() -> int:
+    """Fetch, scan, build, and Trivy-check each package; stage what passes.
+
+    Records per-package outcomes in MANIFEST and always returns 0 (unless the
+    allowlist itself can't be read) so the sign phase still runs and publishes
+    the packages that passed. NO GPG key is present in this phase.
+    """
     with ALLOWLIST.open() as f:
         config = yaml.safe_load(f)
 
-    packages = [
-        p
-        for p in config.get("packages", [])
-        if p.get("approved") is True
-    ]
-
+    packages = [p for p in config.get("packages", []) if p.get("approved") is True]
     log.info("Allowlist: %d approved packages", len(packages))
+
     failed: dict[str, str] = {}  # pkg -> reason
+    staged: list[str] = []
     skipped = 0
+
+    STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
     # Refresh the pacman db once up front so makepkg -s resolves current
     # makedep versions instead of 404ing on the stale baked-in image db.
@@ -403,25 +437,68 @@ def main() -> int:
                 failed[pkg] = "trivy"
                 continue
 
-            # 5. Sign and publish
-            try:
-                sign_and_publish(artifacts)
-                log.info("Published: %s", pkg)
-            except (subprocess.CalledProcessError, OSError) as exc:
-                # Never let one package's publish error abort the whole run.
-                log.error("Publish FAILED for %s: %s", pkg, exc)
-                failed[pkg] = "publish_error"
+            # 5. Stage vetted artifacts for the sign phase (no signing here)
+            stage_artifacts(pkg, artifacts)
+            staged.append(pkg)
+            log.info("Staged for signing: %s", pkg)
         finally:
             # Reclaim scratch: drop this package's build tree so peak /build
-            # usage stays at ~one package (the node-disk emptyDir is bounded).
+            # usage stays at ~one build tree plus the staged artifacts.
             shutil.rmtree(pkg_dir, ignore_errors=True)
 
+    manifest = {
+        "total": len(packages),
+        "skipped": skipped,
+        "failed": failed,
+        "staged": staged,
+        "approved": [entry["name"] for entry in packages],
+    }
+    MANIFEST.write_text(json.dumps(manifest))
+    log.info(
+        "Build phase done: %d staged, %d skipped, %d held",
+        len(staged), skipped, len(failed),
+    )
+    return 0
+
+
+def run_sign_phase() -> int:
+    """Sign and publish staged artifacts, prune the repo, push metrics.
+
+    Consumes the manifest written by the build phase. This is the only phase
+    that holds the GPG key, and it never executes PKGBUILD code.
+    """
+    if not MANIFEST.exists():
+        log.error("No staging manifest at %s -- build phase produced nothing", MANIFEST)
+        return 1
+
+    manifest = json.loads(MANIFEST.read_text())
+    total    = manifest["total"]
+    skipped  = manifest["skipped"]
+    failed   = dict(manifest["failed"])
+    staged   = manifest["staged"]
+    approved = set(manifest["approved"])
+
+    for pkg in staged:
+        artifacts = sorted((STAGING_DIR / pkg).glob("*.pkg.tar.zst"))
+        if not artifacts:
+            log.error("No staged artifacts for %s (held)", pkg)
+            failed[pkg] = "publish_error"
+            continue
+        try:
+            sign_and_publish(artifacts)
+            log.info("Published: %s", pkg)
+        except (subprocess.CalledProcessError, OSError) as exc:
+            # Never let one package's publish error abort the whole run.
+            log.error("Publish FAILED for %s: %s", pkg, exc)
+            failed[pkg] = "publish_error"
+
     try:
-        prune_repo({entry["name"] for entry in packages})
+        prune_repo(approved)
     except (subprocess.CalledProcessError, OSError) as exc:
         log.error("Repo prune failed: %s", exc)
 
-    push_metrics(total=len(packages), skipped=skipped, failed=failed)
+    push_metrics(total=total, skipped=skipped, failed=failed)
+    shutil.rmtree(STAGING_DIR, ignore_errors=True)
 
     if failed:
         log.error("Failed packages: %s", ", ".join(failed))
@@ -429,6 +506,16 @@ def main() -> int:
 
     log.info("All packages processed successfully.")
     return 0
+
+
+def main() -> int:
+    if BUILD_PHASE == "build":
+        return run_build_phase()
+    if BUILD_PHASE == "sign":
+        return run_sign_phase()
+    # "all": run both in one process -- local/manual use only, no key isolation.
+    rc = run_build_phase()
+    return rc if rc != 0 else run_sign_phase()
 
 
 if __name__ == "__main__":

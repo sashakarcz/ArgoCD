@@ -28,8 +28,14 @@ spec:
   # in progress when an add lands.
   activeDeadlineSeconds: 36000
   template:
+    metadata:
+      labels:
+        app: aur-builder
     spec:
       restartPolicy: OnFailure
+      # The build phase runs untrusted PKGBUILD code; deny it a ServiceAccount
+      # token so a malicious build cannot reach the Kubernetes API.
+      automountServiceAccountToken: false
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -47,7 +53,54 @@ spec:
           emptyDir:
             sizeLimit: 50Gi
       initContainers:
-        # Import GPG signing key from Vault secret before the build starts.
+        # Phase 1: build (untrusted PKGBUILD code). No GPG key mounted here, so
+        # a malicious build cannot exfiltrate it. Vetted artifacts are staged on
+        # build-dir for the sign phase. Runs to completion before the signer.
+        - name: build
+          image: registry.starnix.net/library/aur-builder:latest
+          # flock: blocks until the nightly cron (if running) releases the lock,
+          # then builds -- so the two never build concurrently.
+          command:
+            - flock
+            - /repo/.build.lock
+            - /usr/local/bin/aur-build-all
+          env:
+            - name: BUILD_PHASE
+              value: build
+            - name: REPO_DIR
+              value: /repo
+            - name: BUILD_DIR
+              value: /build
+            - name: ALLOWLIST
+              value: /config/allowlist.yaml
+            - name: REPO_NAME
+              value: aur-mirror
+            - name: TRIVY_FAIL_SEVERITY
+              value: "HIGH,CRITICAL"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aur-api-key
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+            - name: allowlist
+              mountPath: /config
+            - name: build-dir
+              mountPath: /build
+          resources:
+            requests:
+              cpu: 2
+              memory: 4Gi
+              ephemeral-storage: 10Gi
+            limits:
+              cpu: 4
+              memory: 12Gi
+              ephemeral-storage: 50Gi
+        # Phase 2 prep: import the GPG key into gpg-home (only the signer mounts
+        # it), after the untrusted build init container has finished.
         - name: gpg-init
           image: registry.starnix.net/library/aur-builder:latest
           command:
@@ -75,15 +128,17 @@ spec:
             - name: gpg-home
               mountPath: /gpg
       containers:
-        - name: builder
+        # Phase 2: sign + publish. Only container holding the key; runs no
+        # PKGBUILD code. Reads staged artifacts, signs, repo-adds, pushes metrics.
+        - name: signer
           image: registry.starnix.net/library/aur-builder:latest
-          # flock: see header. Blocks until the nightly cron (if running)
-          # releases the lock, then builds.
           command:
             - flock
             - /repo/.build.lock
             - /usr/local/bin/aur-build-all
           env:
+            - name: BUILD_PHASE
+              value: sign
             - name: GNUPGHOME
               value: /gpg/gnupg
             - name: GPG_KEY_ID
@@ -95,29 +150,23 @@ spec:
               value: /repo
             - name: BUILD_DIR
               value: /build
-            - name: ALLOWLIST
-              value: /config/allowlist.yaml
             - name: REPO_NAME
               value: aur-mirror
-            - name: TRIVY_FAIL_SEVERITY
-              value: "HIGH,CRITICAL"
             - name: PUSHGATEWAY_URL
               value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
           volumeMounts:
             - name: repo
               mountPath: /repo
-            - name: allowlist
-              mountPath: /config
             - name: gpg-home
               mountPath: /gpg
             - name: build-dir
               mountPath: /build
           resources:
             requests:
-              cpu: 2
-              memory: 4Gi
-              ephemeral-storage: 10Gi
+              cpu: 250m
+              memory: 512Mi
+              ephemeral-storage: 1Gi
             limits:
-              cpu: 4
-              memory: 12Gi
-              ephemeral-storage: 50Gi
+              cpu: 1
+              memory: 2Gi
+              ephemeral-storage: 5Gi
