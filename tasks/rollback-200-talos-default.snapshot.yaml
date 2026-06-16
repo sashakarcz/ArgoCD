@@ -1,0 +1,67 @@
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 200-talos-default
+    version: 6
+    owner:
+    phase: running
+    created: 2025-12-26T23:30:50Z
+    updated: 2026-05-19T02:00:30Z
+    labels:
+        omni.sidero.dev/cluster: talos-default
+spec:
+    data: |-
+        machine:
+          install:
+            extraKernelArgs:
+              - console=tty0
+              - console=ttyS0,115200n8
+          network:
+            nameservers:
+              - 192.168.1.53
+              - 10.17.89.53
+          time:
+            servers:
+              - time.cloudflare.com
+          disks:
+            - device: /dev/sdb
+              partitions:
+                - mountpoint: /var/lib/longhorn
+          kernel:
+            modules:
+              - name: vhost_net
+              - name: vhost_vsock
+          kubelet:
+            extraArgs:
+              node-labels: "node.kubernetes.io/exclude-from-external-load-balancers=false"
+            extraMounts:
+              - destination: /var/lib/longhorn
+                type: bind
+                source: /var/lib/longhorn
+                options:
+                  - rw
+                  - rshared
+                  - bind
+        cluster:
+          allowSchedulingOnControlPlanes: true
+          apiServer:
+            admissionControl:
+              - name: PodSecurity
+                configuration:
+                  apiVersion: pod-security.admission.config.k8s.io/v1
+                  kind: PodSecurityConfiguration
+                  defaults:
+                    enforce: "privileged"
+                    enforce-version: "latest"
+                    audit: "privileged"
+                    audit-version: "latest"
+                    warn: "privileged"
+                    warn-version: "latest"
+                  exemptions:
+                    usernames: []
+                    runtimeClasses: []
+                    namespaces: [longhorn-system]
+          network:
+            cni:
+              name: flannel
+    compresseddata: []
