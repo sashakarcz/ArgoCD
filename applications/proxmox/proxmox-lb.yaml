@@ -1,0 +1,106 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: proxmox
+
+---
+# Headless-ish Service with NO selector: endpoints are supplied manually below,
+# pointing at the 5 Proxmox cluster nodes' web UIs (bare-metal hosts, not pods).
+apiVersion: v1
+kind: Service
+metadata:
+  name: pve-cluster
+  namespace: proxmox
+spec:
+  ports:
+    - name: https
+      port: 8006
+      targetPort: 8006
+      protocol: TCP
+
+---
+# Manual endpoints = the 5 PVE nodes. They're a Proxmox cluster, so any node
+# serves the full cluster UI and proxies consoles to the owning node.
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: pve-cluster-nodes
+  namespace: proxmox
+  labels:
+    kubernetes.io/service-name: pve-cluster
+addressType: IPv4
+ports:
+  - name: https
+    port: 8006
+    protocol: TCP
+endpoints:
+  - addresses: ["192.168.7.101"]
+    conditions: { ready: true }
+  - addresses: ["192.168.7.102"]
+    conditions: { ready: true }
+  - addresses: ["192.168.7.103"]
+    conditions: { ready: true }
+  - addresses: ["192.168.7.104"]
+    conditions: { ready: true }
+  - addresses: ["192.168.7.105"]
+    conditions: { ready: true }
+
+---
+# Proxmox serves its own self-signed cert on 8006 -- skip backend TLS verify.
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: pve-transport
+  namespace: proxmox
+spec:
+  insecureSkipVerify: true
+
+---
+# Public cert for pve.starnix.net (Traefik front side). The tunnel reaches
+# Traefik with noTLSVerify anyway, but a real cert keeps things clean.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pve-tls
+  namespace: proxmox
+spec:
+  secretName: pve-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - pve.starnix.net
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pve
+  namespace: proxmox
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pve.starnix.net`)
+      kind: Rule
+      services:
+        - name: pve-cluster
+          port: 8006
+          scheme: https            # talk HTTPS to Proxmox :8006
+          serversTransport: pve-transport
+          # Pin a browser session to one node: the auth ticket + noVNC/xterm
+          # websocket should land on the same node for a stable console.
+          sticky:
+            cookie:
+              name: pve_lb
+              secure: true
+              httpOnly: true
+          # Active health check so a dead node is dropped from rotation (HA).
+          healthCheck:
+            path: /
+            scheme: https
+            interval: 10s
+            timeout: 5s
+  tls:
+    secretName: pve-tls
