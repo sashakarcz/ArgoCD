@@ -283,6 +283,10 @@ spec:
                 secretKeyRef:
                   name: homepage-secrets
                   key: proxmox-token
+                  # optional until the token is added to Vault -- keeps Homepage
+                  # from CreateContainerConfigError in the gap; widget just
+                  # errors on its tile until the key syncs.
+                  optional: true
           ports:
             - name: http
               containerPort: 3000
