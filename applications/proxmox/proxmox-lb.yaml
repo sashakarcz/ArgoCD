@@ -13,6 +13,16 @@ kind: Service
 metadata:
   name: pve-cluster
   namespace: proxmox
+  annotations:
+    # Surface on the Homepage dashboard (home.starnix.net). Annotated on the
+    # Service because Homepage's cluster discovery reads Ingresses/Services, not
+    # Traefik IngressRoute CRDs -- so href is set explicitly.
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Proxmox"
+    gethomepage.dev/description: "PVE cluster web UI (5 nodes, HA)"
+    gethomepage.dev/group: "Infrastructure"
+    gethomepage.dev/icon: "proxmox.png"
+    gethomepage.dev/href: "https://pve.starnix.net"
 spec:
   ports:
     - name: https
