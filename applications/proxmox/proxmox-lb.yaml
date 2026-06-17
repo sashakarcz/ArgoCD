@@ -21,12 +21,12 @@ spec:
       protocol: TCP
 
 # NOTE: the EndpointSlice for this Service (the 5 PVE node IPs) is owned and
-# health-maintained by the readiness updater in proxmox-healthcheck.yaml, not
-# defined statically here -- so a dead node is dropped from rotation and ArgoCD
-# doesn't fight the updater's readiness flips.
+# health-maintained by the readiness updater in proxmox-healthcheck.yaml.
 
 ---
 # Proxmox serves its own self-signed cert on 8006 -- skip backend TLS verify.
+# Referenced by the IngressRoute below (same kubernetescrd provider, so the
+# reference resolves -- a standard Ingress annotation can't cross providers).
 apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
 metadata:
@@ -36,40 +36,47 @@ spec:
   insecureSkipVerify: true
 
 ---
-# Standard Ingress (not a Traefik IngressRoute CRD) so ExternalDNS -- which
-# watches source=ingress -- creates the pve.starnix.net record automatically.
-# Traefik annotations provide the same behavior the IngressRoute had:
-#   - HTTPS to the Proxmox backend (self-signed, via the ServersTransport above)
-#   - sticky cookie so a session pins to one node (stable noVNC/xterm console)
-#   - websockets are handled automatically by Traefik
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# Public cert for pve.starnix.net (IngressRoutes aren't watched by cert-manager's
+# ingress-shim, so the Certificate is declared explicitly).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pve-tls
+  namespace: proxmox
+spec:
+  secretName: pve-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  dnsNames:
+    - pve.starnix.net
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
 metadata:
   name: pve
   namespace: proxmox
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/service.serversscheme: https
-    traefik.ingress.kubernetes.io/service.serverstransport: proxmox-pve-transport@kubernetescrd
-    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
-    traefik.ingress.kubernetes.io/service.sticky.cookie.name: pve_lb
-    traefik.ingress.kubernetes.io/service.sticky.cookie.secure: "true"
-    traefik.ingress.kubernetes.io/service.sticky.cookie.httponly: "true"
+    # IngressRoutes have no loadBalancer status, so ExternalDNS (traefik-proxy
+    # source) needs the target spelled out -- the Traefik LB IP.
+    external-dns.alpha.kubernetes.io/target: "192.168.7.207"
 spec:
-  ingressClassName: traefik
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pve.starnix.net`)
+      kind: Rule
+      services:
+        - name: pve-cluster
+          port: 8006
+          scheme: https            # talk HTTPS to Proxmox :8006
+          serversTransport: pve-transport
+          # Pin a browser session to one node for a stable noVNC/xterm console.
+          sticky:
+            cookie:
+              name: pve_lb
+              secure: true
+              httpOnly: true
   tls:
-    - hosts:
-        - pve.starnix.net
-      secretName: pve-tls
-  rules:
-    - host: pve.starnix.net
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: pve-cluster
-                port:
-                  number: 8006
+    secretName: pve-tls
