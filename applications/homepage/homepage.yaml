@@ -188,6 +188,16 @@ data:
             icon: mdi-lock-reset
             href: https://password.starnix.net
             description: LDAP Password Reset
+    - Infrastructure:
+        - Proxmox:
+            icon: proxmox.png
+            href: https://pve.starnix.net
+            description: PVE cluster (5 nodes, HA)
+            widget:
+              type: proxmox
+              url: https://pve.starnix.net
+              username: readonly@pve!homepage
+              password: "{{HOMEPAGE_VAR_PROXMOX_PASSWORD}}"
 
   bookmarks.yaml: ""
   docker.yaml: ""
@@ -268,6 +278,11 @@ spec:
                 secretKeyRef:
                   name: homepage-secrets
                   key: sabnzbd-api-key
+            - name: HOMEPAGE_VAR_PROXMOX_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: homepage-secrets
+                  key: proxmox-token
           ports:
             - name: http
               containerPort: 3000
