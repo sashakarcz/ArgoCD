@@ -1,6 +1,70 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: cilium-helm
+  namespace: argocd
+  annotations:
+    # CNI -- earliest wave. Bootstrapped via helm (host-netns agent comes up
+    # before any CNI); now adopted into GitOps. values.yaml is the single
+    # source of truth (multi-source $values ref).
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://helm.cilium.io/
+      chart: cilium
+      targetRevision: 1.19.4
+      helm:
+        releaseName: cilium
+        valueFiles:
+          - $values/infrastructure/cilium/values.yaml
+    - repoURL: https://github.com/usenix17/ArgoCD.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      # Never overwrite the ignored cert secrets during sync.
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  # Cilium auto-generates these certs at helm-template time; the chart would
+  # emit fresh random certs on every render. Ignore their data so ArgoCD never
+  # rotates them out from under the running Hubble/agent mTLS.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: cilium-ca
+      namespace: kube-system
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: hubble-server-certs
+      namespace: kube-system
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: hubble-relay-client-certs
+      namespace: kube-system
+      jsonPointers:
+        - /data
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: coredns-config
   namespace: argocd
   annotations:
