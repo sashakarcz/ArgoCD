@@ -68,6 +68,17 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, check=True, **kwargs)
 
 
+def _hold(reason: str, summary: str, risk: str = "") -> dict:
+    """Structured hold record for the failed map (carried into the metric)."""
+    return {"reason": reason, "risk": risk, "summary": summary}
+
+
+def _esc(s) -> str:
+    """Escape a Prometheus label value (backslash, quote, newlines)."""
+    return (str(s).replace("\\", "\\\\").replace('"', '\\"')
+            .replace("\n", " ").replace("\r", " "))
+
+
 def aur_version(pkg: str) -> str | None:
     """Return the current AUR version string, or None if not found."""
     r = subprocess.run(
@@ -130,20 +141,42 @@ def build_fetched(pkg_subdir: Path) -> list[Path]:
     return list(pkg_subdir.glob("*.pkg.tar.zst"))
 
 
-def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> bool:
+# Forced-tool schema so the model MUST return a valid structured verdict.
+# (Parsing free-form text was brittle -- a non-JSON reply held safe packages
+# as false positives. Tool use guarantees the shape.)
+_VERDICT_TOOL = {
+    "name": "report_verdict",
+    "description": "Report the security verdict for the reviewed PKGBUILD.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "safe": {"type": "boolean", "description": "false ONLY for HIGH or CRITICAL risk"},
+            "risk": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+            "findings": {"type": "array", "items": {"type": "string"},
+                         "description": "specific concerns; empty if none"},
+            "summary": {"type": "string", "description": "one-sentence verdict"},
+        },
+        "required": ["safe", "risk", "summary"],
+    },
+}
+
+
+def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> dict:
     """Scan PKGBUILD with Claude for suspicious or malicious content.
 
-    Returns True if the package appears safe to build, False to hold it.
-    Fails closed: any API or parse error holds the package rather than
-    letting it through unscanned.
+    Returns a verdict dict {safe, risk, findings, summary, reason}. `reason` is
+    None when safe; otherwise "pkgbuild" for a genuine HIGH/CRITICAL finding or
+    "scan_error" for an API/format failure. Fails closed (any error holds), but
+    distinguishes a real finding from a scan failure so operators can tell which.
     """
     if not ANTHROPIC_API_KEY or not _HAS_ANTHROPIC:
-        return True  # No key configured -- skip scan
+        return {"safe": True, "risk": "low", "findings": [],
+                "summary": "scan skipped (no API key)", "reason": None}
 
     pkgbuild = pkg_subdir / "PKGBUILD"
     if not pkgbuild.exists():
-        log.error("No PKGBUILD at %s -- holding package", pkgbuild)
-        return False
+        return {"safe": False, "risk": "critical", "findings": [],
+                "summary": "no PKGBUILD found in source", "reason": "scan_error"}
 
     # Gather PKGBUILD + .SRCINFO + .install files, cap at 64 KiB total
     parts = [f"--- PKGBUILD ---\n{pkgbuild.read_text(errors='replace')}"]
@@ -154,7 +187,7 @@ def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> bool:
 
     system_prompt = (
         "You are a security auditor reviewing Arch Linux PKGBUILD files for supply chain threats.\n\n"
-        "Analyze the provided PKGBUILD (and any .SRCINFO / .install files) and respond with JSON only.\n\n"
+        "Analyze the provided PKGBUILD (and any .SRCINFO / .install files) and call the report_verdict tool.\n\n"
         "Flag HIGH or CRITICAL for:\n"
         "- Network downloads not declared in source=() (curl/wget in build/package/install functions)\n"
         "- Downloaded content piped to a shell (curl ... | bash)\n"
@@ -168,35 +201,38 @@ def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> bool:
         "- sudo calls in build/package functions\n"
         "- Post-install network calls not declared in source()\n\n"
         "LOW / SAFE: standard build patterns, normal makepkg practices.\n\n"
-        "Set safe=false only for HIGH or CRITICAL risk. MEDIUM is informational only.\n\n"
-        'Respond with JSON only, no other text: {"safe": true|false, "risk": "low|medium|high|critical", '
-        '"findings": ["..."], "summary": "one-sentence verdict"}'
+        "Set safe=false ONLY for HIGH or CRITICAL risk. MEDIUM is informational."
     )
 
     try:
         client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=512,
+            max_tokens=1024,
             system=system_prompt,
+            tools=[_VERDICT_TOOL],
+            tool_choice={"type": "tool", "name": "report_verdict"},
             messages=[{"role": "user", "content": f"Package: {pkg}\n\n{content}"}],
         )
-        result = json.loads(message.content[0].text.strip())
-        risk     = result.get("risk", "low")
-        safe     = result.get("safe", True)
-        findings = result.get("findings", [])
-        summary  = result.get("summary", "")
+        verdict = next((b.input for b in message.content
+                        if getattr(b, "type", None) == "tool_use"), None)
+        if not verdict:
+            return {"safe": False, "risk": "critical", "findings": [],
+                    "summary": "model returned no verdict", "reason": "scan_error"}
 
+        safe = bool(verdict.get("safe", False))
+        risk = verdict.get("risk", "low")
+        findings = verdict.get("findings", []) or []
+        summary = verdict.get("summary", "")
         for finding in findings:
             log.info("Claude [%s] %s: %s", risk.upper(), pkg, finding)
         log.info("Claude PKGBUILD scan %s: risk=%s safe=%s -- %s", pkg, risk, safe, summary)
-        return bool(safe)
-    except json.JSONDecodeError as exc:
-        log.error("Claude returned non-JSON for %s (holding): %s", pkg, exc)
-        return False
+        return {"safe": safe, "risk": risk, "findings": findings, "summary": summary,
+                "reason": None if safe else "pkgbuild"}
     except Exception as exc:
         log.error("Claude PKGBUILD scan error for %s (holding): %s", pkg, exc)
-        return False
+        return {"safe": False, "risk": "error", "findings": [],
+                "summary": f"scan error: {exc}"[:200], "reason": "scan_error"}
 
 
 def trivy_scan(artifact: Path) -> bool:
@@ -308,7 +344,7 @@ def prune_repo(approved: set[str]) -> None:
                     sig.unlink()
 
 
-def push_metrics(total: int, skipped: int, failed: dict[str, str]) -> None:
+def push_metrics(total: int, skipped: int, failed: dict[str, dict]) -> None:
     """Push build result metrics to Prometheus Pushgateway."""
     if not PUSHGATEWAY_URL:
         return
@@ -318,8 +354,15 @@ def push_metrics(total: int, skipped: int, failed: dict[str, str]) -> None:
         "# HELP aur_mirror_package_held Package held back from the mirror (1=held)",
         "# TYPE aur_mirror_package_held gauge",
     ]
-    for pkg, reason in failed.items():
-        lines.append(f'aur_mirror_package_held{{package="{pkg}",reason="{reason}"}} 1')
+    for pkg, info in failed.items():
+        pkgname = _esc(pkg)
+        reason  = _esc(info.get("reason", ""))
+        risk    = _esc(info.get("risk", ""))
+        summary = _esc(info.get("summary", ""))[:200]
+        lines.append(
+            f'aur_mirror_package_held{{package="{pkgname}",reason="{reason}",'
+            f'risk="{risk}",summary="{summary}"}} 1'
+        )
 
     lines += [
         "# HELP aur_mirror_last_run_timestamp_seconds Unix timestamp of the last build run",
@@ -371,7 +414,7 @@ def run_build_phase() -> int:
     packages = [p for p in config.get("packages", []) if p.get("approved") is True]
     log.info("Allowlist: %d approved packages", len(packages))
 
-    failed: dict[str, str] = {}  # pkg -> reason
+    failed: dict[str, dict] = {}  # pkg -> {reason, risk, summary}
     staged: list[str] = []
     skipped = 0
 
@@ -406,13 +449,15 @@ def run_build_phase() -> int:
                 pkg_subdir = fetch_pkgbuild(pkg, source, pkg_dir)
             except subprocess.CalledProcessError:
                 log.error("Fetch FAILED for %s", pkg)
-                failed[pkg] = "build_error"
+                failed[pkg] = _hold("build_error", "PKGBUILD fetch failed")
                 continue
 
             # 2. Claude PKGBUILD scan -- before any code runs
-            if not claude_scan_pkgbuild(pkg_subdir, pkg):
-                log.error("Claude flagged suspicious PKGBUILD for %s -- NOT building", pkg)
-                failed[pkg] = "pkgbuild"
+            verdict = claude_scan_pkgbuild(pkg_subdir, pkg)
+            if not verdict["safe"]:
+                log.error("Held by Claude scan (%s) for %s: %s",
+                          verdict["reason"], pkg, verdict["summary"])
+                failed[pkg] = _hold(verdict["reason"], verdict["summary"], verdict.get("risk", ""))
                 continue
 
             # 3. Build
@@ -420,7 +465,7 @@ def run_build_phase() -> int:
                 artifacts = build_fetched(pkg_subdir)
             except subprocess.CalledProcessError:
                 log.error("Build FAILED for %s", pkg)
-                failed[pkg] = "build_error"
+                failed[pkg] = _hold("build_error", "makepkg build failed")
                 continue
 
             # 4. Trivy scan on the built artifacts
@@ -434,7 +479,7 @@ def run_build_phase() -> int:
                     clean = False
 
             if not clean:
-                failed[pkg] = "trivy"
+                failed[pkg] = _hold("trivy", f"Trivy found {FAIL_SEVS} CVE or embedded secret")
                 continue
 
             # 5. Stage vetted artifacts for the sign phase (no signing here)
@@ -482,7 +527,7 @@ def run_sign_phase() -> int:
         artifacts = sorted((STAGING_DIR / pkg).glob("*.pkg.tar.zst"))
         if not artifacts:
             log.error("No staged artifacts for %s (held)", pkg)
-            failed[pkg] = "publish_error"
+            failed[pkg] = _hold("publish_error", "no staged artifacts found")
             continue
         try:
             sign_and_publish(artifacts)
@@ -490,7 +535,7 @@ def run_sign_phase() -> int:
         except (subprocess.CalledProcessError, OSError) as exc:
             # Never let one package's publish error abort the whole run.
             log.error("Publish FAILED for %s: %s", pkg, exc)
-            failed[pkg] = "publish_error"
+            failed[pkg] = _hold("publish_error", str(exc)[:200])
 
     try:
         prune_repo(approved)

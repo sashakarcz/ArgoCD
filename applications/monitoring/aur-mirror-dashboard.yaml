@@ -148,7 +148,7 @@ data:
           "id": 12, "title": "PKGBUILD Held", "type": "stat",
           "gridPos": { "x": 22, "y": 1, "w": 2, "h": 3 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "targets": [{ "expr": "count(aur_mirror_package_held{reason=\"pkgbuild\"}) or vector(0)", "instant": true, "refId": "A" }],
+          "targets": [{ "expr": "count(aur_mirror_package_held{reason=~\"pkgbuild|scan_error\"}) or vector(0)", "instant": true, "refId": "A" }],
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
           "fieldConfig": {
             "defaults": {
@@ -260,37 +260,60 @@ data:
           "panels": [{
             "id": 31,
             "title": "Packages Held by Claude PKGBUILD Scan",
-            "description": "These packages were flagged HIGH or CRITICAL by Claude before building -- no package code was executed. Check the builder logs for findings.",
+            "description": "Packages Claude held before building (no package code was executed). reason=pkgbuild is a real HIGH/CRITICAL finding; reason=scan_error is a scan/API failure (held fail-closed, not necessarily malicious). The summary is Claude's one-line verdict.",
             "type": "table",
             "gridPos": { "x": 0, "y": 19, "w": 24, "h": 12 },
             "datasource": { "type": "prometheus", "uid": "${datasource}" },
             "targets": [{
-              "expr": "aur_mirror_package_held{reason=\"pkgbuild\"}",
+              "expr": "aur_mirror_package_held{reason=~\"pkgbuild|scan_error\"}",
               "instant": true,
               "legendFormat": "__auto",
               "refId": "A"
             }],
             "transformations": [
               { "id": "labelsToFields", "options": { "mode": "columns" } },
-              { "id": "filterFieldsByName", "options": { "include": { "names": ["package"] } } },
+              { "id": "filterFieldsByName", "options": { "include": { "names": ["package", "reason", "risk", "summary"] } } },
               { "id": "sortBy", "options": { "fields": [{ "desc": false, "displayName": "package" }] } }
             ],
             "fieldConfig": {
               "defaults": {
-                "custom": { "align": "left", "displayMode": "auto", "filterable": true },
-                "links": [{
-                  "title": "Open AUR page",
-                  "url": "https://aur.archlinux.org/packages/${__data.fields.package}",
-                  "targetBlank": true
-                }]
+                "custom": { "align": "left", "displayMode": "auto", "filterable": true }
               },
-              "overrides": [{
-                "matcher": { "id": "byName", "options": "package" },
-                "properties": [
-                  { "id": "displayName", "value": "Package" },
-                  { "id": "custom.width", "value": 420 }
-                ]
-              }]
+              "overrides": [
+                {
+                  "matcher": { "id": "byName", "options": "package" },
+                  "properties": [
+                    { "id": "displayName", "value": "Package" },
+                    { "id": "custom.width", "value": 260 },
+                    { "id": "links", "value": [{ "title": "Open AUR page", "url": "https://aur.archlinux.org/packages/${__data.fields.package}", "targetBlank": true }] }
+                  ]
+                },
+                {
+                  "matcher": { "id": "byName", "options": "reason" },
+                  "properties": [
+                    { "id": "displayName", "value": "Reason" },
+                    { "id": "custom.width", "value": 110 },
+                    { "id": "mappings", "value": [
+                      { "type": "value", "options": { "pkgbuild": { "text": "finding", "color": "red", "index": 0 } } },
+                      { "type": "value", "options": { "scan_error": { "text": "scan error", "color": "orange", "index": 1 } } }
+                    ] },
+                    { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+                  ]
+                },
+                {
+                  "matcher": { "id": "byName", "options": "risk" },
+                  "properties": [
+                    { "id": "displayName", "value": "Risk" },
+                    { "id": "custom.width", "value": 90 }
+                  ]
+                },
+                {
+                  "matcher": { "id": "byName", "options": "summary" },
+                  "properties": [
+                    { "id": "displayName", "value": "Claude verdict" }
+                  ]
+                }
+              ]
             },
             "options": {
               "showHeader": true,
