@@ -20,33 +20,12 @@ spec:
       protocol: TCP
 
 ---
-# Manual endpoints = the 5 PVE nodes. They're a Proxmox cluster, so any node
-# serves the full cluster UI and proxies consoles to the owning node.
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: pve-cluster-nodes
-  namespace: proxmox
-  labels:
-    kubernetes.io/service-name: pve-cluster
-addressType: IPv4
-ports:
-  - name: https
-    port: 8006
-    protocol: TCP
-endpoints:
-  - addresses: ["192.168.7.101"]
-    conditions: { ready: true }
-  - addresses: ["192.168.7.102"]
-    conditions: { ready: true }
-  - addresses: ["192.168.7.103"]
-    conditions: { ready: true }
-  - addresses: ["192.168.7.104"]
-    conditions: { ready: true }
-  - addresses: ["192.168.7.105"]
-    conditions: { ready: true }
+# NOTE: the EndpointSlice for this Service (the 5 PVE node IPs) is owned and
+# health-maintained by the readiness updater in proxmox-healthcheck.yaml, not
+# defined statically here -- so a dead node is dropped from rotation and ArgoCD
+# doesn't fight the updater's readiness flips.
 
----
+
 # Proxmox serves its own self-signed cert on 8006 -- skip backend TLS verify.
 apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
@@ -91,16 +70,13 @@ spec:
           serversTransport: pve-transport
           # Pin a browser session to one node: the auth ticket + noVNC/xterm
           # websocket should land on the same node for a stable console.
+          # (Traefik can't actively health-check manual endpoints -- only
+          # ExternalName services -- so a separate readiness updater handles HA;
+          # see proxmox-healthcheck.yaml.)
           sticky:
             cookie:
               name: pve_lb
               secure: true
               httpOnly: true
-          # Active health check so a dead node is dropped from rotation (HA).
-          healthCheck:
-            path: /
-            scheme: https
-            interval: 10s
-            timeout: 5s
   tls:
     secretName: pve-tls

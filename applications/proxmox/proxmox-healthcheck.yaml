@@ -1,0 +1,146 @@
+---
+# Readiness updater for the pve-cluster Service.
+#
+# Traefik can't actively health-check a Service with manual endpoints (only
+# ExternalName services), so this owns the EndpointSlice: every ~20s it probes
+# each Proxmox node's :8006 and flips conditions.ready, so Traefik routes only
+# to live nodes. This is the HA piece -- lose a node and it drops from rotation.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pve-healthcheck
+  namespace: proxmox
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pve-healthcheck
+  namespace: proxmox
+rules:
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "create", "patch", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pve-healthcheck
+  namespace: proxmox
+subjects:
+  - kind: ServiceAccount
+    name: pve-healthcheck
+    namespace: proxmox
+roleRef:
+  kind: Role
+  name: pve-healthcheck
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pve-healthcheck
+  namespace: proxmox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pve-healthcheck
+  template:
+    metadata:
+      labels:
+        app: pve-healthcheck
+    spec:
+      serviceAccountName: pve-healthcheck
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: updater
+          image: python:3-alpine
+          env:
+            - name: NODES
+              value: "192.168.7.101,192.168.7.102,192.168.7.103,192.168.7.104,192.168.7.105"
+            - name: NAMESPACE
+              value: proxmox
+            - name: SERVICE
+              value: pve-cluster
+            - name: SLICE
+              value: pve-cluster-nodes
+            - name: PORT
+              value: "8006"
+            - name: INTERVAL
+              value: "20"
+          command:
+            - python3
+            - -c
+            - |
+              import json, os, ssl, time, urllib.request, urllib.error
+
+              NODES = [n.strip() for n in os.environ["NODES"].split(",") if n.strip()]
+              NS, SVC, SLICE = os.environ["NAMESPACE"], os.environ["SERVICE"], os.environ["SLICE"]
+              PORT, INTERVAL = int(os.environ["PORT"]), int(os.environ["INTERVAL"])
+              API = "https://kubernetes.default.svc"
+              SA = "/var/run/secrets/kubernetes.io/serviceaccount"
+              TOKEN = open(f"{SA}/token").read().strip()
+              api_ctx = ssl.create_default_context(cafile=f"{SA}/ca.crt")
+              probe_ctx = ssl.create_default_context()
+              probe_ctx.check_hostname = False
+              probe_ctx.verify_mode = ssl.CERT_NONE
+
+              def probe(ip):
+                  # Any HTTP response from :8006 means the node's UI is alive.
+                  try:
+                      urllib.request.urlopen(f"https://{ip}:{PORT}/", timeout=4, context=probe_ctx)
+                      return True
+                  except urllib.error.HTTPError:
+                      return True
+                  except Exception:
+                      return False
+
+              def k8s(method, path, body=None):
+                  data = json.dumps(body).encode() if body is not None else None
+                  req = urllib.request.Request(API + path, data=data, method=method)
+                  req.add_header("Authorization", f"Bearer {TOKEN}")
+                  ct = "application/merge-patch+json" if method == "PATCH" else "application/json"
+                  req.add_header("Content-Type", ct)
+                  return urllib.request.urlopen(req, timeout=10, context=api_ctx)
+
+              base = f"/apis/discovery.k8s.io/v1/namespaces/{NS}/endpointslices"
+
+              def desired(eps):
+                  return {
+                      "addressType": "IPv4",
+                      "metadata": {"name": SLICE, "labels": {"kubernetes.io/service-name": SVC}},
+                      "ports": [{"name": "https", "port": PORT, "protocol": "TCP"}],
+                      "endpoints": eps,
+                  }
+
+              def ensure(eps):
+                  try:
+                      k8s("PATCH", f"{base}/{SLICE}", {"endpoints": eps, "ports": [{"name": "https", "port": PORT, "protocol": "TCP"}]})
+                  except urllib.error.HTTPError as e:
+                      if e.code == 404:
+                          body = desired(eps); body["kind"] = "EndpointSlice"; body["apiVersion"] = "discovery.k8s.io/v1"
+                          k8s("POST", base, body)
+                      else:
+                          raise
+
+              while True:
+                  eps = [{"addresses": [ip], "conditions": {"ready": probe(ip)}} for ip in NODES]
+                  up = sum(1 for e in eps if e["conditions"]["ready"])
+                  try:
+                      ensure(eps)
+                      print(f"pve readiness: {up}/{len(NODES)} ready", flush=True)
+                  except Exception as exc:
+                      print(f"update failed: {exc}", flush=True)
+                  time.sleep(INTERVAL)
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
