@@ -65,6 +65,49 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: reloader-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://stakater.github.io/stakater-charts
+    chart: reloader
+    targetRevision: 2.2.12
+    helm:
+      releaseName: reloader
+      values: |
+        reloader:
+          # Opt-in only: reload workloads carrying a reloader.stakater.com
+          # annotation. NOT auto-reload-all -- avoids surprise restarts of
+          # stateful workloads on an unrelated ConfigMap/Secret change.
+          watchGlobally: true
+          # 'annotations' strategy stamps a single pod-template annotation,
+          # which argocd-cm ignoreDifferences (above) is scoped to ignore.
+          reloadStrategy: annotations
+          deployment:
+            replicas: 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reloader
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: coredns-config
   namespace: argocd
   annotations:
@@ -467,6 +510,18 @@ spec:
                 - openid
                 - profile
                 - email
+            # Reloader triggers restarts by stamping this annotation on the pod
+            # template. Ignore it globally so selfHeal doesn't revert it (which
+            # would cause a double-restart / OutOfSync flapping).
+            resource.customizations.ignoreDifferences.apps_Deployment: |
+              jsonPointers:
+                - /spec/template/metadata/annotations/reloader.stakater.com~1last-reloaded-from
+            resource.customizations.ignoreDifferences.apps_StatefulSet: |
+              jsonPointers:
+                - /spec/template/metadata/annotations/reloader.stakater.com~1last-reloaded-from
+            resource.customizations.ignoreDifferences.apps_DaemonSet: |
+              jsonPointers:
+                - /spec/template/metadata/annotations/reloader.stakater.com~1last-reloaded-from
           rbac:
             policy.default: role:admin
           params:

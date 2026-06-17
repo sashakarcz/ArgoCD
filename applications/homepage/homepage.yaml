@@ -235,6 +235,10 @@ metadata:
   namespace: homepage
   labels:
     app.kubernetes.io/name: homepage
+  annotations:
+    # Auto-restart when the homepage ConfigMap or homepage-secrets change
+    # (e.g. a VSO secret rotation) -- no more manual rollout.
+    reloader.stakater.com/auto: "true"
 spec:
   revisionHistoryLimit: 3
   replicas: 1
