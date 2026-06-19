@@ -26,3 +26,14 @@ ServersTransport with insecureSkipVerify. A standard Ingress CANNOT reference a
 verifying default transport and returns 500 "x509: certificate signed by unknown
 authority". Use a Traefik IngressRoute (same provider) so the serversTransport
 reference resolves. That's the pve.starnix.net (Proxmox LB) setup.
+
+## ExternalDNS traefik-proxy source crash-loops without --traefik-disable-legacy
+Adding `--source=traefik-proxy` to ExternalDNS makes it watch BOTH
+`traefik.io` (v3) AND legacy `traefik.containo.us` (v2) IngressRoute CRDs. On a
+Traefik v3 cluster the v2 CRD doesn't exist, so the informer never syncs and
+ExternalDNS dies with `level=fatal ... context deadline exceeded` -> CrashLoopBackOff.
+It can catch one lucky reconcile window before looping, which masks the problem
+(one record gets created, then DNS silently stops updating cluster-wide).
+ALWAYS pair `--source=traefik-proxy` with `--traefik-disable-legacy`.
+Symptom: new Ingresses don't get DNS records; `kubectl -n external-dns get pods`
+shows high restart count.
