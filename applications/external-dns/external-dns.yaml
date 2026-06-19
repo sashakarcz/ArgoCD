@@ -63,6 +63,10 @@ spec:
         - --source=ingress
         - --source=service
         - --source=traefik-proxy
+        # Only watch traefik.io (v3) IngressRoutes. Without this, the source also
+        # tries the legacy traefik.containo.us (v2) group, whose CRD doesn't
+        # exist here -> the informer never syncs and ExternalDNS crash-loops.
+        - --traefik-disable-legacy
         # Only manage records within starnix.net
         - --domain-filter=starnix.net
         - --provider=rfc2136
