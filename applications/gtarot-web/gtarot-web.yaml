@@ -43,6 +43,10 @@ spec:
             secretKeyRef:
               name: gemini-api-key
               key: GEMINI_API_KEY
+        # Gemini model -- change here (no rebuild) when Google rotates models.
+        # gemma-3-4b-it was retired (404); gemini-2.5-flash is current.
+        - name: GEMINI_MODEL
+          value: "gemini-2.5-flash"
         livenessProbe:
           httpGet:
             path: /
