@@ -1,0 +1,149 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ouija-board
+  labels:
+    app: ouija-board
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ouija-board
+  namespace: ouija-board
+  labels:
+    app: ouija-board
+  annotations:
+    # Auto-restart when the shared gemini-api-key secret rotates.
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ouija-board
+  template:
+    metadata:
+      labels:
+        app: ouija-board
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: ouija-board
+        image: astrognome/ouija-board:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        # Same Gemini API key as gtarot (Vault: cluster/gemini-api-key).
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-api-key
+              key: GEMINI_API_KEY
+        # Change here (no rebuild) when Google rotates models.
+        - name: GEMINI_MODEL
+          value: "gemini-2.5-flash"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ouija-board
+  namespace: ouija-board
+  labels:
+    app: ouija-board
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Ouija Board"
+    gethomepage.dev/description: "AI Spirit Board"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-ghost"
+    gethomepage.dev/href: "https://ouija.starnix.net"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: ouija-board
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ouija-board-ingress
+  namespace: ouija-board
+  labels:
+    app: ouija-board
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - ouija.service.starnix.net
+    secretName: ouija-board-tls
+  rules:
+  - host: ouija.service.starnix.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ouija-board
+            port:
+              number: 8080
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-auth
+  namespace: ouija-board
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: ouija-board
+spec:
+  method: jwt
+  mount: kubernetes
+  jwt:
+    role: cluster
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: gemini-api-key
+  namespace: ouija-board
+spec:
+  type: kv-v2
+  mount: secret
+  path: cluster/gemini-api-key
+  vaultAuthRef: default
+  destination:
+    name: gemini-api-key
+    create: true
+  refreshAfter: 1h

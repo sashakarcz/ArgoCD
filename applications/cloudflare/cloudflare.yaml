@@ -143,7 +143,10 @@ data:
         noTLSVerify: true
         httpHostHeader: go.service.starnix.net
     - hostname: ouija.starnix.net
-      service: https://ouija.service.starnix.net
+      service: https://192.168.7.207
+      originRequest:
+        noTLSVerify: true
+        httpHostHeader: ouija.starnix.net
       originRequest:
         httpHostHeader: ouija.service.starnix.net
     - hostname: help.starnix.net
