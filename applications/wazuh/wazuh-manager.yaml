@@ -236,6 +236,40 @@ data:
         names:
         - rseq
 
+  # Custom manager rules, git-managed. The seed-rules initContainer copies this
+  # onto the wazuh-etc PVC at /var/ossec/etc/rules/local_rules.xml on each start.
+  local_rules.xml: |
+    <!-- Managed in git (ArgoCD). Do not hand-edit on the manager PVC. -->
+    <group name="falco,">
+      <!-- Falco runtime-security events shipped by agents tailing
+           /var/log/falco/events.json. Maps Falco priority -> Wazuh level. -->
+      <rule id="100600" level="0">
+        <decoded_as>json</decoded_as>
+        <field name="rule" type="pcre2">.+</field>
+        <field name="priority" type="pcre2">.+</field>
+        <description>Falco event (base)</description>
+        <options>no_full_log</options>
+      </rule>
+      <rule id="100601" level="3">
+        <if_sid>100600</if_sid>
+        <field name="priority" type="pcre2">^(Informational|Debug|Notice)$</field>
+        <description>Falco $(priority): $(rule)</description>
+        <group>falco_low,</group>
+      </rule>
+      <rule id="100602" level="7">
+        <if_sid>100600</if_sid>
+        <field name="priority" type="pcre2">^Warning$</field>
+        <description>Falco Warning: $(rule)</description>
+        <group>falco_medium,</group>
+      </rule>
+      <rule id="100603" level="12">
+        <if_sid>100600</if_sid>
+        <field name="priority" type="pcre2">^(Error|Critical|Alert|Emergency)$</field>
+        <description>Falco $(priority): $(rule)</description>
+        <group>falco_high,</group>
+      </rule>
+    </group>
+
 ---
 apiVersion: v1
 kind: Service
@@ -317,6 +351,23 @@ spec:
           mountPath: /var/ossec/etc
         - name: agent-groups
           mountPath: /agent-groups
+          readOnly: true
+      # Seed git-managed custom rules onto the PVC (mirrors seed-agent-groups).
+      - name: seed-rules
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /var/ossec/etc/rules
+          cp /rules-src/local_rules.xml /var/ossec/etc/rules/local_rules.xml
+          chown 101:101 /var/ossec/etc/rules/local_rules.xml
+          chmod 660 /var/ossec/etc/rules/local_rules.xml
+        volumeMounts:
+        - name: wazuh-etc
+          mountPath: /var/ossec/etc
+        - name: wazuh-config
+          mountPath: /rules-src
           readOnly: true
       containers:
       - name: wazuh-manager
