@@ -338,8 +338,11 @@ data:
             "fields": fields,
         }
         body = json.dumps({"username": "Wazuh", "embeds": [embed]}).encode()
-        req = urllib.request.Request(
-            hook, data=body, headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(hook, data=body, headers={
+            "Content-Type": "application/json",
+            # Discord's WAF 403s the default Python-urllib User-Agent.
+            "User-Agent": "Wazuh-Discord-Integration/1.0",
+        })
         try:
             urllib.request.urlopen(req, timeout=10)
         except Exception as exc:
