@@ -288,6 +288,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Ghost"
+    gethomepage.dev/description: "Blog"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "ghost.png"
+    gethomepage.dev/href: "https://ghost.starnix.net"
 spec:
   ingressClassName: traefik
   rules:

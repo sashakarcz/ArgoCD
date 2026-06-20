@@ -491,6 +491,12 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: letsencrypt-production
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Seafile"
+    gethomepage.dev/description: "File Sync & Share"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "seafile.png"
+    gethomepage.dev/href: "https://seafile.starnix.net"
     # Seafile uploads can be large
     traefik.ingress.kubernetes.io/router.middlewares: seafile-seafile-headers@kubernetescrd
 spec:

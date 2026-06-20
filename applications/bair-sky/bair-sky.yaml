@@ -55,6 +55,12 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: letsencrypt-production
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Bair Sky"
+    gethomepage.dev/description: "Sky Clock"
+    gethomepage.dev/group: "Apps"
+    gethomepage.dev/icon: "mdi-clock-star-four-points"
+    gethomepage.dev/href: "https://bair-sky.starnix.net"
 spec:
   ingressClassName: traefik
   rules:
