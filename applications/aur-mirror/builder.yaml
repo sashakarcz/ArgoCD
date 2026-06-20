@@ -55,6 +55,11 @@ spec:
               # plus the staged, vetted artifacts awaiting the sign phase.
               emptyDir:
                 sizeLimit: 50Gi
+            - name: lock
+              # Dedicated coordination volume for the build flock, separate from
+              # the published repo so the build phase can mount /repo read-only.
+              persistentVolumeClaim:
+                claimName: aur-mirror-lock-pvc
           initContainers:
             # Phase 1: build. Fetch, Claude-scan, makepkg, Trivy -- this is where
             # untrusted PKGBUILD code executes. The GPG signing key is NOT
@@ -67,7 +72,7 @@ spec:
               # so a nightly run and an on-add run never build concurrently.
               command:
                 - flock
-                - /repo/.build.lock
+                - /lock/.build.lock
                 - /usr/local/bin/aur-build-all
               env:
                 - name: BUILD_PHASE
@@ -90,8 +95,13 @@ spec:
                       key: ANTHROPIC_API_KEY
                       optional: true
               volumeMounts:
+                # Untrusted build code only READS the repo (skip-if-up-to-date
+                # checks the DB); only the signer writes published artifacts.
                 - name: repo
                   mountPath: /repo
+                  readOnly: true
+                - name: lock
+                  mountPath: /lock
                 - name: allowlist
                   mountPath: /config
                 - name: build-dir
@@ -148,7 +158,7 @@ spec:
               image: registry.starnix.net/library/aur-builder:latest
               command:
                 - flock
-                - /repo/.build.lock
+                - /lock/.build.lock
                 - /usr/local/bin/aur-build-all
               env:
                 - name: BUILD_PHASE
@@ -169,8 +179,11 @@ spec:
                 - name: PUSHGATEWAY_URL
                   value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
               volumeMounts:
+                # Signer is the ONLY writer of the published repo.
                 - name: repo
                   mountPath: /repo
+                - name: lock
+                  mountPath: /lock
                 - name: gpg-home
                   mountPath: /gpg
                 - name: build-dir

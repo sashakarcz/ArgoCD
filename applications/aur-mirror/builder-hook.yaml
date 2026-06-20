@@ -52,6 +52,11 @@ spec:
         - name: build-dir
           emptyDir:
             sizeLimit: 50Gi
+        - name: lock
+          # Coordination volume for the build flock, separate from the repo so
+          # the build phase can mount /repo read-only.
+          persistentVolumeClaim:
+            claimName: aur-mirror-lock-pvc
       initContainers:
         # Phase 1: build (untrusted PKGBUILD code). No GPG key mounted here, so
         # a malicious build cannot exfiltrate it. Vetted artifacts are staged on
@@ -62,7 +67,7 @@ spec:
           # then builds -- so the two never build concurrently.
           command:
             - flock
-            - /repo/.build.lock
+            - /lock/.build.lock
             - /usr/local/bin/aur-build-all
           env:
             - name: BUILD_PHASE
@@ -84,8 +89,12 @@ spec:
                   key: ANTHROPIC_API_KEY
                   optional: true
           volumeMounts:
+            # Untrusted build code only READS the repo; only the signer writes.
             - name: repo
               mountPath: /repo
+              readOnly: true
+            - name: lock
+              mountPath: /lock
             - name: allowlist
               mountPath: /config
             - name: build-dir
@@ -134,7 +143,7 @@ spec:
           image: registry.starnix.net/library/aur-builder:latest
           command:
             - flock
-            - /repo/.build.lock
+            - /lock/.build.lock
             - /usr/local/bin/aur-build-all
           env:
             - name: BUILD_PHASE
@@ -155,8 +164,11 @@ spec:
             - name: PUSHGATEWAY_URL
               value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
           volumeMounts:
+            # Signer is the ONLY writer of the published repo.
             - name: repo
               mountPath: /repo
+            - name: lock
+              mountPath: /lock
             - name: gpg-home
               mountPath: /gpg
             - name: build-dir

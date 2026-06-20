@@ -162,46 +162,73 @@ _VERDICT_TOOL = {
 
 
 def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> dict:
-    """Scan PKGBUILD with Claude for suspicious or malicious content.
+    """Scan the WHOLE package recipe with Claude for suspicious/malicious content.
+
+    Reviews every file the maintainer committed -- PKGBUILD, .SRCINFO, .install
+    scriptlets (which run as ROOT on the client at install time), and any in-tree
+    .patch/.diff or helper scripts -- not just the PKGBUILD, since .install hooks
+    and patches are AUR attack vectors that never show up in the PKGBUILD text or
+    a CVE scan.
 
     Returns a verdict dict {safe, risk, findings, summary, reason}. `reason` is
     None when safe; otherwise "pkgbuild" for a genuine HIGH/CRITICAL finding or
-    "scan_error" for an API/format failure. Fails closed (any error holds), but
-    distinguishes a real finding from a scan failure so operators can tell which.
+    "scan_error" for a scan failure. FAILS CLOSED: a missing API key, missing
+    SDK, or any API/format error HOLDS the package -- the gate never silently
+    no-ops. Distinguishes a real finding from a scan failure for operators.
     """
+    # Fail closed: no scanner == no build. A control that disappears when the
+    # secret is absent is no control.
     if not ANTHROPIC_API_KEY or not _HAS_ANTHROPIC:
-        return {"safe": True, "risk": "low", "findings": [],
-                "summary": "scan skipped (no API key)", "reason": None}
+        return {"safe": False, "risk": "critical", "findings": [],
+                "summary": "scan unavailable: ANTHROPIC_API_KEY missing or SDK absent",
+                "reason": "scan_error"}
 
     pkgbuild = pkg_subdir / "PKGBUILD"
     if not pkgbuild.exists():
         return {"safe": False, "risk": "critical", "findings": [],
                 "summary": "no PKGBUILD found in source", "reason": "scan_error"}
 
-    # Gather PKGBUILD + .SRCINFO + .install files, cap at 64 KiB total
-    parts = [f"--- PKGBUILD ---\n{pkgbuild.read_text(errors='replace')}"]
-    for extra in [pkg_subdir / ".SRCINFO", *sorted(pkg_subdir.glob("*.install"))]:
-        if extra.exists():
-            parts.append(f"--- {extra.name} ---\n{extra.read_text(errors='replace')}")
-    content = "\n\n".join(parts)[:65536]
+    # Ingest every committed recipe file (the AUR checkout, before makepkg runs,
+    # so no downloaded sources yet). Skip VCS metadata and binaries; cap per-file
+    # and in total so a huge committed blob can't blow the context.
+    parts, total = [], 0
+    for p in sorted(pkg_subdir.rglob("*")):
+        if not p.is_file() or ".git" in p.parts:
+            continue
+        try:
+            raw = p.read_bytes()
+        except OSError:
+            continue
+        if b"\x00" in raw[:4096]:  # binary -- not a script/patch we can read
+            continue
+        text = raw.decode("utf-8", errors="replace")[:16384]
+        parts.append(f"--- {p.relative_to(pkg_subdir)} ---\n{text}")
+        total += len(text)
+        if total >= 131072:  # 128 KiB total budget
+            break
+    content = "\n\n".join(parts)
 
     system_prompt = (
-        "You are a security auditor reviewing Arch Linux PKGBUILD files for supply chain threats.\n\n"
-        "Analyze the provided PKGBUILD (and any .SRCINFO / .install files) and call the report_verdict tool.\n\n"
-        "Flag HIGH or CRITICAL for:\n"
-        "- Network downloads not declared in source=() (curl/wget in build/package/install functions)\n"
-        "- Downloaded content piped to a shell (curl ... | bash)\n"
-        "- Writes to paths outside $pkgdir in package()\n"
-        "- Obfuscated commands: eval of encoded strings, base64 -d | sh\n"
-        "- Source URLs from unexpected domains for the claimed package name\n"
-        "- Data exfiltration (credentials, SSH keys, /etc/shadow, /etc/passwd)\n"
-        "- Setuid bits on unusual binaries\n"
-        "- Cron jobs / systemd timers that phone home\n\n"
-        "Flag MEDIUM for:\n"
-        "- sudo calls in build/package functions\n"
-        "- Post-install network calls not declared in source()\n\n"
-        "LOW / SAFE: standard build patterns, normal makepkg practices.\n\n"
-        "Set safe=false ONLY for HIGH or CRITICAL risk. MEDIUM is informational."
+        "You are a security auditor reviewing the COMPLETE recipe of an Arch Linux AUR package "
+        "for supply-chain threats. You are given every file the maintainer committed -- the "
+        "PKGBUILD, .SRCINFO, any .install scriptlets, and any in-tree patches/diffs or helper "
+        "scripts. Review ALL of them, then call the report_verdict tool.\n\n"
+        "Treat these as HIGH or CRITICAL:\n"
+        "- .install scriptlets (post_install/post_upgrade/pre_install/etc): these run as ROOT on "
+        "the client at install time. Flag any network access, downloads, piping to a shell, writes "
+        "outside the package's own files, user/cron/systemd-timer creation that phones home, or "
+        "obfuscation.\n"
+        "- In-tree .patch/.diff files that introduce backdoors, credential/key exfiltration, "
+        "network callbacks, or that weaken security checks in the upstream source.\n"
+        "- PKGBUILD prepare()/build()/package(): network downloads not declared in source=(), "
+        "curl|bash, eval of encoded strings, base64 -d | sh, writes outside $pkgdir, source URLs "
+        "from domains unrelated to the package, exfiltration of credentials/keys/shadow/passwd, "
+        "setuid on unusual binaries.\n\n"
+        "MEDIUM (informational): sudo in build/package functions; undeclared but seemingly benign "
+        "post-install network calls.\n\n"
+        "LOW / SAFE: standard makepkg patterns, ordinary build steps, conventional .install hooks.\n\n"
+        "Set safe=false ONLY for HIGH or CRITICAL risk. MEDIUM is informational. In 'findings', "
+        "name the specific file and construct."
     )
 
     try:
@@ -226,11 +253,11 @@ def claude_scan_pkgbuild(pkg_subdir: Path, pkg: str) -> dict:
         summary = verdict.get("summary", "")
         for finding in findings:
             log.info("Claude [%s] %s: %s", risk.upper(), pkg, finding)
-        log.info("Claude PKGBUILD scan %s: risk=%s safe=%s -- %s", pkg, risk, safe, summary)
+        log.info("Claude recipe scan %s: risk=%s safe=%s -- %s", pkg, risk, safe, summary)
         return {"safe": safe, "risk": risk, "findings": findings, "summary": summary,
                 "reason": None if safe else "pkgbuild"}
     except Exception as exc:
-        log.error("Claude PKGBUILD scan error for %s (holding): %s", pkg, exc)
+        log.error("Claude recipe scan error for %s (holding): %s", pkg, exc)
         return {"safe": False, "risk": "error", "findings": [],
                 "summary": f"scan error: {exc}"[:200], "reason": "scan_error"}
 
