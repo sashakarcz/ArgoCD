@@ -299,7 +299,8 @@ data:
     import json
     import os
     import sys
-    import urllib.request
+
+    import requests
 
 
     def main():
@@ -337,14 +338,16 @@ data:
             "color": color,
             "fields": fields,
         }
-        body = json.dumps({"username": "Wazuh", "embeds": [embed]}).encode()
-        req = urllib.request.Request(hook, data=body, headers={
-            "Content-Type": "application/json",
-            # Discord's WAF 403s the default Python-urllib User-Agent.
-            "User-Agent": "Wazuh-Discord-Integration/1.0",
-        })
         try:
-            urllib.request.urlopen(req, timeout=10)
+            # requests carries its own certifi CA bundle, so TLS verification
+            # works in the manager pod (the bundled python's urllib could not
+            # find a CA bundle). The custom User-Agent avoids Discord's WAF 403.
+            requests.post(
+                hook,
+                json={"username": "Wazuh", "embeds": [embed]},
+                headers={"User-Agent": "Wazuh-Discord-Integration/1.0"},
+                timeout=10,
+            ).raise_for_status()
         except Exception as exc:
             sys.stderr.write("custom-discord: post failed: %s\n" % exc)
         return 0
