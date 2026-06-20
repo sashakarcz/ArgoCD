@@ -206,6 +206,17 @@ data:
         <log_format>syslog</log_format>
         <location>/var/ossec/logs/active-responses.log</location>
       </localfile>
+
+      <!-- Discord alerting for high-severity alerts (level >= 12, which
+           includes the falco_high group). The webhook URL is read from the
+           DISCORD_WEBHOOK_URL env var (Vault secret/cluster/wazuh-secrets),
+           NOT from git; the hook_url below is an ignored placeholder. -->
+      <integration>
+        <name>custom-discord</name>
+        <hook_url>https://localhost/managed-via-env</hook_url>
+        <level>12</level>
+        <alert_format>json</alert_format>
+      </integration>
     </ossec_config>
 
   filebeat.yml: |
@@ -269,6 +280,75 @@ data:
         <group>falco_high,</group>
       </rule>
     </group>
+
+  # Wazuh -> Discord integration scripts, seeded onto the integrations PVC by
+  # the seed-integrations initContainer. Webhook URL comes from the env var
+  # DISCORD_WEBHOOK_URL (Vault secret/cluster/wazuh-secrets).
+  custom-discord: |
+    #!/bin/sh
+    # Wazuh runs this wrapper; delegate to the poster using Wazuh's bundled
+    # python (fallback: system python3). $1=alert file, $2=api key, $3=hook url.
+    DIR=$(dirname "$0")
+    WPY=/var/ossec/framework/python/bin/python3
+    if [ -x "$WPY" ]; then exec "$WPY" "$DIR/custom-discord.py" "$@"; fi
+    exec python3 "$DIR/custom-discord.py" "$@"
+  custom-discord.py: |
+    #!/usr/bin/env python3
+    """Wazuh -> Discord: post a severity-colored embed per routed alert.
+    Webhook URL from $DISCORD_WEBHOOK_URL (Vault), else argv[3]."""
+    import json
+    import os
+    import sys
+    import urllib.request
+
+
+    def main():
+        if len(sys.argv) < 2:
+            return 0
+        hook = os.environ.get("DISCORD_WEBHOOK_URL") or (
+            sys.argv[3] if len(sys.argv) > 3 else "")
+        if not hook or "managed-via-env" in hook:
+            sys.stderr.write("custom-discord: no DISCORD_WEBHOOK_URL set\n")
+            return 0
+        try:
+            with open(sys.argv[1]) as fh:
+                alert = json.load(fh)
+        except Exception as exc:
+            sys.stderr.write("custom-discord: cannot read alert: %s\n" % exc)
+            return 0
+        rule = alert.get("rule", {})
+        level = int(rule.get("level", 0) or 0)
+        color = 0xE01E5A if level >= 12 else 0xECB22E if level >= 7 else 0x2EB67D
+        agent = alert.get("agent", {}).get("name", "?")
+        groups = (", ".join(rule.get("groups", [])) or "-")[:1024]
+        fields = [
+            {"name": "Agent", "value": str(agent)[:256], "inline": True},
+            {"name": "Rule", "value": str(rule.get("id", "?")), "inline": True},
+            {"name": "Level", "value": str(level), "inline": True},
+            {"name": "Groups", "value": groups, "inline": False},
+        ]
+        full_log = alert.get("full_log")
+        if full_log:
+            fields.append(
+                {"name": "Log", "value": str(full_log)[:1000], "inline": False})
+        embed = {
+            "title": ("[L%d] %s" % (
+                level, rule.get("description", "Wazuh alert")))[:256],
+            "color": color,
+            "fields": fields,
+        }
+        body = json.dumps({"username": "Wazuh", "embeds": [embed]}).encode()
+        req = urllib.request.Request(
+            hook, data=body, headers={"Content-Type": "application/json"})
+        try:
+            urllib.request.urlopen(req, timeout=10)
+        except Exception as exc:
+            sys.stderr.write("custom-discord: post failed: %s\n" % exc)
+        return 0
+
+
+    if __name__ == "__main__":
+        sys.exit(main())
 
 ---
 apiVersion: v1
@@ -369,6 +449,24 @@ spec:
         - name: wazuh-config
           mountPath: /rules-src
           readOnly: true
+      # Seed the git-managed Discord integration onto the integrations PVC.
+      - name: seed-integrations
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          for f in custom-discord custom-discord.py; do
+            cp /config-src/$f /var/ossec/integrations/$f
+            chown 101:101 /var/ossec/integrations/$f
+            chmod 750 /var/ossec/integrations/$f
+          done
+        volumeMounts:
+        - name: wazuh-integrations
+          mountPath: /var/ossec/integrations
+        - name: wazuh-config
+          mountPath: /config-src
+          readOnly: true
       containers:
       - name: wazuh-manager
         image: wazuh/wazuh-manager:4.14.1
@@ -403,6 +501,13 @@ spec:
             secretKeyRef:
               name: wazuh-secrets
               key: API_PASSWORD
+        # Webhook URL for the custom-discord integration (Vault-synced secret).
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: wazuh-secrets
+              key: DISCORD_WEBHOOK_URL
+              optional: true
         volumeMounts:
         - name: wazuh-config
           mountPath: /wazuh-config-mount/etc/ossec.conf
