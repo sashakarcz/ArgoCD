@@ -461,7 +461,10 @@ spec:
         - |
           for f in custom-discord custom-discord.py; do
             cp /config-src/$f /var/ossec/integrations/$f
-            chown 101:101 /var/ossec/integrations/$f
+            # root:wazuh 0750 -- integratord (runs as wazuh) refuses to exec a
+            # script it can write, so owner must be root, matching the bundled
+            # integrations (slack, pagerduty, ...).
+            chown 0:101 /var/ossec/integrations/$f
             chmod 750 /var/ossec/integrations/$f
           done
         volumeMounts:
