@@ -408,6 +408,11 @@ kind: StatefulSet
 metadata:
   name: wazuh-manager
   namespace: wazuh
+  annotations:
+    # Roll the manager when its ConfigMap (rules / integration scripts /
+    # ossec.conf) or Secrets change -- otherwise a ConfigMap-only change does
+    # not re-run the seed initContainers. Matches homepage/ouija-board.
+    reloader.stakater.com/auto: "true"
 spec:
   serviceName: wazuh-manager
   replicas: 1
