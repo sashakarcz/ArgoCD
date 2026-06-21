@@ -18,9 +18,6 @@ data:
       - name: accounts-qml-module
         approved: true
         note: dependency
-      - name: arkenfox-autoconfig
-        approved: true
-        note: dependency
       - name: backblaze-b2-bin
         approved: true
         note: explicit
@@ -76,9 +73,6 @@ data:
         approved: true
         note: explicit
       - name: firedragon-extension-plasma-integration
-        approved: true
-        note: explicit
-      - name: firefox-arkenfox-autoconfig
         approved: true
         note: explicit
       - name: fleet-osquery
@@ -151,9 +145,6 @@ data:
         approved: true
         note: explicit
       - name: google-chrome
-        approved: true
-        note: explicit
-      - name: google-cloud-cli
         approved: true
         note: explicit
       - name: grantlee
