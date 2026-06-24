@@ -75,9 +75,6 @@ data:
       - name: firedragon-extension-plasma-integration
         approved: true
         note: explicit
-      - name: fleet-osquery
-        approved: true
-        note: explicit
       - name: floorp-bin
         approved: true
         note: explicit
