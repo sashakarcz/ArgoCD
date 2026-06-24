@@ -30,9 +30,6 @@ data:
       - name: blesh
         approved: true
         note: explicit
-      - name: botan2
-        approved: true
-        note: dependency
       - name: butane
         approved: true
         note: explicit
