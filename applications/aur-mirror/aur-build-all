@@ -22,6 +22,7 @@ Exit codes (sign / all phase):
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -106,6 +107,83 @@ def installed_version(pkg: str) -> str | None:
         if name == pkg and len(rest) == 2:
             return "-".join(rest)
     return None
+
+
+def vercmp(a: str, b: str) -> int:
+    """pacman vercmp: <0 if a<b, 0 if equal, >0 if a>b. 0 on parse error."""
+    r = subprocess.run(["vercmp", a, b], capture_output=True, text=True)
+    try:
+        return int(r.stdout.strip())
+    except ValueError:
+        return 0
+
+
+def current_python() -> str | None:
+    """The build host's python minor version (e.g. '3.14'), or None."""
+    try:
+        r = subprocess.run(
+            ["python3", "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
+            capture_output=True, text=True, check=True,
+        )
+        return r.stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def published_python_versions() -> dict[str, str]:
+    """Map pkgname -> the python minor version (e.g. '3.13') its published
+    package was built against, read from the repo .files db in one pass.
+
+    A python minor bump (3.13 -> 3.14) relocates a package's site-packages to a
+    new /usr/lib/pythonX.Y/ dir but does NOT change its pkgver, so the normal
+    version-skip would leave it stranded under the old python. Comparing this to
+    current_python() catches that. Only python packages (those shipping
+    /usr/lib/pythonX.Y/ files) appear in the map.
+    """
+    files_db = REPO_DIR / f"{REPO_NAME}.files.tar.gz"
+    out: dict[str, str] = {}
+    if not files_db.exists():
+        return out
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            subprocess.run(["tar", "-xzf", str(files_db), "-C", td], check=True)
+        except (OSError, subprocess.CalledProcessError):
+            return out
+        for files_path in Path(td).glob("*/files"):
+            # Dir name is "pkgname-pkgver-pkgrel"; strip the last two fields.
+            name, *rest = files_path.parent.name.rsplit("-", 2)
+            if len(rest) != 2:
+                continue
+            m = re.search(
+                r"usr/lib/python(\d+\.\d+)/",
+                files_path.read_text(errors="replace"),
+            )
+            if m:
+                out[name] = m.group(1)
+    return out
+
+
+def bump_pkgrel_for_python(pkg_subdir: Path, pkg: str, py_now: str) -> None:
+    """Append the python minor (e.g. '14') to pkgrel so a toolchain rebuild
+    outranks the AUR original and clients actually upgrade: pkgrel=4 ->
+    pkgrel=4.14 for python 3.14. Deterministic per python version, and a real
+    AUR pkgrel bump still supersedes it (vercmp 5 > 4.14). Mirrors what Arch does
+    when it rebuilds its own python packages on a python bump.
+    """
+    minor = py_now.split(".")[-1]          # '3.14' -> '14'
+    pkgbuild = pkg_subdir / "PKGBUILD"
+    try:
+        text = pkgbuild.read_text()
+    except OSError:
+        return
+    m = re.search(r"(?m)^pkgrel=(\d+)", text)
+    if not m:
+        log.warning("Cannot bump pkgrel for %s (missing/non-integer pkgrel)", pkg)
+        return
+    new_rel = f"{m.group(1)}.{minor}"
+    text = re.sub(r"(?m)^pkgrel=\d+(?:\.\d+)?", f"pkgrel={new_rel}", text, count=1)
+    pkgbuild.write_text(text)
+    log.info("Bumped %s pkgrel -> %s (rebuilt for python %s)", pkg, new_rel, py_now)
 
 
 def refresh_system() -> None:
@@ -454,17 +532,37 @@ def run_build_phase() -> int:
     except subprocess.CalledProcessError as exc:
         log.warning("System refresh failed (continuing): %s", exc)
 
+    # A python minor bump relocates a package's site-packages without changing
+    # its pkgver, leaving it stranded under the old python. Detect such packages
+    # once (from the repo .files db) so we rebuild + pkgrel-bump them below.
+    py_now = current_python()
+    py_versions = published_python_versions() if py_now else {}
+    py_stale_pkgs = {p for p, v in py_versions.items() if v != py_now}
+    if py_stale_pkgs:
+        log.info(
+            "Python is %s; %d package(s) built for an older python will be "
+            "rebuilt + pkgrel-bumped: %s",
+            py_now, len(py_stale_pkgs), ", ".join(sorted(py_stale_pkgs)),
+        )
+
     for entry in packages:
         pkg = entry["name"]
         source = entry.get("source")  # git URL for first-party (non-AUR) packages
         log.info("-- Processing: %s --", pkg)
 
+        # Rebuild if a python minor bump stranded this package under an old
+        # python, even when its pkgver is unchanged.
+        py_stale = pkg in py_stale_pkgs
+
         # Git-sourced packages have no AUR version; always (re)build them.
         if not source:
             aur_ver = aur_version(pkg)
             repo_ver = installed_version(pkg)
-            if aur_ver and aur_ver == repo_ver:
-                log.info("Up to date (%s), skipping.", aur_ver)
+            # Up to date = repo already has this AUR version or newer (vercmp, so
+            # a prior python pkgrel-bump like 4.14 isn't seen as "older than" 4).
+            up_to_date = bool(aur_ver and repo_ver and vercmp(aur_ver, repo_ver) <= 0)
+            if up_to_date and not py_stale:
+                log.info("Up to date (%s), skipping.", repo_ver)
                 skipped += 1
                 continue
 
@@ -478,6 +576,11 @@ def run_build_phase() -> int:
                 log.error("Fetch FAILED for %s", pkg)
                 failed[pkg] = _hold("build_error", "PKGBUILD fetch failed")
                 continue
+
+            # 1b. Stranded by a python bump: raise pkgrel so the rebuilt artifact
+            #     outranks the old one and clients actually upgrade on `pac update`.
+            if py_stale and not source:
+                bump_pkgrel_for_python(pkg_subdir, pkg, py_now)
 
             # 2. Claude PKGBUILD scan -- before any code runs
             verdict = claude_scan_pkgbuild(pkg_subdir, pkg)
