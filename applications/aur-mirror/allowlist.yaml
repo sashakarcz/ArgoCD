@@ -144,9 +144,6 @@ data:
       - name: grantlee
         approved: true
         note: dependency
-      - name: grpcurl-bin
-        approved: true
-        note: explicit
       - name: gtk2
         approved: true
         note: dependency
