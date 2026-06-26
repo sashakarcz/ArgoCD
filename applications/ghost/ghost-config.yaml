@@ -311,3 +311,48 @@ spec:
     - secretName: ghost-tls
       hosts:
         - ghost.starnix.net
+
+---
+# Egress lockdown for this internet-exposed namespace. Ghost (and its mysql)
+# may reach only DNS, their own namespace (ghost <-> ghost-mysql), and the
+# PUBLIC internet (smtp.gmail.com for mail). All internal targets are blocked,
+# so a compromised container cannot pivot to the k8s API, other namespaces,
+# the LAN, or Vault. NFS data is mounted node-side and is unaffected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ghost-egress-lockdown
+  namespace: ghost
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # within its own namespace (ghost -> ghost-mysql)
+    - to:
+        - podSelector: {}
+    # public internet only -- every private/internal range excluded:
+    #   10/8 (cluster pod+svc CIDR, k8s API), 172.16/12, 192.168/16 (LAN),
+    #   169.254/16 (link-local/metadata), 100.64/10 (Tailscale)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
