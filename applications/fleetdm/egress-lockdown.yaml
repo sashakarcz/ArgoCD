@@ -1,0 +1,42 @@
+# Egress lockdown (internet-exposed). DNS + own namespace (mysql, redis) + the
+# public internet (vulnerability/CVE feeds; osquery agents connect inbound via
+# the Ingress, not egress). No k8s API and no LAN are needed -- the earlier
+# "kubernetes.default.svc" was just the ArgoCD Application destination field in
+# application.yaml, not a fleet runtime dependency. Vault is reached by VSO, not
+# by fleet. All other internal targets dropped. NFS PVs node-side, unaffected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fleetdm-egress-lockdown
+  namespace: fleetdm
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # within its own namespace (fleet <-> mysql, redis)
+    - to:
+        - podSelector: {}
+    # public internet only -- every private/internal range excluded
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
