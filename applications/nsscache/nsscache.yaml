@@ -190,3 +190,37 @@ spec:
     name: nsscache-secrets
     create: true
   refreshAfter: 1h
+---
+# Egress lockdown for this internet-exposed namespace. nsscache only syncs
+# user/group/shadow maps from FreeIPA (ipa1.starnix.net -> 192.168.1.24) over
+# LDAP and serves the cache on :8080 (ingress, unaffected). It needs NOTHING
+# else outbound -- not the internet, not the k8s API, not other namespaces, not
+# the rest of the LAN -- so this is the tightest policy of the set: DNS to
+# CoreDNS + FreeIPA only. A compromise here can't pivot or exfiltrate.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nsscache-egress-lockdown
+  namespace: nsscache
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS (to resolve ipa1.starnix.net)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # FreeIPA -- the only host nsscache talks to (LDAP simple bind)
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.24/32
