@@ -214,14 +214,13 @@ spec:
   - Ingress
   - Egress
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ingress-nginx
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: argocd
-    ports:
+  # Internal notification hub: allow any in-cluster pod to POST notifications,
+  # plus the Traefik-fronted web UI, on 8000. The old allow-list (ingress-nginx
+  # [obsolete -- now Traefik] + argocd) was inert under Flannel but, once Cilium
+  # began enforcing NetworkPolicy, silently dropped borgwarehouse and every
+  # other sender (and the web UI via Traefik). Egress below still constrains
+  # what apprise itself can reach out to.
+  - ports:
     - protocol: TCP
       port: 8000
   egress:
