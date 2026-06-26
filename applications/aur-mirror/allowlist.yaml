@@ -34,8 +34,8 @@ data:
         approved: true
         note: explicit
       - name: cheese
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: chromium-extension-web-store
         approved: true
         note: explicit
@@ -43,20 +43,20 @@ data:
         approved: true
         note: explicit
       - name: claude-desktop-native
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: clutter
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: clutter-gst
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: clutter-gtk
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: cogl
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: ds9-bin
         approved: true
         note: explicit
@@ -64,62 +64,62 @@ data:
         approved: true
         note: explicit
       - name: fingerprint-gui
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: firedragon-bin
         approved: true
         note: explicit
       - name: firedragon-extension-plasma-integration
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: floorp-bin
         approved: true
         note: explicit
       - name: flutter
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- Claude flagged high/critical]
       - name: flutter-artifacts-engine-android-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-artifacts-engine-common-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-artifacts-engine-linux-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-artifacts-engine-web-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-artifacts-material-fonts-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-artifacts-sky-engine-google-bin
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-common
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-devel
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-gradle
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-intellij-patch
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-target-android
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-target-linux
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-target-web
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: flutter-tool
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: fprintd-clients-git
         approved: true
         note: dependency
@@ -127,8 +127,8 @@ data:
         approved: true
         note: explicit
       - name: garuda-mokka
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: geekbench
         approved: true
         note: explicit
@@ -136,101 +136,101 @@ data:
         approved: true
         note: dependency
       - name: gnu-netcat
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: google-chrome
         approved: true
         note: explicit
       - name: grantlee
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: interspec-bin
         approved: true
         note: explicit
       - name: kdesu5
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: kdoctools5
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: kinit
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: kopia-ui-bin
         approved: true
         note: explicit
       - name: kplotting5
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: kubelogin
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: kunitconversion5
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: kwin-effect-rounded-corners-git
         approved: true
         note: explicit
       - name: kwin-effects-forceblur
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: lagrange
         approved: true
         note: explicit
       - name: lib32-glew1.10
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libappindicator-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libdbusmenu-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libgcrypt15
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libidn11
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libindicator-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libjpeg6-turbo
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libpng12
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-librtmp0
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libtiff4
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libudev0-shim
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-libvpx1.3
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: lib32-openssl-1.1
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libcheese
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
       - name: libcutl
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libdbusmenu-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libestr
         approved: true
         note: dependency
@@ -244,35 +244,35 @@ data:
         approved: true
         note: dependency
       - name: libidn11
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: libindicator-gtk2
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libjpeg6-turbo
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libkcompactdisc
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libkolabxml
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: liblogging
         approved: true
         note: dependency
       - name: libpng12
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: librelp
         approved: true
         note: dependency
       - name: librtmp0
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libsoup
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libsvbony
         approved: true
         note: explicit
@@ -283,23 +283,23 @@ data:
         approved: true
         note: dependency
       - name: libudev0-shim
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libvpx1.3
         approved: true
         note: dependency
       - name: libxsd
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: libxsd-frontend
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: megacmd
         approved: true
         note: explicit
       - name: meshtastic-python
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: meshtasticd-bin
         approved: true
         note: explicit
@@ -310,23 +310,23 @@ data:
         approved: true
         note: explicit
       - name: mqtt-explorer
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: nojava-ipmi-kvm-docker
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: open-fprintd
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: openrefine
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: openssl-1.0
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: openssl-1.1
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: pac
         approved: true
         note: explicit
@@ -335,8 +335,8 @@ data:
         approved: true
         note: explicit
       - name: phantomjs
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: piper-tts-bin
         approved: true
         note: explicit
@@ -350,80 +350,80 @@ data:
         approved: true
         note: explicit
       - name: playonlinux
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: protonup-qt
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: publii
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: purpose5
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-bjoern
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: python-diskcache
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-fvs
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-gevent-eventemitter
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-hierplace
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-inputs
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-inspice
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-kinet2pcb
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-kinparse
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-pathvalidate
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-pipe
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-pytest-runner
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-pythondialog
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-setuptools-reproducible
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-simp-sexp
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-skidl
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: python-steam
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- Claude flagged high/critical]
       - name: python-steamgriddb
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- Claude flagged high/critical]
       - name: python-sysv_ipc
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: python-validity
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: python-yacl
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: qt5-doc
         approved: true
         note: dependency
@@ -437,17 +437,17 @@ data:
         approved: true
         note: dependency
       - name: qt5-webengine
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: qt5-webkit
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: qt5-websockets
         approved: true
         note: dependency
       - name: rsyslog
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: rustdesk-bin
         approved: true
         note: explicit
@@ -464,14 +464,14 @@ data:
         approved: true
         note: explicit
       - name: systemd-swap
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: terracognita
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: terraformer
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: topcat
         approved: true
         note: explicit
@@ -482,38 +482,38 @@ data:
         approved: true
         note: explicit
       - name: visual-studio-code-bin
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: vkbasalt-cli
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: wasi-compiler-rt21
         approved: true
         note: dependency
       - name: wazuh-agent
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: weasis-bin
         approved: true
         note: explicit
       - name: weatherfetch
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: webkit2gtk
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: winboat-bin
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
       - name: wps-office
         approved: true
         note: explicit
       - name: xf86-video-vmware
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: xsd
-        approved: true
-        note: dependency
+        approved: false
+        note: dependency [held 2026-06-26 -- build fails]
       - name: xwayland-run
         approved: true
         note: dependency
@@ -521,29 +521,29 @@ data:
         approved: true
         note: explicit
       - name: yubikey-manager-qt
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: zen-browser-bin
         approved: true
         note: explicit
       - name: zfs-dkms
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: zfs-utils
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: zoom
         approved: true
         note: explicit
       - name: spotify
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- build fails]
       - name: dmemcg-booster
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
       - name: kcgroups-dmemcg
         approved: true
         note: dependency
       - name: plasma-foreground-booster-dmemcg
-        approved: true
-        note: explicit
+        approved: false
+        note: explicit [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
