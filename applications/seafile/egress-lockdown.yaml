@@ -1,0 +1,41 @@
+# Egress lockdown (internet-exposed). DNS + own namespace (mariadb/redis) + MinIO object store on the LAN (192.168.1.150, its block backend) + the public internet. Everything else internal dropped. NFS PVs node-side, unaffected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seafile-egress-lockdown
+  namespace: seafile
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # within its own namespace (seafile <-> mariadb, redis)
+    - to:
+        - podSelector: {}
+    # MinIO/S3 block storage on the LAN -- the only LAN host allowed
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.150/32
+    # public internet only -- every private/internal range excluded
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
