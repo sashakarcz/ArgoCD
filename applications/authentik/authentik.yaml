@@ -491,3 +491,52 @@ spec:
   - port: metrics
     path: /metrics
     interval: 30s
+---
+# Egress lockdown for this internet-exposed namespace. Authentik (server,
+# worker, postgresql, redis, ldap/radius outposts) may reach only: DNS, its own
+# namespace (DB/redis/outposts are all here), FreeIPA on the LAN (the one LAN
+# host it federates with), and the PUBLIC internet (smtp.gmail.com for mail).
+# Everything else internal -- the k8s API, other namespaces, the rest of the
+# LAN, Vault -- is dropped, so a compromise can't pivot. Ingress is untouched
+# (Traefik reachability + Prometheus scraping + internal apps' auth calls all
+# still work). NFS data is mounted node-side and is unaffected.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: authentik-egress-lockdown
+  namespace: authentik
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS to CoreDNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # within its own namespace (server <-> postgresql, redis, ldap/radius outposts)
+    - to:
+        - podSelector: {}
+    # FreeIPA on the LAN (LDAP federation source) -- the only LAN host allowed
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.24/32
+    # public internet only -- all other internal/LAN ranges excluded
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
