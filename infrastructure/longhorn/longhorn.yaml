@@ -15,6 +15,11 @@ spec:
       releaseName: longhorn
       values: |
         persistence:
+          # Retain so a PVC delete (e.g. an ArgoCD prune during a node flap, as
+          # happened to jellyfin 2026-06-27) can never destroy the Longhorn
+          # volume + data. Trade-off: intentional PVC deletes leave orphaned
+          # Released PVs/volumes to clean up by hand (kubectl get pv | grep Released).
+          reclaimPolicy: Retain
           defaultClassReplicaCount: 3
           migratable: true
           recurringJobSelector:
