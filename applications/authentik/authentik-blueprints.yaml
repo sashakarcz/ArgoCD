@@ -1,0 +1,644 @@
+---
+# POSIX identity backfill blueprint for the FreeIPA -> Authentik migration.
+# Mounted into the authentik-worker at /blueprints/custom and auto-applied.
+# Source of truth: ~/freeipa-migration/authentik_posix_backfill.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-posix
+  namespace: authentik
+data:
+  posix-backfill.yaml: |
+    # Authentik blueprint: POSIX identity backfill for FreeIPA -> Authentik migration
+    # Generated from ipa_users.csv / ipa_groups.csv. ADDITIVE + idempotent.
+    # Commit to your Authentik/ArgoCD repo (GitOps).
+    #
+    # Verified live (read-only) against auth.starnix.net 2026.5.3:
+    #  - all 31 IPA users exist in Authentik but lack POSIX attrs (only sasha had a
+    #    partial uidNumber) -> this sets uidNumber/gidNumber/homeDirectory/loginShell.
+    #  - 13 of 14 real groups exist as LDAP-synced groups with membership already
+    #    matching IPA; this only ADDS gidNumber (no membership writes -> zero RBAC risk).
+    #    The Authentik-native SUPERUSER groups have different names and are untouched.
+    #  - uidNumber stored as integer (matches sasha's existing value).
+    # PREREQ: ensure the LDAP provider/outpost emits these attributes (assign the
+    #   goauthentik POSIX property mappings if needed); confirm with the parity gate.
+    version: 1
+    metadata:
+      name: posix-backfill-from-freeipa
+    entries:
+      # ---- 31 users: set POSIX attributes (merged onto existing synced users) ----
+      - model: authentik_core.user
+        identifiers:
+          username: admin
+        attrs:
+          attributes:
+            uidNumber: 1730000000
+            gidNumber: 1730000000
+            homeDirectory: /home/admin
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: bair
+        attrs:
+          attributes:
+            uidNumber: 1995400001
+            gidNumber: 1995400001
+            homeDirectory: /home/bair
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: bind
+        attrs:
+          attributes:
+            uidNumber: 1730000015
+            gidNumber: 1730000015
+            homeDirectory: /home/bind
+            loginShell: /bin/nologin
+      - model: authentik_core.user
+        identifiers:
+          username: borg
+        attrs:
+          attributes:
+            uidNumber: 1001
+            gidNumber: 1001
+            homeDirectory: /home/borg
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: dknapp
+        attrs:
+          attributes:
+            uidNumber: 1730000031
+            gidNumber: 1730000031
+            homeDirectory: /home/dknapp
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: finn
+        attrs:
+          attributes:
+            uidNumber: 1995400019
+            gidNumber: 1995400019
+            homeDirectory: /home/finn
+            loginShell: /bin/zsh
+      - model: authentik_core.user
+        identifiers:
+          username: foo
+        attrs:
+          attributes:
+            uidNumber: 1730000034
+            gidNumber: 1730000034
+            homeDirectory: /home/foo
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: jason
+        attrs:
+          attributes:
+            uidNumber: 1730000014
+            gidNumber: 1730000014
+            homeDirectory: /home/jason
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: karlin
+        attrs:
+          attributes:
+            uidNumber: 1730000035
+            gidNumber: 1730000035
+            homeDirectory: /home/karlin
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: knight
+        attrs:
+          attributes:
+            uidNumber: 1730000022
+            gidNumber: 1730000022
+            homeDirectory: /home/knight
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: mandy
+        attrs:
+          attributes:
+            uidNumber: 1995400021
+            gidNumber: 1995400021
+            homeDirectory: /home/mandy
+            loginShell: /bin/sh
+      - model: authentik_core.user
+        identifiers:
+          username: mimir
+        attrs:
+          attributes:
+            uidNumber: 1730000025
+            gidNumber: 1730000025
+            homeDirectory: /home/mimir
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: radius
+        attrs:
+          attributes:
+            uidNumber: 1730000008
+            gidNumber: 1730000008
+            homeDirectory: /home/radius
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: rslab
+        attrs:
+          attributes:
+            uidNumber: 1730000018
+            gidNumber: 1730000018
+            homeDirectory: /dev/null
+            loginShell: /bin/nologin
+      - model: authentik_core.user
+        identifiers:
+          username: rslarson
+        attrs:
+          attributes:
+            uidNumber: 1730000023
+            gidNumber: 1730000023
+            homeDirectory: /home/rslarson
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: sasha
+        attrs:
+          attributes:
+            uidNumber: 1995400005
+            gidNumber: 1995400005
+            homeDirectory: /home/sasha
+            loginShell: /usr/bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: sspr
+        attrs:
+          attributes:
+            uidNumber: 1730000033
+            gidNumber: 1730000033
+            homeDirectory: /home/sspr
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc-mac-bind
+        attrs:
+          attributes:
+            uidNumber: 1730000038
+            gidNumber: 1730000038
+            homeDirectory: /home/svc-mac-bind
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_authentik
+        attrs:
+          attributes:
+            uidNumber: 1730000020
+            gidNumber: 1730000020
+            homeDirectory: /home/svc_authentik
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_graylog
+        attrs:
+          attributes:
+            uidNumber: 1730000037
+            gidNumber: 1730000037
+            homeDirectory: /home/svc_graylog
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_grocy
+        attrs:
+          attributes:
+            uidNumber: 1730000043
+            gidNumber: 1730000043
+            homeDirectory: /home/svc_grocy
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_jellyfin
+        attrs:
+          attributes:
+            uidNumber: 1730000044
+            gidNumber: 1730000044
+            homeDirectory: /home/svc_jellyfin
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_macos_sync
+        attrs:
+          attributes:
+            uidNumber: 1730000039
+            gidNumber: 1730000039
+            homeDirectory: /home/svc_macos_sync
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_metabase
+        attrs:
+          attributes:
+            uidNumber: 1730000030
+            gidNumber: 1730000030
+            homeDirectory: /dev/null
+            loginShell: /bin/nologin
+      - model: authentik_core.user
+        identifiers:
+          username: svc_nsscache
+        attrs:
+          attributes:
+            uidNumber: 1730000045
+            gidNumber: 1730000045
+            homeDirectory: /home/svc_nsscache
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_ollama
+        attrs:
+          attributes:
+            uidNumber: 1730000036
+            gidNumber: 1730000036
+            homeDirectory: /home/svc_ollama
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_vault
+        attrs:
+          attributes:
+            uidNumber: 1730000028
+            gidNumber: 1730000028
+            homeDirectory: /home/svc_vault
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: svc_warpgate
+        attrs:
+          attributes:
+            uidNumber: 1730000048
+            gidNumber: 1730000048
+            homeDirectory: /home/svc_warpgate
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: test
+        attrs:
+          attributes:
+            uidNumber: 1730000021
+            gidNumber: 1730000021
+            homeDirectory: /home/test
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: vance
+        attrs:
+          attributes:
+            uidNumber: 1730000040
+            gidNumber: 1730000040
+            homeDirectory: /home/vance
+            loginShell: /bin/bash
+      - model: authentik_core.user
+        identifiers:
+          username: xyzchris
+        attrs:
+          attributes:
+            uidNumber: 1730000024
+            gidNumber: 1730000024
+            homeDirectory: /home/xyzchris
+            loginShell: /bin/bash
+      # ---- 14 real shared groups: ADD gidNumber only (additive).
+      # 13 already exist as LDAP-synced groups with correct members; 'Default SMB
+      # Group' will be created. Member lists left as comments (see note above). ----
+      - model: authentik_core.group
+        identifiers:
+          name: admin_sudoers
+        attrs:
+          attributes:
+            gidNumber: 1730000047
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, rslarson]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+      - model: authentik_core.group
+        identifiers:
+          name: admins
+        attrs:
+          attributes:
+            gidNumber: 1730000000
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, admin]]
+          #   - !Find [authentik_core.user, [username, sspr]]
+      - model: authentik_core.group
+        identifiers:
+          name: breakglass
+        attrs:
+          attributes:
+            gidNumber: 1730000046
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, rslarson]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+      - model: authentik_core.group
+        identifiers:
+          name: "Default SMB Group"
+        attrs:
+          attributes:
+            gidNumber: 1730000007
+      - model: authentik_core.group
+        identifiers:
+          name: duo_users
+        attrs:
+          attributes:
+            gidNumber: 1730000017
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, finn]]
+          #   - !Find [authentik_core.user, [username, jason]]
+          #   - !Find [authentik_core.user, [username, rslarson]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+          #   - !Find [authentik_core.user, [username, xyzchris]]
+      - model: authentik_core.group
+        identifiers:
+          name: editors
+        attrs:
+          attributes:
+            gidNumber: 1730000002
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, sspr]]
+      - model: authentik_core.group
+        identifiers:
+          name: nomad
+        attrs:
+          attributes:
+            gidNumber: 1730000032
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, sasha]]
+      - model: authentik_core.group
+        identifiers:
+          name: rad
+        attrs:
+          attributes:
+            gidNumber: 1730000013
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, radius]]
+      - model: authentik_core.group
+        identifiers:
+          name: shell-access
+        attrs:
+          attributes:
+            gidNumber: 1730000049
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, finn]]
+          #   - !Find [authentik_core.user, [username, jason]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+          #   - !Find [authentik_core.user, [username, vance]]
+      - model: authentik_core.group
+        identifiers:
+          name: uccp
+        attrs:
+          attributes:
+            gidNumber: 1730000027
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, sasha]]
+      - model: authentik_core.group
+        identifiers:
+          name: viewer
+        attrs:
+          attributes:
+            gidNumber: 1730000016
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bind]]
+      - model: authentik_core.group
+        identifiers:
+          name: vpn
+        attrs:
+          attributes:
+            gidNumber: 1730000009
+      - model: authentik_core.group
+        identifiers:
+          name: wheel
+        attrs:
+          attributes:
+            gidNumber: 10
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, finn]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+          #   - !Find [authentik_core.user, [username, sspr]]
+      - model: authentik_core.group
+        identifiers:
+          name: wifi
+        attrs:
+          attributes:
+            gidNumber: 1730000019
+          # membership already matches IPA via the LDAP source (verified).
+          # Activate ONLY after the IPA LDAP source is removed (Phase 4+):
+          # users:
+          #   - !Find [authentik_core.user, [username, bair]]
+          #   - !Find [authentik_core.user, [username, finn]]
+          #   - !Find [authentik_core.user, [username, sasha]]
+      # ---- 30 user-private-groups: CREATE with gidNumber (no members).
+      # Included for exact `getent group <gid>` parity (you asked to include them). ----
+      - model: authentik_core.group
+        identifiers:
+          name: borg
+        attrs:
+          attributes:
+            gidNumber: 1001
+      - model: authentik_core.group
+        identifiers:
+          name: radius
+        attrs:
+          attributes:
+            gidNumber: 1730000008
+      - model: authentik_core.group
+        identifiers:
+          name: jason
+        attrs:
+          attributes:
+            gidNumber: 1730000014
+      - model: authentik_core.group
+        identifiers:
+          name: bind
+        attrs:
+          attributes:
+            gidNumber: 1730000015
+      - model: authentik_core.group
+        identifiers:
+          name: rslab
+        attrs:
+          attributes:
+            gidNumber: 1730000018
+      - model: authentik_core.group
+        identifiers:
+          name: svc_authentik
+        attrs:
+          attributes:
+            gidNumber: 1730000020
+      - model: authentik_core.group
+        identifiers:
+          name: test
+        attrs:
+          attributes:
+            gidNumber: 1730000021
+      - model: authentik_core.group
+        identifiers:
+          name: knight
+        attrs:
+          attributes:
+            gidNumber: 1730000022
+      - model: authentik_core.group
+        identifiers:
+          name: rslarson
+        attrs:
+          attributes:
+            gidNumber: 1730000023
+      - model: authentik_core.group
+        identifiers:
+          name: xyzchris
+        attrs:
+          attributes:
+            gidNumber: 1730000024
+      - model: authentik_core.group
+        identifiers:
+          name: mimir
+        attrs:
+          attributes:
+            gidNumber: 1730000025
+      - model: authentik_core.group
+        identifiers:
+          name: svc_vault
+        attrs:
+          attributes:
+            gidNumber: 1730000028
+      - model: authentik_core.group
+        identifiers:
+          name: svc_metabase
+        attrs:
+          attributes:
+            gidNumber: 1730000030
+      - model: authentik_core.group
+        identifiers:
+          name: dknapp
+        attrs:
+          attributes:
+            gidNumber: 1730000031
+      - model: authentik_core.group
+        identifiers:
+          name: sspr
+        attrs:
+          attributes:
+            gidNumber: 1730000033
+      - model: authentik_core.group
+        identifiers:
+          name: foo
+        attrs:
+          attributes:
+            gidNumber: 1730000034
+      - model: authentik_core.group
+        identifiers:
+          name: karlin
+        attrs:
+          attributes:
+            gidNumber: 1730000035
+      - model: authentik_core.group
+        identifiers:
+          name: svc_ollama
+        attrs:
+          attributes:
+            gidNumber: 1730000036
+      - model: authentik_core.group
+        identifiers:
+          name: svc_graylog
+        attrs:
+          attributes:
+            gidNumber: 1730000037
+      - model: authentik_core.group
+        identifiers:
+          name: svc-mac-bind
+        attrs:
+          attributes:
+            gidNumber: 1730000038
+      - model: authentik_core.group
+        identifiers:
+          name: svc_macos_sync
+        attrs:
+          attributes:
+            gidNumber: 1730000039
+      - model: authentik_core.group
+        identifiers:
+          name: vance
+        attrs:
+          attributes:
+            gidNumber: 1730000040
+      - model: authentik_core.group
+        identifiers:
+          name: svc_grocy
+        attrs:
+          attributes:
+            gidNumber: 1730000043
+      - model: authentik_core.group
+        identifiers:
+          name: svc_jellyfin
+        attrs:
+          attributes:
+            gidNumber: 1730000044
+      - model: authentik_core.group
+        identifiers:
+          name: svc_nsscache
+        attrs:
+          attributes:
+            gidNumber: 1730000045
+      - model: authentik_core.group
+        identifiers:
+          name: svc_warpgate
+        attrs:
+          attributes:
+            gidNumber: 1730000048
+      - model: authentik_core.group
+        identifiers:
+          name: bair
+        attrs:
+          attributes:
+            gidNumber: 1995400001
+      - model: authentik_core.group
+        identifiers:
+          name: sasha
+        attrs:
+          attributes:
+            gidNumber: 1995400005
+      - model: authentik_core.group
+        identifiers:
+          name: finn
+        attrs:
+          attributes:
+            gidNumber: 1995400019
+      - model: authentik_core.group
+        identifiers:
+          name: mandy
+        attrs:
+          attributes:
+            gidNumber: 1995400021

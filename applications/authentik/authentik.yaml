@@ -398,6 +398,9 @@ spec:
           mountPath: /media
         - name: authentik-templates
           mountPath: /templates
+        - name: blueprint-posix
+          mountPath: /blueprints/custom
+          readOnly: true
       volumes:
       - name: authentik-media
         persistentVolumeClaim:
@@ -405,6 +408,9 @@ spec:
       - name: authentik-templates
         persistentVolumeClaim:
           claimName: authentik-templates
+      - name: blueprint-posix
+        configMap:
+          name: authentik-blueprint-posix
 
 ---
 # Ingress
