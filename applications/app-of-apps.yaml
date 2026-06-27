@@ -435,6 +435,20 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  # Statically-bound restored config volume: ignore the server-populated bind
+  # fields so a stale diff can never fail/loop the sync (which is what let a
+  # prune wipe the storage on 2026-06-27). See applications/jellyfin/jellyfin.yaml.
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec/volumeName
+    - group: ""
+      kind: PersistentVolume
+      name: jellyfin-config-restored-pv
+      jsonPointers:
+        - /spec/claimRef/uid
+        - /spec/claimRef/resourceVersion
 
 ---
 apiVersion: argoproj.io/v1alpha1

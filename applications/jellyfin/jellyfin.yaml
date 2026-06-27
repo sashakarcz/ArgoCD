@@ -30,8 +30,40 @@ spec:
 
 ---
 # Jellyfin config on Longhorn (3 replicas, RWO, dynamically provisioned).
-# Restored from tar backup on 2026-06-14 after jellyfin-config-restored
-# volume entered a persistent degraded state (all replicas healthy=False).
+# Config lives on a STATIC Longhorn PV (not dynamic) so it survives a PVC delete.
+# Restored 2026-06-27 from the 02:00 backup after an ArgoCD prune+selfHeal during
+# a control-plane node flap deleted the dynamic PVC and cascaded (reclaim=Delete)
+# into wiping the volume. Lessons baked in here:
+#   - persistentVolumeReclaimPolicy: Retain  -> a PVC delete never destroys data
+#   - PV.claimRef + PVC has NO volumeName     -> avoids the ArgoCD volumeName diff
+#     loop that was failing syncs (see fleetdm/README.md). The Application also
+#     ignoreDifferences spec.volumeName / claimRef.uid as belt-and-suspenders.
+# Underlying Longhorn volume: jellyfin-config-restored.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jellyfin-config-restored-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  storageClassName: longhorn
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: jellyfin-config-longhorn-pvc
+    namespace: jellyfin
+  csi:
+    driver: driver.longhorn.io
+    fsType: ext4
+    volumeHandle: jellyfin-config-restored
+    volumeAttributes:
+      numberOfReplicas: "3"
+      staleReplicaTimeout: "30"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -269,6 +301,10 @@ metadata:
     app: jellyfin
 spec:
   replicas: 1
+  # RWO Longhorn config volume: terminate the old pod (release the volume)
+  # before starting the new one, to avoid Multi-Attach stalls on rollout.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: jellyfin
@@ -280,6 +316,11 @@ spec:
       # Pod-level security context
       securityContext:
         fsGroup: 105
+        # Only recursively chown the volume when the top-level dir ownership
+        # doesn't already match fsGroup. Without this, every pod restart chowns
+        # the entire 20Gi config volume (33k+ metadata files), stalling the pod
+        # in ContainerCreating for minutes and making Argo appear to hang.
+        fsGroupChangePolicy: OnRootMismatch
         supplementalGroups: [44, 105]
       hostNetwork: false
       dnsPolicy: ClusterFirst
