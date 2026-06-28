@@ -334,7 +334,7 @@ data:
           - type: discord
       - name: "FreeIPA LDAP"
         group: Infrastructure
-        url: "tcp://192.168.1.24:389"
+        url: "tcp://192.168.1.26:389"
         interval: 5m
         client:
           timeout: 5s
@@ -344,7 +344,7 @@ data:
           - type: discord
       - name: "FreeIPA DNS"
         group: Infrastructure
-        url: "tcp://192.168.1.24:53"
+        url: "tcp://192.168.1.26:53"
         interval: 1m
         client:
           timeout: 5s
