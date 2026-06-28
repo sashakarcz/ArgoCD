@@ -17,7 +17,7 @@ metadata:
 data:
   config.yaml: |
     ldap:
-      host: "ipa1.starnix.net"
+      host: "ipa9.starnix.net"
       port: 636
       use_tls: true
       skip_verify: true
@@ -192,7 +192,7 @@ spec:
   refreshAfter: 1h
 ---
 # Egress lockdown for this internet-exposed namespace. nsscache only syncs
-# user/group/shadow maps from FreeIPA (ipa1.starnix.net -> 192.168.1.24) over
+# user/group/shadow maps from FreeIPA (ipa9.starnix.net -> 192.168.1.26) over
 # LDAP and serves the cache on :8080 (ingress, unaffected). It needs NOTHING
 # else outbound -- not the internet, not the k8s API, not other namespaces, not
 # the rest of the LAN -- so this is the tightest policy of the set: DNS to
@@ -207,7 +207,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS to CoreDNS (to resolve ipa1.starnix.net)
+    # DNS to CoreDNS (to resolve ipa9.starnix.net)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -220,7 +220,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # FreeIPA -- the only host nsscache talks to (LDAP simple bind)
+    # FreeIPA (ipa9, 192.168.1.26) -- the only host nsscache talks to (LDAP simple bind)
     - to:
         - ipBlock:
-            cidr: 192.168.1.24/32
+            cidr: 192.168.1.26/32
