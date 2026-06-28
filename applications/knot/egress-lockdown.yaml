@@ -32,6 +32,18 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # apprise notification hub (cross-ns) -- the reloader POSTs a Discord ping
+    # here on every zone reload; the internet-only lockdown otherwise blocks it.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: apprise
+          podSelector:
+            matchLabels:
+              app: apprise
+      ports:
+        - protocol: TCP
+          port: 8000
     # public internet only (git-sync -> github.com) -- all internal ranges dropped
     - to:
         - ipBlock:
