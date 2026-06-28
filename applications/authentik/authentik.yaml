@@ -532,10 +532,12 @@ spec:
     # within its own namespace (server <-> postgresql, redis, ldap/radius outposts)
     - to:
         - podSelector: {}
-    # FreeIPA on the LAN (LDAP federation source) -- the only LAN host allowed
+    # FreeIPA on the LAN (LDAP federation source) -- ipa9.starnix.net.
+    # Was 192.168.1.24 (old ipa1, decommissioned after the CentOS7->Rocky9
+    # migration); new server ipa9 is 192.168.1.26.
     - to:
         - ipBlock:
-            cidr: 192.168.1.24/32
+            cidr: 192.168.1.26/32
     # public internet only -- all other internal/LAN ranges excluded
     - to:
         - ipBlock:
