@@ -1,7 +1,6 @@
 ---
 # Authentik blueprints for the FreeIPA -> Authentik migration.
-# Mounted into authentik-worker at /blueprints/custom; each data key is a file,
-# auto-discovered and applied by the worker.
+# Mounted into authentik-worker at /blueprints/custom; auto-discovered + applied.
 # Sources: ~/freeipa-migration/authentik_posix_backfill.yaml, authentik_ldap_search.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -665,8 +664,10 @@ data:
           name: ldap-directory-read
         attrs:
           permissions:
-            - authentik_core.view_user
-            - authentik_core.view_group
+            # The 2024.8+ replacement for the LDAP provider "search group". This is
+            # what lets bound service accounts enumerate the whole directory.
+            # (Generic view_user/view_group do NOT grant LDAP enumeration.)
+            - authentik_providers_ldap.search_full_directory
       - model: authentik_core.group
         identifiers:
           name: ldap-search
