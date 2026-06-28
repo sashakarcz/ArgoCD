@@ -2,8 +2,7 @@
 # Authentik blueprints for the FreeIPA -> Authentik migration.
 # Mounted into authentik-worker at /blueprints/custom; each data key is a file,
 # auto-discovered and applied by the worker.
-# Sources of truth: ~/freeipa-migration/authentik_posix_backfill.yaml,
-#                   ~/freeipa-migration/authentik_ldap_search.yaml
+# Sources: ~/freeipa-migration/authentik_posix_backfill.yaml, authentik_ldap_search.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -645,29 +644,35 @@ data:
           attributes:
             gidNumber: 1995400021
   ldap-search.yaml: |
-    # Authentik blueprint: enable LDAP search for consumer service accounts.
-    # Creates the 'ldap-search' group, adds the non-superuser LDAP consumers, and
-    # sets it as the LDAP provider's search_group so they can enumerate users/groups
-    # via the outpost (ldaps://192.168.7.212:636). Without a search_group, only
-    # superusers can search -- so nsscache/Jellyfin would otherwise fail to enumerate.
+    # Authentik blueprint: let LDAP consumer service accounts ENUMERATE the directory.
     #
-    # Note: TrueNAS currently binds as uid=sasha (a superuser, so already able to
-    # search). Recommend moving TrueNAS to a dedicated service account later and
-    # adding it here instead of using a personal login.
+    # In Authentik 2026.5.3 the LDAP provider has no "search_group" field; a bound
+    # account only sees objects it has RBAC view permission on (a normal user sees
+    # just itself). So directory enumeration over the outpost requires granting the
+    # bind accounts global view_user + view_group. We do that with a role bound to
+    # the 'ldap-search' group.
+    #
+    # Members: svc_nsscache (nsscache), svc_jellyfin (Jellyfin). TrueNAS currently
+    # binds as sasha (a superuser, already able to enumerate) -- move it to a
+    # dedicated service account later and add that account here.
     version: 1
     metadata:
       name: ldap-search-enablement
     entries:
+      - model: authentik_rbac.role
+        id: ldap-read-role
+        identifiers:
+          name: ldap-directory-read
+        attrs:
+          permissions:
+            - authentik_core.view_user
+            - authentik_core.view_group
       - model: authentik_core.group
-        id: ldap-search-group
         identifiers:
           name: ldap-search
         attrs:
+          roles:
+            - !KeyOf ldap-read-role
           users:
             - !Find [authentik_core.user, [username, svc_nsscache]]
             - !Find [authentik_core.user, [username, svc_jellyfin]]
-      - model: authentik_providers_ldap.ldapprovider
-        identifiers:
-          name: "Provider for ldap"
-        attrs:
-          search_group: !KeyOf ldap-search-group
