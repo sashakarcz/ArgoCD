@@ -497,6 +497,10 @@ spec:
             repositories: |
               - type: git
                 url: https://github.com/usenix17/ArgoCD.git
+              - type: helm
+                name: vikunja
+                url: ghcr.io/go-vikunja/helm-chart
+                enableOCI: "true"
 
         configs:
           cm:
@@ -554,6 +558,62 @@ spec:
 
         applicationSet:
           enabled: true
+
+        notifications:
+          enabled: true
+          cm:
+            service.webhook.apprise: |
+              url: http://apprise.apprise.svc:8000/notify/argocd
+              headers:
+              - name: Content-Type
+                value: application/json
+            template.app-sync-succeeded: |
+              webhook:
+                apprise:
+                  method: POST
+                  body: |
+                    {
+                      "title": "{{.app.metadata.name}}",
+                      "body": "✅ **{{.app.metadata.name}}** synced successfully.\nRevision: `{{.app.status.sync.revision | trunc 7}}`\nHealth: {{.app.status.health.status}}"
+                    }
+            template.app-sync-failed: |
+              webhook:
+                apprise:
+                  method: POST
+                  body: |
+                    {
+                      "title": "{{.app.metadata.name}}",
+                      "body": "❌ **{{.app.metadata.name}}** sync failed.\n{{.app.status.operationState.message}}"
+                    }
+            template.app-health-degraded: |
+              webhook:
+                apprise:
+                  method: POST
+                  body: |
+                    {
+                      "title": "{{.app.metadata.name}}",
+                      "body": "⚠️ **{{.app.metadata.name}}** health is **Degraded**."
+                    }
+            trigger.on-sync-succeeded: |
+              - when: app.status.operationState.phase in ['Succeeded'] and app.metadata.name not in ['root', 'applications']
+                send: [app-sync-succeeded]
+            trigger.on-sync-failed: |
+              - when: app.status.operationState.phase in ['Error', 'Failed']
+                send: [app-sync-failed]
+            trigger.on-health-degraded: |
+              - when: app.status.health.status == 'Degraded'
+                send: [app-health-degraded]
+            defaultTriggers: |
+              - on-sync-succeeded
+              - on-sync-failed
+              - on-health-degraded
+            subscriptions: |
+              - recipients:
+                - apprise:
+                triggers:
+                - on-sync-succeeded
+                - on-sync-failed
+                - on-health-degraded
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -573,6 +633,13 @@ spec:
   - group: "*"
     kind: Secret
     name: argocd-initial-admin-secret
+    jsonPointers:
+    - /data
+  # argocd-notifications-cm is rendered by this chart, but the notifications
+  # controller annotates it at runtime; ignore /data so selfHeal doesn't flap.
+  - group: ""
+    kind: ConfigMap
+    name: argocd-notifications-cm
     jsonPointers:
     - /data
 
