@@ -30,7 +30,10 @@ RUN su - builder -c ' \
     && rm -rf /tmp/aurutils'
 
 COPY aur-build-all /usr/local/bin/aur-build-all
-RUN chmod 755 /usr/local/bin/aur-build-all
+# aur-lock is the review-time pinning tool; it runs in CI (not in the build
+# pod) using this same image, which is why the anthropic SDK is installed here.
+COPY aur-lock /usr/local/bin/aur-lock
+RUN chmod 755 /usr/local/bin/aur-build-all /usr/local/bin/aur-lock
 
 USER builder
 WORKDIR /build

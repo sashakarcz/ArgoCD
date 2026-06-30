@@ -40,6 +40,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       volumes:
         - name: repo
           persistentVolumeClaim:
@@ -47,6 +49,10 @@ spec:
         - name: allowlist
           configMap:
             name: aur-allowlist
+        # Commit-pin lock (machine-maintained by aur-lock, reviewed via git).
+        - name: aur-lock
+          configMap:
+            name: aur-lock
         - name: gpg-home
           emptyDir: {}
         - name: build-dir
@@ -62,7 +68,7 @@ spec:
         # a malicious build cannot exfiltrate it. Vetted artifacts are staged on
         # build-dir for the sign phase. Runs to completion before the signer.
         - name: build
-          image: registry.starnix.net/library/aur-builder:latest
+          image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
           # flock: blocks until the nightly cron (if running) releases the lock,
           # then builds -- so the two never build concurrently.
           command:
@@ -82,12 +88,8 @@ spec:
               value: aur-mirror
             - name: TRIVY_FAIL_SEVERITY
               value: "HIGH,CRITICAL"
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: aur-api-key
-                  key: ANTHROPIC_API_KEY
-                  optional: true
+            # No ANTHROPIC_API_KEY here: the Claude recipe scan moved to
+            # aur-lock (CI), so untrusted build code never sees the key.
           volumeMounts:
             # Untrusted build code only READS the repo; only the signer writes.
             - name: repo
@@ -95,6 +97,9 @@ spec:
               readOnly: true
             - name: lock
               mountPath: /lock
+            - name: aur-lock
+              mountPath: /config-lock
+              readOnly: true
             - name: allowlist
               mountPath: /config
             - name: build-dir
@@ -111,7 +116,7 @@ spec:
         # Phase 2 prep: import the GPG key into gpg-home (only the signer mounts
         # it), after the untrusted build init container has finished.
         - name: gpg-init
-          image: registry.starnix.net/library/aur-builder:latest
+          image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
           command:
             - sh
             - -c
@@ -140,7 +145,7 @@ spec:
         # Phase 2: sign + publish. Only container holding the key; runs no
         # PKGBUILD code. Reads staged artifacts, signs, repo-adds, pushes metrics.
         - name: signer
-          image: registry.starnix.net/library/aur-builder:latest
+          image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
           command:
             - flock
             - /lock/.build.lock
@@ -173,6 +178,12 @@ spec:
               mountPath: /gpg
             - name: build-dir
               mountPath: /build
+          # The signer never runs PKGBUILD code or sudo, so it can be locked
+          # down hard: no privilege escalation, no Linux capabilities.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 250m

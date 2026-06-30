@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aur-lock
+  namespace: aur-mirror
+# MACHINE-MAINTAINED by aur-lock. Do not hand-edit SHAs.
+#
+# Each entry pins a package to a reviewed AUR commit + recipe hash. The build
+# pod (aur-build-all) builds ONLY these commits and holds anything absent here,
+# so AUR HEAD is never built unreviewed.
+#
+# Bootstrap: this starts empty. Run `aur-lock --commit` once (in CI, with the
+# ANTHROPIC_API_KEY set) to scan and pin every approved package at its current
+# HEAD (trust-on-first-use). Thereafter aur-lock auto-bumps version-only changes
+# and freezes substantive ones into pending/ for review. Until it is populated,
+# the build phase holds every package -- which is fail-safe, not fail-open.
+data:
+  aur.lock: |
+    packages: {}
