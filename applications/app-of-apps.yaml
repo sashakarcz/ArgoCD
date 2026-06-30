@@ -15,10 +15,13 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: aur-mirror
-  # The app only needs to create its own namespace at the cluster scope.
+  # Cluster-scoped resources the app manages: its own namespace, and the
+  # NFS-backed PersistentVolumes for the repo + build lock (storage.yaml).
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: ""
+      kind: PersistentVolume
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
