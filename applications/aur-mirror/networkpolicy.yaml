@@ -2,10 +2,17 @@
 #
 # The build phase runs untrusted PKGBUILD code. This policy (now ENFORCED, since
 # the cluster moved from Flannel to Cilium) limits the blast radius of a build
-# that slips past the Claude PKGBUILD scan + Trivy: it may reach the public
-# internet (needed to fetch sources, pacman/AUR, vendor binaries, the Anthropic
-# API, the Trivy DB) and nothing internal -- no Kubernetes API, no other
-# namespaces/pods/services, no LAN hosts, no Tailscale net.
+# that slips past the commit-pin review + Trivy: it may reach the public
+# internet (needed to fetch sources, pacman/AUR, vendor binaries, the Trivy DB)
+# and nothing internal -- no Kubernetes API, no other namespaces/pods/services,
+# no LAN hosts, no Tailscale net.
+#
+# Residual risk (documented, not yet closed): public egress is still broad
+# enough that a build whose *pinned, reviewed* recipe pulls a later-compromised
+# upstream source tarball could fetch a second stage. Closing it fully needs a
+# two-step build (network-enabled source fetch with checksum verify, then a
+# network-denied build) or a source-host allowlist -- both higher-maintenance,
+# so deferred. The commit pin + Claude review at lock time is the primary gate.
 #
 # Selects the builder pods by the app=aur-builder label set on both the nightly
 # CronJob (builder.yaml) and the PostSync hook Job (builder-hook.yaml).

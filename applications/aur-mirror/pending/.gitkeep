@@ -1,0 +1,4 @@
+# aur-lock writes <pkg>.diff here when an upstream change is substantive
+# (touches build()/package()/prepare()/pkgver(), .install hooks, source URLs,
+# or adds files). Review the diff; approve by merging the proposed lock bump
+# into aur-lock.configmap.yaml, or reject by deleting the pending file.

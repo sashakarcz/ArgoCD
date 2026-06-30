@@ -10,5 +10,11 @@ cluster/talos/talosconfig
 *.pem
 **/secrets/*.yaml
 !**/secrets/.gitkeep
+# Catch secret manifests that live OUTSIDE a secrets/ dir too. The aur-mirror
+# secrets.yaml is intentionally tracked (it holds only Vault *references*, no
+# values) and is force-added; any other secrets.yaml is ignored by default so a
+# future one with real data isn't committed by accident.
+**/secrets.yaml
+!applications/aur-mirror/secrets.yaml
 __pycache__/
 *.pyc

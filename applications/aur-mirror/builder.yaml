@@ -3,9 +3,11 @@
 # See applications/aur-mirror/Dockerfile for the image definition.
 # Harbor's built-in Trivy will scan the builder image itself.
 #
-# Build and push manually once, then Harbor keeps it updated:
+# Build, push, then re-pin the digest below so the pods run an immutable image
+# (push access to Harbor must not be able to swap the signer's code):
 #   docker build -t registry.starnix.net/library/aur-builder:latest .
 #   docker push registry.starnix.net/library/aur-builder:latest
+#   ./pin-image.sh        # rewrites the @sha256: pins in this dir + pac to HEAD
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -38,6 +40,11 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
             fsGroup: 1000
+            # Constrain syscalls for every container in the pod. Compatible with
+            # makepkg's sudo (RuntimeDefault permits the setuid path); it just
+            # blocks the obscure syscalls a build-time exploit would reach for.
+            seccompProfile:
+              type: RuntimeDefault
           volumes:
             - name: repo
               persistentVolumeClaim:
@@ -45,6 +52,11 @@ spec:
             - name: allowlist
               configMap:
                 name: aur-allowlist
+            # Commit-pin lock (machine-maintained by aur-lock, reviewed via git).
+            # The build phase builds ONLY the commits pinned here.
+            - name: aur-lock
+              configMap:
+                name: aur-lock
             - name: gpg-home
               emptyDir: {}
             - name: build-dir
@@ -67,7 +79,7 @@ spec:
             # artifacts are staged on build-dir for the sign phase. Runs as an
             # init container so it completes before the signer starts.
             - name: build
-              image: registry.starnix.net/library/aur-builder:latest
+              image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
               # flock serializes against the PostSync on-add job (builder-hook)
               # so a nightly run and an on-add run never build concurrently.
               command:
@@ -88,12 +100,8 @@ spec:
                 # Hold the package if Trivy finds vulns at this severity or above
                 - name: TRIVY_FAIL_SEVERITY
                   value: "HIGH,CRITICAL"
-                - name: ANTHROPIC_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: aur-api-key
-                      key: ANTHROPIC_API_KEY
-                      optional: true
+                # No ANTHROPIC_API_KEY here: the Claude recipe scan moved to
+                # aur-lock (CI), so untrusted build code never sees the key.
               volumeMounts:
                 # Untrusted build code only READS the repo (skip-if-up-to-date
                 # checks the DB); only the signer writes published artifacts.
@@ -102,6 +110,9 @@ spec:
                   readOnly: true
                 - name: lock
                   mountPath: /lock
+                - name: aur-lock
+                  mountPath: /config-lock
+                  readOnly: true
                 - name: allowlist
                   mountPath: /config
                 - name: build-dir
@@ -122,7 +133,7 @@ spec:
             # the signer (below) mounts. Runs after the build init container, so
             # the key is never present while untrusted build code is executing.
             - name: gpg-init
-              image: registry.starnix.net/library/aur-builder:latest
+              image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
               command:
                 - sh
                 - -c
@@ -155,7 +166,7 @@ spec:
             # repo-adds them, prunes, and pushes metrics. This is the only
             # container that holds the key, and it never runs PKGBUILD code.
             - name: signer
-              image: registry.starnix.net/library/aur-builder:latest
+              image: registry.starnix.net/library/aur-builder@sha256:c88d9b7415ab82c7a19b179f716a92a9a82583916302e9096e28078ac550825c
               command:
                 - flock
                 - /lock/.build.lock
@@ -188,6 +199,12 @@ spec:
                   mountPath: /gpg
                 - name: build-dir
                   mountPath: /build
+              # The signer never runs PKGBUILD code or sudo, so it can be locked
+              # down hard: no privilege escalation, no Linux capabilities.
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
               resources:
                 requests:
                   cpu: 250m
