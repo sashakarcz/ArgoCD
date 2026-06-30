@@ -79,7 +79,7 @@ spec:
             # artifacts are staged on build-dir for the sign phase. Runs as an
             # init container so it completes before the signer starts.
             - name: build
-              image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
               # flock serializes against the PostSync on-add job (builder-hook)
               # so a nightly run and an on-add run never build concurrently.
               command:
@@ -133,7 +133,7 @@ spec:
             # the signer (below) mounts. Runs after the build init container, so
             # the key is never present while untrusted build code is executing.
             - name: gpg-init
-              image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
               command:
                 - sh
                 - -c
@@ -166,7 +166,7 @@ spec:
             # repo-adds them, prunes, and pushes metrics. This is the only
             # container that holds the key, and it never runs PKGBUILD code.
             - name: signer
-              image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
               command:
                 - flock
                 - /lock/.build.lock

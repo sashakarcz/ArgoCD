@@ -1,0 +1,2 @@
+risk=high
+PKGBUILD has a critical flaw: the package() function attempts to extract from data.tar.zst without first extracting the source .deb files. The .deb archives are never extracted to obtain data.tar.zst, making the build fail. More critically, this pattern suggests the maintainer may be manually including or expecting undeclared binary files in the build environment.

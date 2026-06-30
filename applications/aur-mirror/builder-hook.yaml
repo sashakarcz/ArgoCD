@@ -68,7 +68,7 @@ spec:
         # a malicious build cannot exfiltrate it. Vetted artifacts are staged on
         # build-dir for the sign phase. Runs to completion before the signer.
         - name: build
-          image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+          image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
           # flock: blocks until the nightly cron (if running) releases the lock,
           # then builds -- so the two never build concurrently.
           command:
@@ -116,7 +116,7 @@ spec:
         # Phase 2 prep: import the GPG key into gpg-home (only the signer mounts
         # it), after the untrusted build init container has finished.
         - name: gpg-init
-          image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+          image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
           command:
             - sh
             - -c
@@ -145,7 +145,7 @@ spec:
         # Phase 2: sign + publish. Only container holding the key; runs no
         # PKGBUILD code. Reads staged artifacts, signs, repo-adds, pushes metrics.
         - name: signer
-          image: registry.starnix.net/library/aur-builder@sha256:b3c89165ab0ad5d5b525211b53b5231955239b7836a93b3c248c62ac7cc31cd3
+          image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
           command:
             - flock
             - /lock/.build.lock

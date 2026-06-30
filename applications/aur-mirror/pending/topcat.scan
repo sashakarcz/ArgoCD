@@ -1,0 +1,2 @@
+risk=high
+The topcat shell script uses unsafe eval() to execute dynamically constructed commands with unsanitized user input, creating a shell injection vulnerability. Additionally, the script downloads a JAR file from the internet and executes it with no integrity verification beyond MD5.
