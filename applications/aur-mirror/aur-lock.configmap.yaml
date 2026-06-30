@@ -164,6 +164,9 @@ data:
       surf:
         commit: e564fb02e70a24a21273ea0b7958b827e06c7019
         recipe_sha256: b2fcab95bd490c9be04a4295693ff1e159e79c8871a55a17eabe71402e08223b
+      topcat:
+        commit: 9a71a5f73dbfd104ec77084fa36138f1e516fcdf
+        recipe_sha256: 2ff7c240aee266524c2cdd7c367ffd4fe196b98d0d0bc3cfca731e21a88cdcf2
       ua608d:
         commit: ebf5cd37b94ec4822dc534c72936b2db17f0dc8c
         recipe_sha256: 61eb9609fac3bbab054c5536d5765c2370969ecfab0f5eaab42dbdccfd9c0070
@@ -173,6 +176,9 @@ data:
       wasi-compiler-rt21:
         commit: a9d6cea69664134a4fcc87bbd20300ddbf72aecb
         recipe_sha256: 0e6657639e6280948417eff764d933d3a85fa07df9cff784dbbbeeae3ca9f312
+      weasis-bin:
+        commit: 64fc157c4a6c5a8810146b38bfac6d7b2002fed4
+        recipe_sha256: 09dbb4d0516e78fe2010d2d648f4ccf23d92b071a9c4a858e97d0f0bb78cd0df
       wps-office:
         commit: 7059b9d633da9aa34b73818124c04247b460b665
         recipe_sha256: ace3efa2beffca29fef4cc39731d38d537488f4c23eefd9061bfbcc2a54178c1
@@ -185,3 +191,6 @@ data:
       zen-browser-bin:
         commit: ffa5c1414d9c1dcb27ec63100afa5ff962bcaf02
         recipe_sha256: c1d4a0852cce07bc30c531be65324ad309e5bf88b62d7a238bcd1b90719ffe26
+      zoom:
+        commit: b155e0d755b31f8c1b5af155ceec1e46ad723ff1
+        recipe_sha256: e19c034d9df421221a0ff21a6e397e2b731840603d9e199fcfd7e8d2c4988cf9
