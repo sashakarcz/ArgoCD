@@ -125,6 +125,9 @@ def git_head(repo: Path) -> str:
 
 def fetch_recipe(pkg: str, source: str | None, dest: Path) -> Path:
     """Clone the recipe at HEAD into dest/<pkg>; return that subdir."""
+    # dest is the per-package parent dir; it must exist before it can be a cwd,
+    # and `aur fetch` / `git clone <name>` create the <pkg> subdir inside it.
+    dest.mkdir(parents=True, exist_ok=True)
     if source:
         _run(["git", "clone", "--quiet", source, pkg], cwd=dest)
     else:
