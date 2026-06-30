@@ -1,4 +1,4 @@
-# Egress policy. krampus is reached by LAN clients for Santa sync and is itself an OIDC client of auth.starnix.net (Traefik ingress), so it needs the RFC1918 LAN as well as the public internet. Only link-local + CGNAT stay blocked. NFS PVs are node-side and unaffected.
+# Egress policy. krampus is reached by LAN clients for Santa sync, is itself an OIDC client of auth.starnix.net (Traefik ingress), and so needs both in-cluster services and the RFC1918 LAN plus the public internet. Only link-local + CGNAT stay blocked. NOTE: Cilium ipBlock rules only match destinations OUTSIDE the cluster (in-cluster targets are matched by identity), so reaching Traefik/Authentik requires the namespaceSelector rule below, not the ipBlock. NFS PVs are node-side and unaffected.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -22,8 +22,14 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Public internet + all RFC1918 (LAN, cluster, Authentik via Traefik).
-    # Only link-local and CGNAT ranges remain excluded.
+    # In-cluster services. Required for OIDC: auth.starnix.net resolves to the
+    # Traefik LoadBalancer VIP, which DNATs to a Traefik pod -- an in-cluster
+    # identity that ipBlock cannot match. namespaceSelector{} covers all
+    # namespaces' pods (Traefik, Authentik, etc.).
+    - to:
+        - namespaceSelector: {}
+    # Public internet + all RFC1918 LAN hosts (external to the cluster, e.g.
+    # Santa-sync clients). Only link-local and CGNAT remain excluded.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
