@@ -510,6 +510,9 @@ spec:
                 - openid
                 - profile
                 - email
+                # Carry group membership so RBAC can scope admin to a group.
+                # The authentik argocd provider must emit a "groups" claim.
+                - groups
             # Reloader triggers restarts by stamping this annotation on the pod
             # template. Ignore it globally so selfHeal doesn't revert it (which
             # would cause a double-restart / OutOfSync flapping).
@@ -523,9 +526,20 @@ spec:
               jsonPointers:
                 - /spec/template/metadata/annotations/reloader.stakater.com~1last-reloaded-from
           rbac:
-            policy.default: role:admin
+            # Default to read-only: authenticating via authentik no longer
+            # implies cluster-admin (it previously granted role:admin to every
+            # SSO user). Admin is scoped to the "admins" group from authentik
+            # (authentik-blueprints.yaml).
+            policy.default: role:readonly
+            policy.csv: |
+              g, admins, role:admin
+            scopes: "[groups]"
           params:
-            server.insecure: true  # TLS termination handled by Traefik
+            # insecure=true is the documented pattern when TLS is terminated at
+            # the edge (Traefik) and ArgoCD is reached over the in-cluster
+            # network; do NOT flip without also moving Traefik to an HTTPS
+            # backend, or you will lock yourself out of the UI/API.
+            server.insecure: true
 
         repoServer:
           metrics:

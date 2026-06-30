@@ -76,8 +76,19 @@ spec:
                 - openid
                 - profile
                 - email
+                # Carry group membership so RBAC can scope admin to a group
+                # instead of granting every authenticated user admin. The
+                # authentik argocd provider must emit a "groups" scope/claim
+                # (add the "groups" scope mapping to the provider).
+                - groups
           rbac:
-            policy.default: role:admin
+            # Default to read-only: authenticating via authentik no longer
+            # implies cluster-admin. Admin is granted only to members of the
+            # "admins" group (defined in authentik-blueprints.yaml).
+            policy.default: role:readonly
+            policy.csv: |
+              g, admins, role:admin
+            scopes: "[groups]"
           params:
             server.insecure: true  # TLS termination handled by Traefik
 

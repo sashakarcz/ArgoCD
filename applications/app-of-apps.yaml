@@ -1,11 +1,42 @@
 
+# Constrained project for the supply-chain-critical mirror. Unlike the default
+# project (which permits any repo, any destination, any cluster resource), this
+# bounds what the aur-mirror app can pull and deploy, so a compromised app
+# definition can't repoint it at a hostile repo or escalate cluster-wide.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: aur-mirror
+  namespace: argocd
+spec:
+  description: AUR mirror supply chain (commit-pinned, signed)
+  sourceRepos:
+    - https://github.com/usenix17/ArgoCD.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: aur-mirror
+  # The app only needs to create its own namespace at the cluster scope.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  # OPT-IN: require signed git commits on the tracked revision. Enable once you
+  # set up commit signing + import the public key into argocd-gpg-keys-cm; then
+  # ArgoCD refuses to sync an unsigned commit to this project. Left off by
+  # default so it doesn't block syncs before signing is configured.
+  # signatureKeys:
+  #   - keyID: <your-gpg-key-id>
+
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: aur-mirror
   namespace: argocd
 spec:
-  project: default
+  project: aur-mirror
   source:
     repoURL: https://github.com/usenix17/ArgoCD.git
     targetRevision: HEAD
