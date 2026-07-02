@@ -37,6 +37,9 @@ metadata:
     app: overseerr
 spec:
   replicas: 1
+  # RWO volume + one-way DB migration: never run two pods on the config at once.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: overseerr
@@ -45,6 +48,12 @@ spec:
       labels:
         app: overseerr
     spec:
+      # Seerr runs as the node user (UID 1000); fsGroup makes Longhorn fix
+      # ownership of the (previously root-owned) config volume on mount.
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
@@ -54,16 +63,14 @@ spec:
         effect: "NoSchedule"
       containers:
       - name: overseerr
-        #image: sctx/overseerr:latest
-        image: fallenbagel/jellyseerr:latest
+        # Seerr: merged successor to Overseerr + Jellyseerr; auto-migrates the
+        # existing Jellyseerr config/DB on first start. (was fallenbagel/jellyseerr:latest)
+        image: ghcr.io/seerr-team/seerr:latest
         ports:
         - containerPort: 5055
           name: http
         env:
-        - name: PUID
-          value: "1000"
-        - name: PGID
-          value: "1000"
+        # PUID/PGID removed -- Seerr uses the pod securityContext (UID 1000), not LSIO-style vars
         - name: TZ
           value: "America/Chicago"
         resources:
@@ -93,7 +100,7 @@ metadata:
     app: overseerr
   annotations:
     gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Jellyseerr"
+    gethomepage.dev/name: "Seerr"
     gethomepage.dev/description: "Media Request Manager"
     gethomepage.dev/group: "Media"
     gethomepage.dev/icon: "jellyseerr.png"
@@ -119,7 +126,7 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-production"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Jellyseerr"
+    gethomepage.dev/name: "Seerr"
     gethomepage.dev/description: "Media Request Manager"
     gethomepage.dev/group: "Media"
     gethomepage.dev/icon: "jellyseerr.png"
