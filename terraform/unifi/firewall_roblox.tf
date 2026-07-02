@@ -38,8 +38,10 @@ resource "unifi_firewall_zone_policy" "block_roblox_ips" {
   protocol   = "all"
   ip_version = "BOTH"
 
-  # Pinned to the current controller-assigned position. See note above re: ordering.
-  index = 10021
+  # NOTE: `index` (rule order) is NOT settable -- the controller ignores writes to it
+  # and the provider errors on the mismatch. Left computed. Order the rule ABOVE the
+  # permissive "allow ... -> ANY" rules once, by hand, in the UI. Everything else here
+  # (match, action, enabled, schedule) is managed by Terraform.
 
   schedule = {
     mode = "ALWAYS"
