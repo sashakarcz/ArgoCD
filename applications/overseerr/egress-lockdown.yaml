@@ -25,6 +25,17 @@ spec:
     # within its own namespace
     - to:
         - podSelector: {}
+    # Jellyfin auth backend (media-server login) runs in the jellyfin namespace.
+    # It is reached via its ClusterIP/LB, which DNATs to the jellyfin pod, so allow
+    # by namespaceSelector -- an ipBlock on the LB VIP (192.168.7.x) can't match the
+    # pod identity that Cilium enforces against.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: jellyfin
+      ports:
+        - protocol: TCP
+          port: 8096
     # LAN + public internet; block only the cluster (pods/svc/API = 10/8),
     # the cluster node subnet + MetalLB (192.168.7.0/24), Tailscale, link-local
     - to:
