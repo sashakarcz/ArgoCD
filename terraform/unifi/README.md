@@ -47,3 +47,18 @@ Rules created in the UI are imported so Terraform adopts them without recreating
 terraform import unifi_firewall_zone_policy.<name> <policy_id>
 terraform plan      # iterate resource config until plan shows no changes
 ```
+Bulk import (how the initial 92 were adopted): write `import {}` blocks for each
+policy ID, run `terraform plan -generate-config-out=generated.tf` (one login),
+then fix the generated HCL and `apply`. Note the UDM **rate-limits logins** -- space
+runs out (~10 min) to avoid HTTP 429.
+
+## Managed vs. not
+- **Managed (92):** all custom zone-policies that round-trip cleanly, in
+  `firewall_policies.tf` (+ `firewall_roblox.tf`). Address subnets live in groups
+  (`groups.tf`).
+- **NOT managed (left in the UI):** 3 rules that store raw protocol *numbers*
+  (`Allow tftp` x2, `Allow ipxe`) which the provider's `protocol` enum rejects --
+  codifying them would change the rule. Edit these in the UI.
+- The 117 predefined/default policies are controller-managed and intentionally not imported.
+- `firewall_policies.tf` is auto-generated (verbose, many explicit nulls); functional but
+  can be tidied over time.
