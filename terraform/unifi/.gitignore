@@ -1,0 +1,12 @@
+# Never commit secrets or local state cache
+.secrets.env
+.env
+*.tfvars
+*.tfvars.json
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# DO commit .terraform.lock.hcl (pins provider versions)
