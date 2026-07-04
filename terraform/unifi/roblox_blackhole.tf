@@ -9,6 +9,16 @@
 # Refresh the prefix list periodically from RIPEstat announced-prefixes for
 # AS22697 -- Roblox rotates IPs:
 #   https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS22697
+# Master on/off switch. true = Roblox blocked (routes exist); flip to false and
+# `terraform apply` to UNBLOCK (destroys the routes). The provider's static route
+# has no "enabled" field, so toggling = create/destroy. Override without editing
+# code via `terraform apply -var block_roblox=false`.
+variable "block_roblox" {
+  type        = bool
+  default     = true
+  description = "Blackhole-route all of Roblox (AS22697). false removes the block."
+}
+
 locals {
   roblox_as22697 = [
     "103.140.28.0/23",
@@ -19,7 +29,7 @@ locals {
 }
 
 resource "unifi_static_route" "roblox_blackhole" {
-  for_each = toset(local.roblox_as22697)
+  for_each = var.block_roblox ? toset(local.roblox_as22697) : toset([])
 
   name     = "Blackhole Roblox ${each.value}"
   type     = "blackhole"
