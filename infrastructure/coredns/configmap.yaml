@@ -7,6 +7,13 @@ data:
   Corefile: |
     # Internal zones — forwarded directly to KnotDNS, bypassing node resolver
     starnix.net:53 {
+        # Pin vault.starnix.net to its Nebula-mesh IP so VSO reaches Vault privately
+        # over the mesh (valid LE cert on :443), instead of hairpinning out through the
+        # public Cloudflare tunnel. fallthrough = all other names still forward to Knot.
+        hosts {
+            100.69.0.45 vault.starnix.net
+            fallthrough
+        }
         # Primary: in-cluster KnotDNS LB. Fallbacks: the reliable Knot resolvers,
         # so an intermittent primary timeout/SERVFAIL fails over instead of breaking
         # VSO (Vault static secrets) and other clients. policy sequential = prefer 211.
