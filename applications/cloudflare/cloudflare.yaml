@@ -233,7 +233,7 @@ data:
     - hostname: gellyfin.starnix.net
       service: http://192.168.1.86:8889
     - hostname: sky.bairlabs.org
-      service: https://172.16.5.198:8443
+      service: https://172.16.5.155:8443
       originRequest:
         noTLSVerify: true
     - hostname: warp.starnix.net
