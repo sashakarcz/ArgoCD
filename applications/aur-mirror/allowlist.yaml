@@ -491,8 +491,11 @@ data:
         approved: true
         note: dependency
       - name: wazuh-agent
-        approved: false
-        note: explicit [held 2026-06-26 -- Claude flagged high/critical]
+        approved: true
+        note: explicit -- hardened custom recipe (GPG-verifies Wazuh's official
+          signed RPM before extract; drops the AUR unpinned SCA fetch). Replaces
+          the AUR recipe held 2026-06-26.
+        source: https://github.com/usenix17/wazuh-agent.git
       - name: weasis-bin
         approved: true
         note: explicit
