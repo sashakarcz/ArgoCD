@@ -181,6 +181,10 @@ metadata:
     gethomepage.dev/href: "https://borgwarehouse.starnix.net"
 spec:
   type: LoadBalancer
+  # Preserve the real client IP (no SNAT) so sshd logs + Graylog alerts show the
+  # actual source, not the Cilium proxy IP. MetalLB announces the LB IP only from
+  # the node running the pod.
+  externalTrafficPolicy: Local
   selector:
     app: borgwarehouse
   ports:
