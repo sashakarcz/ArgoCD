@@ -67,11 +67,23 @@ spec:
                 Name    modify
                 Match   kube.*
                 Add     host ${NODE_NAME}
+            # Longhorn's instance-manager floods info/debug (snapshot-hash spam) and is
+            # ~99% of log volume. Re-tag longhorn-system logs and drop info/debug, keeping
+            # warning/error so real replica/disk problems still surface.
+            [FILTER]
+                Name          rewrite_tag
+                Match         kube.*
+                Rule          $kubernetes['namespace_name'] ^longhorn-system$ lh.$TAG false
+                Emitter_Name  re_longhorn
+            [FILTER]
+                Name    grep
+                Match   lh.*
+                Exclude log level=(info|debug)
 
           outputs: |
             [OUTPUT]
                 Name                   gelf
-                Match                  kube.*
+                Match                  *
                 Host                   graylog.starnix.net
                 Port                   12201
                 Mode                   udp
