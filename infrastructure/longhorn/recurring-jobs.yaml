@@ -21,5 +21,8 @@ spec:
   task: snapshot
   groups:
     - default
-  retain: 4
+  # Trimmed 4 -> 2 (2026-07-06): long snapshot chains made replica rebuilds sync
+  # many multi-GB snapshot files and fail mid-transfer. 12h of snapshots, backed
+  # by 7 daily backups, keeps rebuilds cheap + reliable.
+  retain: 2
   concurrency: 2
