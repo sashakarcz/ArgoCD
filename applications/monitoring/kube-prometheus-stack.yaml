@@ -205,20 +205,6 @@ spec:
               signout_redirect_url: https://auth.starnix.net/application/o/grafana/end-session/
               role_attribute_path: "contains(groups[*], 'grafana-admins') && 'Admin' || email == 'sasha@starnix.net' && 'Admin' || 'Viewer'"
 
-          dashboards:
-            default:
-              loki-dashboard:
-                gnetId: 13186
-                revision: 1
-                datasource: Loki
-
-          additionalDataSources:
-            - name: Loki
-              type: loki
-              url: http://loki.monitoring.svc.cluster.local:3100
-              access: proxy
-              isDefault: false
-
         # Keep node-exporter and kube-state-metrics enabled (default)
         nodeExporter:
           enabled: true
