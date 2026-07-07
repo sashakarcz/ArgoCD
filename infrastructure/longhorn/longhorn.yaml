@@ -28,8 +28,12 @@ spec:
         defaultSettings:
           # Delete pods on downed nodes so StatefulSets reschedule instead of sitting Pending
           nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
-          # Rebuild replicas faster after a node recovers (was 600s)
-          replicaReplenishmentWaitInterval: 60
+          # Wait for a rebooted node to return before rebuilding its replicas, so a node
+          # reboot doesn't trigger a rebuild storm (was 60 -- caused a 2026-07-06 cascade)
+          replicaReplenishmentWaitInterval: 600
+          # Serialize rebuilds to avoid thrashing instance-managers (Longhorn default is 5;
+          # 5-wide rebuilds during the 2026-07-06 reboot flapped replicas into a cascade)
+          concurrentReplicaRebuildPerNodeLimit: 2
           # Match storage class replica count so UI-created volumes also get 3 replicas
           defaultReplicaCount: 3
           # Rebalance replicas gradually when nodes recover (was disabled)
