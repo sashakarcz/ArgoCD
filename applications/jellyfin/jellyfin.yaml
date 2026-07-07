@@ -59,7 +59,7 @@ spec:
   csi:
     driver: driver.longhorn.io
     fsType: ext4
-    volumeHandle: jellyfin-config-restored
+    volumeHandle: jellyfin-config-restored-2
     volumeAttributes:
       numberOfReplicas: "3"
       staleReplicaTimeout: "30"
@@ -300,7 +300,7 @@ metadata:
   labels:
     app: jellyfin
 spec:
-  replicas: 1
+  replicas: 0   # TEMP for volume cutover to jellyfin-config-restored-2 -- restore to 1 after PV swap
   # RWO Longhorn config volume: terminate the old pod (release the volume)
   # before starting the new one, to avoid Multi-Attach stalls on rollout.
   strategy:
