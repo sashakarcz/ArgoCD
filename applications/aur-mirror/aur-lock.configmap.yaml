@@ -177,8 +177,8 @@ data:
         commit: a9d6cea69664134a4fcc87bbd20300ddbf72aecb
         recipe_sha256: 0e6657639e6280948417eff764d933d3a85fa07df9cff784dbbbeeae3ca9f312
       wazuh-agent:
-        commit: 50d7610c281fb3f88fe08d268376dc6cd975710a
-        recipe_sha256: c3567a71fc5b82b0f8a7b722470932f418ac13b6b1e9526182bbda71be06103b
+        commit: 741715b1a717181dfb5998844520b40a54cd16e3
+        recipe_sha256: 0a79a04c19de750141f4645ab2ead25469909e96be0c76de6728ab72d9d2b3eb
       weasis-bin:
         commit: 64fc157c4a6c5a8810146b38bfac6d7b2002fed4
         recipe_sha256: 09dbb4d0516e78fe2010d2d648f4ccf23d92b071a9c4a858e97d0f0bb78cd0df
