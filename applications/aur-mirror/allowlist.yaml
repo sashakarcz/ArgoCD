@@ -300,9 +300,6 @@ data:
       - name: meshtastic-python
         approved: false
         note: explicit [held 2026-06-26 -- build fails]
-      - name: meshtasticd-bin
-        approved: true
-        note: explicit
       - name: microsoft-edge-stable-bin
         approved: true
         note: explicit
