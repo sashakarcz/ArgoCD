@@ -52,11 +52,11 @@ spec:
             - name: allowlist
               configMap:
                 name: aur-allowlist
-            # Commit-pin lock (machine-maintained by aur-lock, reviewed via git).
-            # The build phase builds ONLY the commits pinned here.
-            - name: aur-lock
-              configMap:
-                name: aur-lock
+            # Scan-state PV: verdicts.json, written by the scan phase and read
+            # by the build phase. Replaces the old git-committed lock.
+            - name: state
+              persistentVolumeClaim:
+                claimName: aur-mirror-state-pvc
             - name: gpg-home
               emptyDir: {}
             - name: build-dir
@@ -73,13 +73,59 @@ spec:
               persistentVolumeClaim:
                 claimName: aur-mirror-lock-pvc
           initContainers:
-            # Phase 1: build. Fetch, Claude-scan, makepkg, Trivy -- this is where
-            # untrusted PKGBUILD code executes. The GPG signing key is NOT
-            # mounted here, so a malicious build cannot exfiltrate it. Vetted
-            # artifacts are staged on build-dir for the sign phase. Runs as an
-            # init container so it completes before the signer starts.
+            # Phase 1: scan. Resolve each package's AUR HEAD and run the Claude
+            # PKGBUILD scan, writing pass/fail verdicts to the state PV. This is
+            # the ONLY container with ANTHROPIC_API_KEY, and it NEVER runs
+            # makepkg -- so the key never sits next to untrusted build code. It
+            # mounts neither the repo nor the GPG key. Always exits 0 (per-package
+            # scan failures become fail-closed verdicts) so it can't block build.
+            - name: scan
+              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
+              command:
+                - flock
+                - /lock/.build.lock
+                - /usr/local/bin/aur-build-all
+              env:
+                - name: BUILD_PHASE
+                  value: scan
+                # REPO_DIR is read at module import; scan never touches /repo
+                # (not mounted here), it only writes the state PV.
+                - name: REPO_DIR
+                  value: /repo
+                - name: STATE_DIR
+                  value: /state
+                - name: ALLOWLIST
+                  value: /config/allowlist.yaml
+                - name: REPO_NAME
+                  value: aur-mirror
+                # Scan phase ONLY. Never mounted in the build/sign containers, so
+                # untrusted PKGBUILD code can never read the key.
+                - name: ANTHROPIC_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aur-api-key
+                      key: ANTHROPIC_API_KEY
+              volumeMounts:
+                - name: allowlist
+                  mountPath: /config
+                - name: state
+                  mountPath: /state
+                - name: lock
+                  mountPath: /lock
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: 1
+                  memory: 1Gi
+            # Phase 2: build (untrusted PKGBUILD code). Checks out each package's
+            # SCANNED commit, re-verifies its recipe hash, makepkg, Trivy. The GPG
+            # key and the API key are NOT mounted here, so a malicious build can
+            # exfiltrate neither. Vetted artifacts are staged on build-dir for the
+            # sign phase. Runs after scan so verdicts exist before it builds.
             - name: build
-              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
+              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
               # flock serializes against the PostSync on-add job (builder-hook)
               # so a nightly run and an on-add run never build concurrently.
               command:
@@ -100,8 +146,10 @@ spec:
                 # Hold the package if Trivy finds vulns at this severity or above
                 - name: TRIVY_FAIL_SEVERITY
                   value: "HIGH,CRITICAL"
-                # No ANTHROPIC_API_KEY here: the Claude recipe scan moved to
-                # aur-lock (CI), so untrusted build code never sees the key.
+                - name: STATE_DIR
+                  value: /state
+                # No ANTHROPIC_API_KEY here: the Claude scan runs in the scan
+                # phase, so untrusted build code never sees the key.
               volumeMounts:
                 # Untrusted build code only READS the repo (skip-if-up-to-date
                 # checks the DB); only the signer writes published artifacts.
@@ -110,8 +158,9 @@ spec:
                   readOnly: true
                 - name: lock
                   mountPath: /lock
-                - name: aur-lock
-                  mountPath: /config-lock
+                # Scan verdicts, read-only: the build phase never writes state.
+                - name: state
+                  mountPath: /state
                   readOnly: true
                 - name: allowlist
                   mountPath: /config
@@ -133,7 +182,7 @@ spec:
             # the signer (below) mounts. Runs after the build init container, so
             # the key is never present while untrusted build code is executing.
             - name: gpg-init
-              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
+              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
               command:
                 - sh
                 - -c
@@ -166,7 +215,7 @@ spec:
             # repo-adds them, prunes, and pushes metrics. This is the only
             # container that holds the key, and it never runs PKGBUILD code.
             - name: signer
-              image: registry.starnix.net/library/aur-builder@sha256:48c1795aebe3f2ee0cc72bb9baef7c3b33086d678f5614cfb8472a6c21d34899
+              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
               command:
                 - flock
                 - /lock/.build.lock

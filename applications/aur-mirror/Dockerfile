@@ -29,11 +29,11 @@ RUN su - builder -c ' \
     && makepkg -si --noconfirm \
     && rm -rf /tmp/aurutils'
 
+# aur-build-all runs all three phases (scan / build / sign). The scan phase
+# does the Claude PKGBUILD scan, which is why the anthropic SDK is installed
+# above; the key is mounted only in the scan container.
 COPY aur-build-all /usr/local/bin/aur-build-all
-# aur-lock is the review-time pinning tool; it runs in CI (not in the build
-# pod) using this same image, which is why the anthropic SDK is installed here.
-COPY aur-lock /usr/local/bin/aur-lock
-RUN chmod 755 /usr/local/bin/aur-build-all /usr/local/bin/aur-lock
+RUN chmod 755 /usr/local/bin/aur-build-all
 
 USER builder
 WORKDIR /build

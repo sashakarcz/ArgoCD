@@ -10,10 +10,13 @@ data:
     # excluding auto-generated -debug byproducts). The builder produces each
     # package's -debug variant automatically.
     #
-    # This file is the review gate: adding a package here (via PR) is the
-    # approval. -debug entries must NOT be listed; they are built alongside
-    # their base package. Set approved: false to stage a package for review
-    # without building it.
+    # This file is the approval gate: adding a package here (via PR) approves it.
+    # The pipeline then Claude-scans its PKGBUILD every run and, if it passes,
+    # builds AUR HEAD, Trivy-scans, signs, and publishes -- auto-updating as long
+    # as it keeps passing (no lockfile, no per-bump review; see SCANNING.md).
+    # A scan/Trivy/build failure HOLDS the package (keeps its last-good build +
+    # alerts) without failing the run. -debug entries must NOT be listed; they
+    # are built alongside their base. Set approved: false to hold a package.
     packages:
       - name: accounts-qml-module
         approved: true

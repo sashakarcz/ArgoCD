@@ -65,3 +65,41 @@ spec:
   resources:
     requests:
       storage: 1Mi
+
+---
+# Scan-state volume: holds verdicts.json ({pkg: {commit, recipe_sha256,
+# verdict, ...}}), written by the scan phase and read by the build phase.
+# Replaces the old git-committed aur-lock.configmap.yaml -- state lives here,
+# in-cluster, so no repo-write credential is ever needed. RWX (NFS, same as the
+# repo/lock volumes) so the nightly CronJob and the PostSync hook pod can both
+# mount it without RWO attach conflicts across nodes.
+# Create the directory first: mkdir -p /mnt/Store/aur-mirror/state
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: aur-mirror-state-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 192.168.1.75
+    path: /mnt/Store/aur-mirror/state
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aur-mirror-state-pvc
+  namespace: aur-mirror
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: manual
+  volumeName: aur-mirror-state-pv
+  resources:
+    requests:
+      storage: 1Gi

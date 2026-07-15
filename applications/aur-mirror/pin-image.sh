@@ -45,4 +45,4 @@ for f in "$HERE/builder.yaml" "$HERE/builder-hook.yaml"; do
 done
 cfg="$REPO_ROOT/../pac/internal/config/config.go"
 [[ -f "$cfg" ]] && sed -i "/aur-builder/ s#$pat#$new#g" "$cfg" && echo "  updated $cfg"
-echo "Done. Review the diff and commit. (Update PINNING.md's example digest by hand if you cite it.)"
+echo "Done. Review the diff and commit. (Update SCANNING.md's example digest by hand if you cite it.)"
