@@ -705,6 +705,19 @@ def run_scan_phase() -> int:
     return 0
 
 
+def should_skip_build(entry: dict, built_commit, scanned_commit: str, py_stale: bool) -> bool:
+    """Whether to skip rebuilding a package this run.
+
+    A `track: latest` package (recipe commit is static but upstream moves) is
+    NEVER skipped -- it rebuilds every run so its pkgver() picks up new releases.
+    Otherwise skip only when the scanned commit is already built and no python
+    bump forces a rebuild.
+    """
+    if entry.get("track") == "latest":
+        return False
+    return built_commit == scanned_commit and not py_stale
+
+
 def run_build_phase() -> int:
     """Build each package's scanned commit, Trivy-check it, stage what passes.
 
@@ -776,7 +789,7 @@ def run_build_phase() -> int:
             # Skip if the scanned commit is already the built one (and python
             # hasn't moved under it). Since the scan phase resolves a moving
             # HEAD, this naturally auto-updates when upstream advances.
-            if built_commits.get(pkg) == scanned_commit and not py_stale:
+            if should_skip_build(entry, built_commits.get(pkg), scanned_commit, py_stale):
                 log.info("Up to date (commit %s), skipping.", scanned_commit[:12])
                 skipped += 1
                 continue
