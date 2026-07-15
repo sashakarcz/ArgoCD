@@ -80,7 +80,7 @@ spec:
             # mounts neither the repo nor the GPG key. Always exits 0 (per-package
             # scan failures become fail-closed verdicts) so it can't block build.
             - name: scan
-              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
+              image: registry.starnix.net/library/aur-builder@sha256:49d495d36c08c0978854d45c2bf8a9e3f33bebcc337e08876994221767308a02
               command:
                 - flock
                 - /lock/.build.lock
@@ -98,6 +98,8 @@ spec:
                   value: /config/allowlist.yaml
                 - name: REPO_NAME
                   value: aur-mirror
+                - name: PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
                 # Scan phase ONLY. Never mounted in the build/sign containers, so
                 # untrusted PKGBUILD code can never read the key.
                 - name: ANTHROPIC_API_KEY
@@ -125,7 +127,7 @@ spec:
             # exfiltrate neither. Vetted artifacts are staged on build-dir for the
             # sign phase. Runs after scan so verdicts exist before it builds.
             - name: build
-              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
+              image: registry.starnix.net/library/aur-builder@sha256:49d495d36c08c0978854d45c2bf8a9e3f33bebcc337e08876994221767308a02
               # flock serializes against the PostSync on-add job (builder-hook)
               # so a nightly run and an on-add run never build concurrently.
               command:
@@ -148,6 +150,8 @@ spec:
                   value: "HIGH,CRITICAL"
                 - name: STATE_DIR
                   value: /state
+                - name: PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
                 # No ANTHROPIC_API_KEY here: the Claude scan runs in the scan
                 # phase, so untrusted build code never sees the key.
               volumeMounts:
@@ -182,7 +186,7 @@ spec:
             # the signer (below) mounts. Runs after the build init container, so
             # the key is never present while untrusted build code is executing.
             - name: gpg-init
-              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
+              image: registry.starnix.net/library/aur-builder@sha256:49d495d36c08c0978854d45c2bf8a9e3f33bebcc337e08876994221767308a02
               command:
                 - sh
                 - -c
@@ -215,7 +219,7 @@ spec:
             # repo-adds them, prunes, and pushes metrics. This is the only
             # container that holds the key, and it never runs PKGBUILD code.
             - name: signer
-              image: registry.starnix.net/library/aur-builder@sha256:87535cef8e8feda2cc0c1212aab20190714157d1defc9636af0db7ce9a0f3484
+              image: registry.starnix.net/library/aur-builder@sha256:49d495d36c08c0978854d45c2bf8a9e3f33bebcc337e08876994221767308a02
               command:
                 - flock
                 - /lock/.build.lock

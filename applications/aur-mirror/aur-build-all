@@ -245,17 +245,35 @@ def git_head(repo: Path) -> str:
     return r.stdout.strip()
 
 
-def fetch_recipe_head(pkg: str, source: str | None, dest: Path) -> Path:
-    """Clone the recipe at HEAD into dest/<pkg>; return that subdir.
+AUR_GIT = "https://aur.archlinux.org"
 
-    Used ONLY by the scan phase. Never runs recipe code -- it clones and reads
-    files -- so it is safe to run in the container that holds the API key.
+
+def _git_url(pkg: str, source: str | None) -> str:
+    return source if source else f"{AUR_GIT}/{pkg}.git"
+
+
+def remote_head(pkg: str, source: str | None) -> str:
+    """Resolve HEAD via `git ls-remote` -- no clone. Fast enough that a
+    steady-state scan (everything already scanned at its current HEAD) finishes
+    in seconds, so it completes well inside ArgoCD's hook window."""
+    url = _git_url(pkg, source)
+    r = subprocess.run(["git", "ls-remote", url, "HEAD"],
+                       capture_output=True, text=True, check=True, timeout=30)
+    out = r.stdout.split()
+    if not out:
+        raise RuntimeError("ls-remote returned no HEAD")
+    return out[0]
+
+
+def clone_recipe_head(pkg: str, source: str | None, dest: Path) -> Path:
+    """Shallow-clone the recipe at HEAD into dest/<pkg>; return that subdir.
+
+    Used ONLY by the scan phase, and only for a package whose HEAD changed. Never
+    runs recipe code -- it clones and reads files -- so it is safe in the
+    container that holds the API key.
     """
     dest.mkdir(parents=True, exist_ok=True)
-    if source:
-        run(["git", "clone", "--quiet", source, pkg], cwd=dest)
-    else:
-        run(["aur", "fetch", pkg], cwd=dest)
+    run(["git", "clone", "--quiet", "--depth", "1", _git_url(pkg, source), pkg], cwd=dest)
     return dest / pkg
 
 
@@ -549,72 +567,132 @@ def push_metrics(total: int, skipped: int, failed: dict[str, dict]) -> None:
         log.warning("Failed to push metrics to Pushgateway: %s", exc)
 
 
+def push_progress(phase: str, package: str | None, current: int, total: int) -> None:
+    """Best-effort live progress to Pushgateway (separate group from the summary).
+
+    Pushed frequently as each phase works through packages, so a dashboard can
+    show the current stage, the package in flight, and an N/total bar in real
+    time. Uses its own job group ('aur-mirror-live') so it never collides with
+    the end-of-run summary in push_metrics. NEVER raises -- a metrics hiccup must
+    not perturb the build.
+    """
+    if not PUSHGATEWAY_URL:
+        return
+    lines = [
+        "# TYPE aur_mirror_active_phase gauge",
+        f'aur_mirror_active_phase{{phase="{_esc(phase)}"}} 1',
+        "# TYPE aur_mirror_progress_current gauge",
+        f"aur_mirror_progress_current {current}",
+        "# TYPE aur_mirror_progress_total gauge",
+        f"aur_mirror_progress_total {total}",
+        "# TYPE aur_mirror_activity_timestamp_seconds gauge",
+        f"aur_mirror_activity_timestamp_seconds {int(time.time())}",
+    ]
+    if package:
+        lines.append("# TYPE aur_mirror_active_package gauge")
+        lines.append(f'aur_mirror_active_package{{package="{_esc(package)}"}} 1')
+    body = "\n".join(lines) + "\n"
+    url = f"{PUSHGATEWAY_URL.rstrip('/')}/metrics/job/aur-mirror-live"
+    req = urllib.request.Request(url, data=body.encode(), method="PUT")
+    req.add_header("Content-Type", "text/plain; version=0.0.4")
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as exc:  # noqa: BLE001 - progress is best-effort
+        log.debug("progress push failed: %s", exc)
+
+
+def _save_state_safe(state: dict) -> None:
+    """Best-effort incremental persist (the authoritative save is at phase end)."""
+    try:
+        save_state(state)
+    except OSError as exc:
+        log.warning("incremental state save failed: %s", exc)
+
+
 def run_scan_phase() -> int:
-    """Resolve each approved package's AUR HEAD, Claude-scan it, and write a
-    pass/fail verdict to the scan-state PV.
+    """Resolve each approved package's AUR HEAD, Claude-scan changed recipes, and
+    write pass/fail verdicts to the scan-state PV.
 
-    This is the ONLY phase with ANTHROPIC_API_KEY, and it never runs makepkg,
-    so the key never sits next to untrusted build code. ALWAYS returns 0 unless
-    the allowlist can't be read or the state PV can't be written: a per-package
-    fetch/scan failure becomes a fail-closed verdict (that package holds at
-    build time) and can never block the build phase.
+    This is the ONLY phase with ANTHROPIC_API_KEY, and it never runs makepkg, so
+    the key never sits next to untrusted build code. ALWAYS returns 0 unless the
+    allowlist can't be read or the state PV can't be written.
 
-    Resilience: a transient fetch error does NOT downgrade a package that
-    previously passed -- its prior verdict is preserved -- so an AUR blip can't
-    flap a good package into a hold.
+    Fast + resumable by design: HEAD is resolved with `git ls-remote` (no clone),
+    a package whose HEAD hasn't moved since its recorded verdict is skipped
+    without cloning or calling the API, and state is persisted after every scan.
+    So a steady-state run finishes in seconds, and if the phase is interrupted
+    (e.g. ArgoCD re-running the PostSync hook) it resumes where it left off
+    instead of restarting -- it converges instead of looping.
+
+    Resilience: a transient ls-remote error does NOT downgrade a package that
+    already has a verdict -- its prior verdict is preserved -- so an AUR blip
+    can't flap a good package into a hold.
     """
     approved = load_approved()
+    approved_names = {e["name"] for e in approved}
     log.info("Scan: %d approved packages", len(approved))
-    old_state = load_state()
-    state: dict = {}
+    # Start from prior state (pruned to the allowlist) so an interruption keeps
+    # already-scanned verdicts -- the scan resumes rather than restarting.
+    state = {k: v for k, v in load_state().items() if k in approved_names}
+    scanned = reused = held = 0
 
     with tempfile.TemporaryDirectory() as td:
         workdir = Path(td)
-        for entry in approved:
+        for i, entry in enumerate(approved):
             pkg = entry["name"]
             source = entry.get("source")
-            prev = old_state.get(pkg)
+            push_progress("scan", pkg, i + 1, len(approved))
+            prev = state.get(pkg)
+
+            # 1. Resolve HEAD cheaply -- no clone.
+            try:
+                head = remote_head(pkg, source)
+            except Exception as exc:  # noqa: BLE001 - never abort the batch
+                if prev:
+                    log.warning("ls-remote failed for %s (keeping prior %s): %s",
+                                pkg, prev.get("verdict"), str(exc)[:120])
+                else:
+                    log.error("ls-remote failed for %s (holding): %s", pkg, str(exc)[:120])
+                    state[pkg] = {"commit": "", "recipe_sha256": "", "verdict": "fail",
+                                  "risk": "error", "summary": f"ls-remote failed: {exc}"[:200],
+                                  "ts": int(time.time())}
+                    held += 1
+                continue
+
+            # 2. HEAD unchanged since we last decided -> reuse verdict, no clone/scan.
+            if prev and prev.get("commit") == head and prev.get("verdict") in ("pass", "fail"):
+                reused += 1
+                held += 1 if prev.get("verdict") == "fail" else 0
+                continue
+
+            # 3. New/changed HEAD -> shallow clone, hash, Claude-scan.
             clone = workdir / pkg
             try:
-                try:
-                    recipe = fetch_recipe_head(pkg, source, clone)
-                    head = git_head(recipe)
-                    rsha = recipe_sha256(recipe)
-                except Exception as exc:  # noqa: BLE001 - never abort the batch
-                    # Transient fetch/resolve error: keep a prior PASS so an AUR
-                    # blip doesn't flap a good package; otherwise fail closed.
-                    if prev and prev.get("verdict") == "pass":
-                        log.warning("Scan fetch failed for %s (keeping prior pass): %s",
-                                    pkg, str(exc)[:160])
-                        state[pkg] = prev
-                    else:
-                        log.error("Scan fetch failed for %s (holding): %s", pkg, str(exc)[:160])
-                        state[pkg] = {"commit": "", "recipe_sha256": "", "verdict": "fail",
-                                      "risk": "error", "summary": f"recipe fetch failed: {exc}"[:200],
-                                      "ts": int(time.time())}
-                    continue
-
-                # HEAD unchanged since a prior PASS -> reuse, skip the API call.
-                if prev and prev.get("commit") == head and prev.get("verdict") == "pass":
-                    log.info("Scan: %s unchanged @ %s (cached pass)", pkg, head[:12])
-                    state[pkg] = prev
-                    continue
-
+                recipe = clone_recipe_head(pkg, source, clone)
+                real_head = git_head(recipe)          # authoritative
+                rsha = recipe_sha256(recipe)
                 verdict = claude_scan(recipe, pkg)
                 ok = bool(verdict.get("safe"))
                 state[pkg] = {
-                    "commit": head,
-                    "recipe_sha256": rsha,
+                    "commit": real_head, "recipe_sha256": rsha,
                     "verdict": "pass" if ok else "fail",
-                    "risk": verdict.get("risk", ""),
-                    "summary": verdict.get("summary", ""),
+                    "risk": verdict.get("risk", ""), "summary": verdict.get("summary", ""),
                     "ts": int(time.time()),
                 }
-                log.info("Scan: %s @ %s -> %s (%s)",
-                         pkg, head[:12], state[pkg]["verdict"], verdict.get("risk", ""))
+                scanned += 1
+                held += 0 if ok else 1
+                log.info("Scan: %s @ %s -> %s (%s)", pkg, real_head[:12],
+                         state[pkg]["verdict"], verdict.get("risk", ""))
+            except Exception as exc:  # noqa: BLE001 - hold this one, keep going
+                log.error("Scan failed for %s (holding): %s", pkg, str(exc)[:160])
+                state[pkg] = {"commit": "", "recipe_sha256": "", "verdict": "fail",
+                              "risk": "error", "summary": f"scan failed: {exc}"[:200],
+                              "ts": int(time.time())}
+                held += 1
             finally:
-                # Bound ephemeral usage: drop each recipe clone after scanning.
                 shutil.rmtree(clone, ignore_errors=True)
+            # Persist after each scan so progress survives an interruption.
+            _save_state_safe(state)
 
     try:
         save_state(state)
@@ -622,7 +700,8 @@ def run_scan_phase() -> int:
         log.error("FATAL: could not write scan state to %s: %s", SCAN_STATE, exc)
         return 1
     passes = sum(1 for v in state.values() if v.get("verdict") == "pass")
-    log.info("Scan phase done: %d pass, %d hold", passes, len(state) - passes)
+    log.info("Scan phase done: %d scanned, %d reused, %d held, %d pass",
+             scanned, reused, held, passes)
     return 0
 
 
@@ -672,10 +751,11 @@ def run_build_phase() -> int:
             py_now, len(py_stale_pkgs), ", ".join(sorted(py_stale_pkgs)),
         )
 
-    for entry in packages:
+    for i, entry in enumerate(packages):
         pkg = entry["name"]
         source = entry.get("source")  # git URL for first-party (non-AUR) packages
         log.info("-- Processing: %s --", pkg)
+        push_progress("build", pkg, i + 1, len(packages))
         pkg_dir = BUILD_DIR / pkg
         try:
             # Rebuild if a python minor bump stranded this package under an old
@@ -810,7 +890,8 @@ def run_sign_phase() -> int:
     except (OSError, ValueError):
         built_commits = {}
 
-    for pkg, info in staged.items():
+    for i, (pkg, info) in enumerate(staged.items()):
+        push_progress("sign", pkg, i + 1, len(staged))
         records = info.get("artifacts", [])
         if not records:
             log.error("No staged artifacts for %s (held)", pkg)
@@ -841,6 +922,7 @@ def run_sign_phase() -> int:
         log.warning("Could not write built-commits marker: %s", exc)
 
     push_metrics(total=total, skipped=skipped, failed=failed)
+    push_progress("idle", None, 0, 0)  # clear live state: run finished
     shutil.rmtree(STAGING_DIR, ignore_errors=True)
 
     # Held packages are an alert (via metrics), NOT a job failure: a single
