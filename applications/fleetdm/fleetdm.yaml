@@ -188,10 +188,10 @@ metadata:
   name: fleet
   namespace: fleetdm
 spec:
-  # TEMPORARY: scaled to 0 to quiesce MySQL writes so the mysql-pvc Longhorn
-  # volume can finish rebuilding its 3rd replica without live-write contention.
-  # Restore to 2 once the volume is healthy (3/3).
-  replicas: 0
+  # Single replica: fleet is stateless (all state in MySQL/Redis), so one
+  # pod is plenty for this homelab and avoids two replicas both loading the
+  # DB. Was briefly scaled to 0 to let the mysql-pvc volume rebuild quietly.
+  replicas: 1
   selector:
     matchLabels:
       app: fleet
