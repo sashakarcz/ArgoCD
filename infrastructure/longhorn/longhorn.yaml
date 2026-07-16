@@ -42,6 +42,13 @@ spec:
           offlineReplicaRebuilding: enabled
           # Allow enough time for large volume backups to complete (was 1 min)
           backupExecutionTimeout: 30
+          # Tolerate I/O spikes during rebuilds before dropping a replica (was 8s).
+          # An 8s r/w timeout killed the fleetdm mysql-pvc rebuild repeatedly on
+          # 2026-07-16 while the volume served live DB writes.
+          engineReplicaTimeout: 30
+          # Give large snapshot file-syncs room to complete (was 30s). The same
+          # 2026-07-16 rebuild EOF'd transferring a ~12.7GB snapshot within 30s.
+          replicaFileSyncHttpClientTimeout: 120
         tolerations:
           - key: "node-role.kubernetes.io/control-plane"
             operator: "Exists"
