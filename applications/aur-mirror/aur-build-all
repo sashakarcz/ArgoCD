@@ -324,6 +324,14 @@ def clone_recipe_head(pkg: str, source: str | None, dest: Path) -> Path:
     return dest / pkg
 
 
+def clone_recipe_full(pkg: str, source: str | None, dest: Path) -> Path:
+    """Full clone (not shallow) so a prior commit is reachable for classify_diff.
+    Used only for CHANGED packages; recipes are tiny so this is cheap."""
+    dest.mkdir(parents=True, exist_ok=True)
+    run(["git", "clone", "--quiet", _git_url(pkg, source), pkg], cwd=dest)
+    return dest / pkg
+
+
 _VERDICT_TOOL = {
     "name": "report_verdict",
     "description": "Report the security verdict for the reviewed AUR recipe.",
@@ -771,13 +779,26 @@ def run_scan_phase() -> int:
                 held += 1 if prev.get("verdict") == "fail" else 0
                 continue
 
-            # 3. New/changed HEAD -> shallow clone, hash, Claude-scan.
+            # 3. New/changed HEAD -> clone, classify the diff, route the scan.
             clone = workdir / pkg
             try:
-                recipe = clone_recipe_head(pkg, source, clone)
-                real_head = git_head(recipe)          # authoritative
+                if prev and prev.get("commit"):
+                    recipe = clone_recipe_full(pkg, source, clone)   # need prev commit
+                    real_head = git_head(recipe)
+                    try:
+                        kind, diff_text = classify_diff(recipe, prev["commit"], real_head)
+                    except Exception as exc:  # noqa: BLE001 - can't diff -> escalate
+                        log.warning("classify_diff failed for %s (escalating): %s", pkg, str(exc)[:120])
+                        kind, diff_text = "substantive", None
+                else:
+                    recipe = clone_recipe_head(pkg, source, clone)   # shallow ok; no diff
+                    real_head = git_head(recipe)
+                    kind, diff_text = "new", None
                 rsha = recipe_sha256(recipe)
-                verdict = claude_scan(recipe, pkg)
+                if route_scan(kind) == "haiku":
+                    verdict = claude_scan(recipe, pkg)
+                else:
+                    verdict = escalated_scan(recipe, pkg, diff_text)
                 ok = bool(verdict.get("safe"))
                 state[pkg] = {
                     "commit": real_head, "recipe_sha256": rsha,
@@ -787,7 +808,7 @@ def run_scan_phase() -> int:
                 }
                 scanned += 1
                 held += 0 if ok else 1
-                log.info("Scan: %s @ %s -> %s (%s)", pkg, real_head[:12],
+                log.info("Scan: %s @ %s [%s] -> %s (%s)", pkg, real_head[:12], kind,
                          state[pkg]["verdict"], verdict.get("risk", ""))
             except Exception as exc:  # noqa: BLE001 - hold this one, keep going
                 log.error("Scan failed for %s (holding): %s", pkg, str(exc)[:160])
@@ -797,7 +818,6 @@ def run_scan_phase() -> int:
                 held += 1
             finally:
                 shutil.rmtree(clone, ignore_errors=True)
-            # Persist after each scan so progress survives an interruption.
             _save_state_safe(state)
 
     try:
