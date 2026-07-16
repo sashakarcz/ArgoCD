@@ -34,6 +34,11 @@ spec:
           # Serialize rebuilds to avoid thrashing instance-managers (Longhorn default is 5;
           # 5-wide rebuilds during the 2026-07-06 reboot flapped replicas into a cascade)
           concurrentReplicaRebuildPerNodeLimit: 2
+          # Auto-upgrade volume engine images to the manager version, throttled to
+          # 1/node so it can't storm. Was 0 (disabled), which silently left 30 of
+          # 34 volumes on the 2-minors-old v1.10.1 engine (found 2026-07-16). Keep
+          # on so engines track the manager and never drift behind again.
+          concurrentAutomaticEngineUpgradePerNodeLimit: 1
           # Match storage class replica count so UI-created volumes also get 3 replicas
           defaultReplicaCount: 3
           # Rebalance replicas gradually when nodes recover (was disabled)
