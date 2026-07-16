@@ -44,9 +44,8 @@ data:
         note: explicit
       - name: claude-code
         approved: true
-        note: explicit -- first-party recipe; auto-tracks stable, verifies Anthropic manifest checksum
+        note: explicit -- first-party recipe; pinned version + reviewed Anthropic checksums (bump via commit)
         source: https://github.com/usenix17/claude-code.git
-        track: latest
       - name: claude-desktop-native
         approved: false
         note: explicit [held 2026-06-26 -- Claude flagged high/critical]
