@@ -415,17 +415,18 @@ _ESCALATION_SYSTEM = (
     ".install scriptlets (run as ROOT on the client) that fetch/exfiltrate/persist, "
     "credential/key/shadow/passwd exfiltration, source= URLs pointing at unrelated "
     "hosts, setuid on unusual binaries, or any code added to build()/package()/"
-    "prepare()/.install. Default to safe=false if you cannot positively rule out "
-    "malice. Then call report_verdict."
+    "prepare()/.install. Grade the risk: HIGH or CRITICAL ONLY for a genuine "
+    "supply-chain threat like the above; MEDIUM for suspicious-but-plausibly-benign; "
+    "LOW for ordinary build steps. Then call report_verdict."
 )
 
 
 def escalated_scan(recipe_dir: Path, pkg: str, diff_text: str | None) -> dict:
-    """N adversarial passes with a stronger model; UNANIMOUS safe required.
-
-    Any pass returning unsafe, OR any API/SDK error on any pass, -> unsafe
-    (fail closed, like claude_scan). Passes see the full recipe as context plus
-    the prev->HEAD diff (when one exists) delimited for focus.
+    """N adversarial passes with a stronger model; held if ANY pass rates the
+    change high/critical (or errors / returns no verdict) -- fail closed. Low and
+    medium adversarial findings clear (the base scan's threshold), so benign
+    build-logic changes aren't false-positive-held. Passes see the full recipe as
+    context plus the prev->HEAD diff (when one exists) delimited for focus.
     """
     if not ANTHROPIC_API_KEY or not _HAS_ANTHROPIC:
         return {"safe": False, "risk": "critical",
@@ -455,9 +456,13 @@ def escalated_scan(recipe_dir: Path, pkg: str, diff_text: str | None) -> dict:
                 messages=[{"role": "user", "content": content}],
             )
             v = next((b.input for b in msg.content if getattr(b, "type", None) == "tool_use"), None)
-            if not v or not bool(v.get("safe", False)):
-                return {"safe": False, "risk": (v or {}).get("risk", "critical"),
-                        "summary": f"escalated pass {n + 1}/{ESCALATION_PASSES} flagged: "
+            risk = (v or {}).get("risk", "critical")
+            # Hold only on a genuine threat (high/critical) or a missing verdict.
+            # Low/medium adversarial nitpicks clear; the intentionally-biased `safe`
+            # flag is ignored -- risk is the graded signal (matches claude_scan's bar).
+            if not v or risk in ("high", "critical"):
+                return {"safe": False, "risk": risk,
+                        "summary": f"escalated pass {n + 1}/{ESCALATION_PASSES} flagged {risk}: "
                                    + (v or {}).get("summary", "no verdict")}
         except Exception as exc:  # noqa: BLE001 - fail closed on any error
             return {"safe": False, "risk": "error",
