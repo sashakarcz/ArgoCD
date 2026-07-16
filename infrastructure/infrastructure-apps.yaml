@@ -283,7 +283,7 @@ spec:
   source:
     repoURL: https://traefik.github.io/charts
     chart: traefik
-    targetRevision: 40.3.0
+    targetRevision: 41.0.2
     helm:
       releaseName: traefik
       values: |
@@ -326,11 +326,13 @@ spec:
             publishedService:
               enabled: true
 
-        logs:
-          general:
-            level: INFO
-          access:
-            enabled: true
+        # Chart 41 renamed logging keys (logs.general -> log,
+        # logs.access -> accessLog). Chart 41 fails the render on unknown
+        # keys, so these must match the new schema.
+        log:
+          level: INFO
+        accessLog:
+          enabled: true
 
         metrics:
           prometheus:
