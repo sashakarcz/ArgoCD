@@ -500,19 +500,20 @@ spec:
                 release: monitoring
           ingress:
             enabled: false  # We manage this separately via Traefik
-
-          config:
-            repositories: |
-              - type: git
-                url: https://github.com/usenix17/ArgoCD.git
-              - type: helm
-                name: vikunja
-                url: ghcr.io/go-vikunja/helm-chart
-                enableOCI: "true"
+          # NOTE: server.config was removed from the chart at 6.0.0, so the old
+          # server.config.repositories block here was a silent no-op. Repos are
+          # actually served by standalone Secrets (repo-1527747537,
+          # vikunja-helm-oci). Migrating them to configs.repositories is tracked
+          # as post-v3-upgrade cleanup (tasks/argocd-v3-upgrade-plan.md sec 7).
 
         configs:
           cm:
             url: https://argocd.starnix.net
+            # Pin resource tracking to label during the v2->v3 upgrade. Argo CD
+            # v3.0 flips the default to annotation, which would relabel every
+            # resource across all apps at once. Migrate to annotation later as a
+            # deliberate change (upgrade plan sec 7).
+            application.resourceTrackingMethod: label
             oidc.config: |
               name: Starnix
               issuer: https://auth.starnix.net/application/o/argocd/
@@ -631,6 +632,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Apply server-side so the large v3.x Argo CD CRDs do not blow the 256KB
+      # client-side last-applied-configuration annotation limit during the
+      # upgrade (the applications CRD annotation is already ~144KB).
+      - ServerSideApply=true
     retry:
       limit: 5
       backoff:
