@@ -188,7 +188,10 @@ metadata:
   name: fleet
   namespace: fleetdm
 spec:
-  replicas: 2
+  # TEMPORARY: scaled to 0 to quiesce MySQL writes so the mysql-pvc Longhorn
+  # volume can finish rebuilding its 3rd replica without live-write contention.
+  # Restore to 2 once the volume is healthy (3/3).
+  replicas: 0
   selector:
     matchLabels:
       app: fleet
