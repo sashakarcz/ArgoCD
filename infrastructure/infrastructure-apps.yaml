@@ -464,6 +464,14 @@ spec:
       releaseName: argocd
       values: |
         global:
+          # CVE-2026-15416 (CWE-306): the repo-server gRPC endpoint has no
+          # authentication, so any pod that can reach :8081 can achieve RCE.
+          # Enabling networkPolicy generates ingress restrictions that limit
+          # repo-server and redis to their legitimate in-cluster peers, which
+          # is the mitigation upstream ships on by default from chart 10.x.
+          # Kept here so the fix survives independent of the chart version.
+          networkPolicy:
+            create: true
           tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Exists"
