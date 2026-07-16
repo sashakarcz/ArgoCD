@@ -459,9 +459,9 @@ spec:
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
-    # Phase-2 upgrade step 1 of 2: v2.13.3 -> v3.1.8 (the v2->v3 boundary).
-    # Step 2 will move this to 10.1.3 (v3.4.5). See tasks/argocd-v3-upgrade-plan.md
-    targetRevision: 8.6.4
+    # Phase-2 upgrade complete: chart 10.1.3 (Argo CD v3.4.5). Reached via
+    # 7.7.20 -> 8.6.4 (v2->v3 boundary) -> 10.1.3. See tasks/argocd-v3-upgrade-plan.md
+    targetRevision: 10.1.3
     helm:
       releaseName: argocd
       values: |
