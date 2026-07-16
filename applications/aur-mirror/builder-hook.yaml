@@ -68,7 +68,7 @@ spec:
         # writing verdicts to the state PV. ONLY container with ANTHROPIC_API_KEY;
         # never runs makepkg, mounts neither repo nor GPG key. Always exits 0.
         - name: scan
-          image: registry.starnix.net/library/aur-builder@sha256:3ce9eb5ee1c21600c33e5097f8c366b2370f06e21b90ff7e6cd79b62747c45d9
+          image: registry.starnix.net/library/aur-builder@sha256:a63c7a54cbf10bc058e410acace57e80799b781986fe97d4d24898d0b30a9bb4
           command:
             - flock
             - /lock/.build.lock
@@ -110,7 +110,7 @@ spec:
         # build can exfiltrate neither. Vetted artifacts are staged on build-dir
         # for the sign phase. Runs after scan so verdicts exist before it builds.
         - name: build
-          image: registry.starnix.net/library/aur-builder@sha256:3ce9eb5ee1c21600c33e5097f8c366b2370f06e21b90ff7e6cd79b62747c45d9
+          image: registry.starnix.net/library/aur-builder@sha256:a63c7a54cbf10bc058e410acace57e80799b781986fe97d4d24898d0b30a9bb4
           # flock: blocks until the nightly cron (if running) releases the lock,
           # then builds -- so the two never build concurrently.
           command:
@@ -163,7 +163,7 @@ spec:
         # Phase 2 prep: import the GPG key into gpg-home (only the signer mounts
         # it), after the untrusted build init container has finished.
         - name: gpg-init
-          image: registry.starnix.net/library/aur-builder@sha256:3ce9eb5ee1c21600c33e5097f8c366b2370f06e21b90ff7e6cd79b62747c45d9
+          image: registry.starnix.net/library/aur-builder@sha256:a63c7a54cbf10bc058e410acace57e80799b781986fe97d4d24898d0b30a9bb4
           command:
             - sh
             - -c
@@ -192,7 +192,7 @@ spec:
         # Phase 2: sign + publish. Only container holding the key; runs no
         # PKGBUILD code. Reads staged artifacts, signs, repo-adds, pushes metrics.
         - name: signer
-          image: registry.starnix.net/library/aur-builder@sha256:3ce9eb5ee1c21600c33e5097f8c366b2370f06e21b90ff7e6cd79b62747c45d9
+          image: registry.starnix.net/library/aur-builder@sha256:a63c7a54cbf10bc058e410acace57e80799b781986fe97d4d24898d0b30a9bb4
           command:
             - flock
             - /lock/.build.lock

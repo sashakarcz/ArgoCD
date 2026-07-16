@@ -9,6 +9,7 @@ RUN pacman -Syu --noconfirm \
     python \
     python-pip \
     python-yaml \
+    python-pytest \
     && pacman -Sc --noconfirm
 
 # Install aurutils from AUR (bootstrap via makepkg as build user)
