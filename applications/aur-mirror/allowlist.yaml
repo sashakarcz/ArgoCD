@@ -44,7 +44,9 @@ data:
         note: explicit
       - name: claude-code
         approved: true
-        note: explicit
+        note: explicit -- first-party recipe; auto-tracks stable, verifies Anthropic manifest checksum
+        source: https://github.com/usenix17/claude-code.git
+        track: latest
       - name: claude-desktop-native
         approved: false
         note: explicit [held 2026-06-26 -- Claude flagged high/critical]
@@ -537,7 +539,9 @@ data:
         note: explicit [held 2026-06-26 -- build fails]
       - name: zoom
         approved: true
-        note: explicit
+        note: explicit -- first-party recipe; auto-tracks latest, GPG-verifies Zoom's signed rpm
+        source: https://github.com/usenix17/zoom.git
+        track: latest
       - name: spotify
         approved: false
         note: explicit [held 2026-06-26 -- build fails]
