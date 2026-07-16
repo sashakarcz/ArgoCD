@@ -509,6 +509,19 @@ spec:
           # as post-v3-upgrade cleanup (tasks/argocd-v3-upgrade-plan.md sec 7).
 
         configs:
+          # Declaratively manage the repos that were previously standalone
+          # Secrets (git repo added via the API; vikunja OCI applied by hand).
+          # Values mirror the live secrets exactly so this only formalizes
+          # ownership -- no functional change to repo access.
+          repositories:
+            argocd-repo:
+              url: https://github.com/usenix17/ArgoCD
+              type: git
+            vikunja-helm-oci:
+              url: oci://ghcr.io/go-vikunja/helm-chart
+              type: helm
+              name: vikunja
+              enableOCI: "true"
           cm:
             url: https://argocd.starnix.net
             # Pin resource tracking to label during the v2->v3 upgrade. Argo CD
@@ -566,6 +579,11 @@ spec:
               enabled: true
               additionalLabels:
                 release: monitoring
+
+        dex:
+          # SSO is direct Authentik OIDC (configs.cm.oidc.config), not routed
+          # through Dex, so the dex-server is unused. Disable it.
+          enabled: false
 
         applicationSet:
           enabled: true
