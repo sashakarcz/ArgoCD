@@ -261,12 +261,19 @@ spec:
             port: 8080
           initialDelaySeconds: 90
           periodSeconds: 10
+          # /healthz pings MySQL+Redis; the k8s default timeout of 1s is too
+          # tight and kills the pod on transient DB latency. Allow 5s and
+          # require sustained failure (~50s) before restarting.
+          timeoutSeconds: 5
+          failureThreshold: 5
         readinessProbe:
           httpGet:
             path: /healthz
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
         resources:
           requests:
             memory: "512Mi"
