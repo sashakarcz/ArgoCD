@@ -701,7 +701,7 @@ data:
           },
           "options": {
             "mode": "markdown",
-            "content": "### Build logs\nLive scan / build / sign logs stream to Graylog via fluent-bit (GELF).\n\n**[Open the AUR builder logs in Graylog](https://graylog.starnix.net/search?q=aur-builder&rangetype=relative&relative=3600)** (last hour, full-text `aur-builder`).\n\nRefine with fields, e.g. the pod/container, or the `-- Processing:` lines, and save it as a stream/dashboard in Graylog."
+            "content": "### Build logs\nLive scan / build / sign logs stream to Graylog via fluent-bit (GELF).\n\n**[Open the AUR builder logs in Graylog](https://log.starnix.net/search?q=aur-builder&rangetype=relative&relative=3600)** (last hour, full-text `aur-builder`).\n\nRefine with fields, e.g. the pod/container, or the `-- Processing:` lines, and save it as a stream/dashboard in Graylog."
           }
         }
       ]
