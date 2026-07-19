@@ -473,9 +473,6 @@ data:
       - name: terraformer
         approved: false
         note: explicit [held 2026-06-26 -- Trivy HIGH/CRITICAL CVE]
-      - name: topcat
-        approved: true
-        note: explicit
       - name: ua608d
         approved: true
         note: explicit
@@ -553,6 +550,3 @@ data:
       - name: plasma-foreground-booster-dmemcg
         approved: false
         note: explicit [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
-      - name: tabby-bin
-        approved: true
-        note: explicit
