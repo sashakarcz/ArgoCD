@@ -89,6 +89,11 @@ spec:
           value: sasha@starnix.net
         - name: SYNC_BASE_URL
           value: https://krampus.starnix.net
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: krampus-secrets
+              key: webhook
         volumeMounts:
         - name: db
           mountPath: /app/database
@@ -137,6 +142,22 @@ spec:
     targetPort: 8080
 
 ---
+# Restrict the (unauthenticated) Santa sync endpoints to LAN clients only.
+# Split-horizon DNS resolves krampus.starnix.net to the internal Traefik on the
+# LAN, so the Mac hits Traefik directly with its RFC1918 source IP (allowed),
+# while anything arriving via the Cloudflare tunnel shows the tunnel IP (denied).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: krampus-rfc1918
+  namespace: krampus
+spec:
+  ipAllowList:
+    sourceRange:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -156,6 +177,58 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: krampus
+            port:
+              number: 80
+---
+# Sync-only Ingress: same host, but the four Santa protocol paths carry the
+# RFC1918 allowlist middleware. Traefik prioritises these longer path prefixes
+# over the main ingress's "/" rule, so only sync traffic is IP-restricted while
+# the OIDC-protected dashboard/API stay reachable via Cloudflare.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: krampus-sync-ingress
+  namespace: krampus
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: krampus-krampus-rfc1918@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - krampus.starnix.net
+    secretName: krampus-tls
+  rules:
+  - host: krampus.starnix.net
+    http:
+      paths:
+      - path: /preflight
+        pathType: Prefix
+        backend:
+          service:
+            name: krampus
+            port:
+              number: 80
+      - path: /eventupload
+        pathType: Prefix
+        backend:
+          service:
+            name: krampus
+            port:
+              number: 80
+      - path: /ruledownload
+        pathType: Prefix
+        backend:
+          service:
+            name: krampus
+            port:
+              number: 80
+      - path: /postflight
         pathType: Prefix
         backend:
           service:
