@@ -68,9 +68,13 @@ spec:
         trivy:
           enabled: true
 
-        jobservice:
-          updateStrategy:
-            type: Recreate
+        # Recreate (not RollingUpdate) for the PV-backed deployments (jobservice,
+        # registry): they use Longhorn RWO volumes, so a surge pod landing on a
+        # different node deadlocks on multi-attach. This is the chart's TOP-LEVEL
+        # key -- a per-component jobservice.updateStrategy does not exist in the
+        # chart and was silently ignored, leaving the default RollingUpdate.
+        updateStrategy:
+          type: Recreate
 
   destination:
     server: https://kubernetes.default.svc
