@@ -12,37 +12,25 @@ metadata:
   namespace: say-time
 
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: say-time
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret at secret/cluster/say-time must contain:
-#   config.yaml - Full say_time config YAML (see configs/config.example.yaml in the say_time repo)
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# say-time-config: config.yaml synced from OpenBao secret/cluster/say-time via
+# ESO (ClusterSecretStore 'openbao'). Replaces the VSO VaultAuth+VaultStaticSecret.
+# OpenBao path secret/cluster/say-time must contain: config.yaml (full say_time config).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: say-time-config
   namespace: say-time
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/say-time
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: say-time-config
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/say-time
 
 ---
 apiVersion: apps/v1
