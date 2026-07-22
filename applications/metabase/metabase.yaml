@@ -3,7 +3,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: metabase
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -17,7 +16,6 @@ spec:
     requests:
       storage: 20Gi
   storageClassName: longhorn
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -31,7 +29,6 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: longhorn
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -106,7 +103,6 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: metabase-postgres-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -118,7 +114,6 @@ spec:
     app: metabase-postgres
   ports:
   - port: 5432
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -206,7 +201,6 @@ spec:
       - name: metabase-data
         persistentVolumeClaim:
           claimName: metabase-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -226,7 +220,6 @@ spec:
   ports:
   - port: 80
     targetPort: 3000
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -260,7 +253,6 @@ spec:
             name: metabase
             port:
               number: 80
-
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -288,31 +280,21 @@ metadata:
   name: vault-auth
   namespace: metabase
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: metabase
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# metabase-secrets: synced from OpenBao secret/cluster/metabase-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: metabase-secrets
   namespace: metabase
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/metabase-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: metabase-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/metabase-secrets

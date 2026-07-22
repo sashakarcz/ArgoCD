@@ -10,7 +10,6 @@ metadata:
 #   --from-literal=mysql-password='YOUR_FLEET_DB_PASSWORD' \
 #   --from-literal=jwt-key='YOUR_JWT_KEY_HERE' \
 #   --from-literal=server-private-key="$(openssl rand -base64 32)"
-
 ---
 # MySQL Database
 # PVC is dynamically provisioned by Longhorn (3 replicas, RWO).
@@ -327,31 +326,21 @@ metadata:
   name: vault-auth
   namespace: fleetdm
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: fleetdm
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# fleetdm-secrets: synced from OpenBao secret/cluster/fleetdm-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: fleetdm-secrets
   namespace: fleetdm
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/fleetdm-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: fleetdm-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/fleetdm-secrets

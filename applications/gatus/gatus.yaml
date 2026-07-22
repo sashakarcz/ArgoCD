@@ -2,7 +2,6 @@
 # Create secret before first sync:
 # kubectl create secret generic gatus-secrets -n gatus \
 #   --from-literal=discord-webhook-url="<discord webhook url>"
-
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -522,34 +521,24 @@ metadata:
   name: vault-auth
   namespace: gatus
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: gatus
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# gatus-secrets: synced from OpenBao secret/cluster/gatus-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: gatus-secrets
   namespace: gatus
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/gatus-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: gatus-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/gatus-secrets
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

@@ -242,51 +242,28 @@ spec:
     port: 53
     targetPort: 53
     protocol: UDP
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: knot
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: knot
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain key: knot-keys.conf
-# with contents:
-#   key:
-#     - id: externaldns
-#       algorithm: hmac-sha256
-#       secret: <tsig-secret>
-#   acl:
-#     - id: externaldns-update
-#       key: externaldns
-#       action: update
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# knot-secrets: synced from OpenBao secret/cluster/knot-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: knot-secrets
   namespace: knot
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/knot-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: knot-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/knot-secrets

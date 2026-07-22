@@ -4,7 +4,6 @@ kind: ServiceAccount
 metadata:
   name: external-dns
   namespace: external-dns
-
 ---
 # ClusterRole gives ExternalDNS read access to Ingress and Service resources
 # across all namespaces so it can discover hostnames to register.
@@ -24,7 +23,6 @@ rules:
 - apiGroups: ["traefik.io", "traefik.containo.us"]
   resources: ["ingressroutes", "ingressroutetcps", "ingressrouteudps"]
   verbs: ["get", "watch", "list"]
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -38,7 +36,6 @@ subjects:
 - kind: ServiceAccount
   name: external-dns
   namespace: external-dns
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -98,43 +95,28 @@ spec:
           limits:
             cpu: 200m
             memory: 128Mi
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: external-dns
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: external-dns
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain:
-#   EXTERNAL_DNS_RFC2136_TSIG_SECRET = <same base64 key as knot-keys.conf>
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# external-dns-secrets: synced from OpenBao secret/cluster/external-dns-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: external-dns-secrets
   namespace: external-dns
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/external-dns-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: external-dns-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/external-dns-secrets

@@ -7,13 +7,11 @@ metadata:
 provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: Immediate
 reclaimPolicy: Retain
-
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: monitoring
-
 ---
 # NFS Persistent Volumes
 # Before syncing, create these dirs on 192.168.1.75:
@@ -47,7 +45,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/monitoring/prometheus
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -66,7 +63,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/monitoring/alertmanager
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -85,7 +81,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/monitoring/loki
-
 ---
 # Vault Integration
 apiVersion: v1
@@ -93,44 +88,25 @@ kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: monitoring
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: monitoring
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must be created before syncing:
-#   vault kv put secret/cluster/monitoring-secrets \
-#     grafanaAdminUser=admin \
-#     grafanaAdminPassword='<strong-password>' \
-#     grafanaOidcClientId='<from-authentik>' \
-#     grafanaOidcClientSecret='<from-authentik>'
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# monitoring-secrets: synced from OpenBao secret/cluster/monitoring-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: monitoring-secrets
   namespace: monitoring
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/monitoring-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: monitoring-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/monitoring-secrets
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

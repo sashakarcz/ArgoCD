@@ -3,7 +3,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: ghost
-
 ---
 # Vault Integration
 apiVersion: v1
@@ -11,42 +10,25 @@ kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: ghost
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: ghost
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# vault kv put secret/cluster/ghost-secrets \
-#   ghost-password='...' \
-#   mysql-password='...' \
-#   mysql-root-password='...'
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# ghost-secrets: synced from OpenBao secret/cluster/ghost-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: ghost-secrets
   namespace: ghost
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/ghost-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: ghost-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/ghost-secrets
 ---
 # NFS PV for Ghost content (themes, images, uploads)
 # Before syncing, create on NAS: mkdir -p /mnt/Store/ghost
@@ -73,7 +55,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/ghost
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -87,7 +68,6 @@ spec:
     requests:
       storage: 20Gi
   storageClassName: manual
-
 ---
 # MySQL using official Docker Hub image
 apiVersion: v1
@@ -102,7 +82,6 @@ spec:
   resources:
     requests:
       storage: 8Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -159,7 +138,6 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: ghost-mysql-pvc
-
 ---
 apiVersion: v1
 kind: Service
@@ -172,7 +150,6 @@ spec:
   ports:
   - port: 3306
     targetPort: 3306
-
 ---
 # Ghost using official Docker Hub image (ghost:5)
 apiVersion: apps/v1
@@ -265,7 +242,6 @@ spec:
       - name: content
         persistentVolumeClaim:
           claimName: ghost-content-pvc
-
 ---
 apiVersion: v1
 kind: Service
@@ -278,7 +254,6 @@ spec:
   ports:
   - port: 80
     targetPort: 2368
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -311,7 +286,6 @@ spec:
     - secretName: ghost-tls
       hosts:
         - ghost.starnix.net
-
 ---
 # Egress lockdown for this internet-exposed namespace. Ghost (and its mysql)
 # may reach only DNS, their own namespace (ghost <-> ghost-mysql), and the

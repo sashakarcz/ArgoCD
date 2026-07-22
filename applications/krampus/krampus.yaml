@@ -3,13 +3,11 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: krampus
-
 ---
 # Create secret before first sync:
 # kubectl create secret generic krampus-secrets -n krampus \
 #   --from-literal=oidc-client-secret="<from authentik>" \
 #   --from-literal=jwt-secret="<from .env>"
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -23,7 +21,6 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: longhorn
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -120,7 +117,6 @@ spec:
       - name: db
         persistentVolumeClaim:
           claimName: krampus-db
-
 ---
 apiVersion: v1
 kind: Service
@@ -140,7 +136,6 @@ spec:
   ports:
   - port: 80
     targetPort: 8080
-
 ---
 # Restrict the (unauthenticated) Santa sync endpoints to LAN clients only.
 # Split-horizon DNS resolves krampus.starnix.net to the internal Traefik on the
@@ -242,31 +237,21 @@ metadata:
   name: vault-auth
   namespace: krampus
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: krampus
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# krampus-secrets: synced from OpenBao secret/cluster/krampus-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: krampus-secrets
   namespace: krampus
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/krampus-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: krampus-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/krampus-secrets

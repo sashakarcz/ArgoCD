@@ -13,7 +13,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/harbor/registry
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -28,50 +27,31 @@ spec:
   resources:
     requests:
       storage: 50Gi
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: harbor
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: harbor
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain:
-#   HARBOR_ADMIN_PASSWORD  - Harbor admin password
-#   secretKey              - Exactly 16 characters, used for encryption
-#   POSTGRES_PASSWORD      - Internal PostgreSQL password
-#   HARBOR_OIDC_CLIENT_SECRET - OAuth2 client secret from Authentik
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# harbor-secrets: synced from OpenBao secret/cluster/harbor-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: harbor-secrets
   namespace: harbor
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/harbor-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: harbor-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/harbor-secrets
 ---
 # Runs after each sync to configure OIDC via Harbor API.
 # Idempotent — safe to re-run. Waits for Harbor to be ready first.

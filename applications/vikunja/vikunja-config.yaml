@@ -4,78 +4,44 @@ kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: vikunja
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: vikunja
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain:
-#   clientId          - Authentik OIDC client ID
-#   clientSecret      - Authentik OIDC client secret
-#   postgres-password - PostgreSQL superuser password
-#   dbPassword        - Vikunja database user password
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# vikunja-secrets: synced from OpenBao secret/cluster/vikunja-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: vikunja-secrets
   namespace: vikunja
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/vikunja-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: vikunja-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/vikunja-secrets
 ---
-# Renders config.yml with OIDC secrets from Vault using VSO templates
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# vikunja-config: synced from OpenBao secret/cluster/vikunja-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: vikunja-config
   namespace: vikunja
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/vikunja-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: vikunja-config
-    create: true
-    type: configmap
-    transformation:
-      templates:
-        config.yml:
-          text: |
-            auth:
-              local:
-                enabled: false
-              openid:
-                enabled: true
-                providers:
-                  authentik:
-                    name: "Authentik"
-                    authurl: "https://auth.starnix.net/application/o/vikunja/"
-                    logouturl: "https://auth.starnix.net/application/o/vikunja/end-session/"
-                    scope: "openid profile email"
-                    clientid: "{{ .Secrets.clientId }}"
-                    clientsecret: "{{ .Secrets.clientSecret }}"
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/vikunja-secrets
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -91,7 +57,6 @@ spec:
   resources:
     requests:
       storage: 5Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -152,7 +117,6 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: vikunja-postgres-data
-
 ---
 apiVersion: v1
 kind: Service

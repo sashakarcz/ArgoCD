@@ -3,60 +3,31 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: semaphore
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: semaphore
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: semaphore
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret at cluster/semaphore-secrets must contain:
-#   cookieHash          - 32+ byte random hex string
-#   cookieEncryption    - 32 byte random key
-#   accesskeyEncryption - 32 byte random key
-#   adminUsername       - admin login name (e.g. admin)
-#   adminFullname       - admin display name (e.g. Admin)
-#   adminEmail          - admin email address
-#   adminPassword       - admin user password (no shell metacharacters)
-#   dbPassword          - PostgreSQL password for semaphore user
-#   oidcProviders       - single-line JSON string, e.g.:
-#     {"authentik":{"display_name":"Sign in with Authentik",
-#      "provider_url":"https://auth.starnix.net/application/o/semaphore/",
-#      "client_id":"...","client_secret":"...",
-#      "username_claim":"preferred_username","name_claim":"name",
-#      "email_claim":"email","scopes":["openid","profile","email"]}}
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# semaphore-secrets: synced from OpenBao secret/cluster/semaphore-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: semaphore-secrets
   namespace: semaphore
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/semaphore-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: semaphore-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/semaphore-secrets
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -72,7 +43,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/semaphore/workdir
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -88,7 +58,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/semaphore/postgres
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -103,7 +72,6 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: manual
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -118,7 +86,6 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: manual
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -181,7 +148,6 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: semaphore-postgres
-
 ---
 apiVersion: v1
 kind: Service

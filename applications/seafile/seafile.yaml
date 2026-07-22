@@ -4,47 +4,25 @@ kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: seafile
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: seafile
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain:
-#   db-root-password    - MariaDB root password (used by Seafile init)
-#   db-password         - Seafile DB user password
-#   admin-password      - Initial Seafile admin password
-#   jwt-private-key     - JWT signing key
-#   s3-secret-key       - MinIO secret key
-#   oidc-client-secret  - Authentik OIDC client secret
-#   seahub-secret-key   - Django SECRET_KEY for Seahub
-#   seafile-license     - Contents of seafile-license.txt from https://customer.seafile.com
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# seafile-secrets: synced from OpenBao secret/cluster/seafile-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: seafile-secrets
   namespace: seafile
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/seafile-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: seafile-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/seafile-secrets
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -60,7 +38,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -76,7 +53,6 @@ spec:
   resources:
     requests:
       storage: 5Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -133,7 +109,6 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: seafile-mariadb-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -146,7 +121,6 @@ spec:
   ports:
   - port: 3306
     targetPort: 3306
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -175,7 +149,6 @@ data:
   S3_USE_V4_SIGNATURE: "true"
   S3_USE_HTTPS: "false"
   S3_AWS_REGION: "us-east-1"
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -204,7 +177,6 @@ spec:
           limits:
             cpu: 500m
             memory: 256Mi
-
 ---
 apiVersion: v1
 kind: Service
@@ -217,7 +189,6 @@ spec:
   ports:
   - port: 6379
     targetPort: 6379
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -468,7 +439,6 @@ spec:
           claimName: seafile-data
       - name: pip-packages
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: Service
@@ -481,7 +451,6 @@ spec:
   ports:
   - port: 80
     targetPort: 80
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -516,7 +485,6 @@ spec:
   - secretName: seafile-tls
     hosts:
     - seafile.starnix.net
-
 ---
 # Increase body size limit for file uploads
 apiVersion: traefik.io/v1alpha1

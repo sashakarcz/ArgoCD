@@ -1,3 +1,4 @@
+---
 # Note: nsscache-secrets must be created manually in the cluster:
 # kubectl create secret generic nsscache-secrets -n nsscache \
 #   --from-literal=ldap-bind-password='YOUR_LDAP_PASSWORD'
@@ -162,34 +163,24 @@ metadata:
   name: vault-auth
   namespace: nsscache
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: nsscache
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# nsscache-secrets: synced from OpenBao secret/cluster/nsscache-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: nsscache-secrets
   namespace: nsscache
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/nsscache-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: nsscache-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/nsscache-secrets
 ---
 # Egress lockdown for this internet-exposed namespace. nsscache only syncs
 # user/group/shadow maps from FreeIPA (ipa9.starnix.net -> 192.168.1.26) over

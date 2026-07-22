@@ -6,7 +6,6 @@ metadata:
   name: authentik
   labels:
     name: authentik
-
 ---
 # Configuration
 apiVersion: v1
@@ -40,7 +39,6 @@ data:
 #   --from-literal=AUTHENTIK_POSTGRESQL__PASSWORD="..." \
 #   --from-literal=AUTHENTIK_SECRET_KEY="..." \
 #   --from-literal=AUTHENTIK_EMAIL__PASSWORD="..."
-
 ---
 # Persistent Volumes (NFS)
 apiVersion: v1
@@ -57,7 +55,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/authentik/database/_data
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -73,7 +70,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/authentik/redis/_data
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -89,7 +85,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/authentik/media
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -105,7 +100,6 @@ spec:
   nfs:
     server: 192.168.1.75
     path: /mnt/Store/authentik/custom-templates
-
 ---
 # Persistent Volume Claims
 apiVersion: v1
@@ -120,7 +114,6 @@ spec:
     requests:
       storage: 10Gi
   storageClassName: manual
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -134,7 +127,6 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: manual
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -148,7 +140,6 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: manual
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -162,7 +153,6 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: manual
-
 ---
 # PostgreSQL
 apiVersion: apps/v1
@@ -208,7 +198,6 @@ spec:
       - name: postgresql-data
         persistentVolumeClaim:
           claimName: postgresql-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -221,7 +210,6 @@ spec:
   ports:
   - port: 5432
     targetPort: 5432
-
 ---
 # Redis
 apiVersion: apps/v1
@@ -261,7 +249,6 @@ spec:
       - name: redis-data
         persistentVolumeClaim:
           claimName: redis-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -274,7 +261,6 @@ spec:
   ports:
   - port: 6379
     targetPort: 6379
-
 ---
 # Authentik Server
 apiVersion: apps/v1
@@ -327,7 +313,6 @@ spec:
       - name: authentik-templates
         persistentVolumeClaim:
           claimName: authentik-templates
-
 ---
 apiVersion: v1
 kind: Service
@@ -356,7 +341,6 @@ spec:
   - name: metrics
     port: 9300
     targetPort: 9300
-
 ---
 # Authentik Worker
 apiVersion: apps/v1
@@ -411,7 +395,6 @@ spec:
       - name: blueprint-posix
         configMap:
           name: authentik-blueprint-posix
-
 ---
 # Ingress
 apiVersion: networking.k8s.io/v1
@@ -453,34 +436,24 @@ metadata:
   name: vault-auth
   namespace: authentik
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: authentik
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# authentik-secrets: synced from OpenBao secret/cluster/authentik-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: authentik-secrets
   namespace: authentik
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/authentik-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: authentik-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/authentik-secrets
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

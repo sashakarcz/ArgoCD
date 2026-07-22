@@ -3,14 +3,12 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: kutt
-
 ---
 # Note: Create secrets separately before applying this manifest:
 # kubectl create secret generic kutt-secrets -n kutt \
 #   --from-literal=postgres-password="$(openssl rand -base64 24)" \
 #   --from-literal=jwt-secret="$(openssl rand -base64 32)" \
 #   --from-literal=oidc-client-secret="<from authentik>"
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -25,7 +23,6 @@ spec:
       storage: 10Gi
   storageClassName: longhorn
   volumeName: kutt-postgres-restored-pv
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -39,7 +36,6 @@ spec:
     requests:
       storage: 5Gi
   storageClassName: longhorn
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -112,7 +108,6 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: kutt-postgres-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -124,7 +119,6 @@ spec:
     app: postgres
   ports:
   - port: 5432
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -238,7 +232,6 @@ spec:
       - name: kutt-data
         persistentVolumeClaim:
           claimName: kutt-data
-
 ---
 apiVersion: v1
 kind: Service
@@ -258,7 +251,6 @@ spec:
   ports:
   - port: 80
     targetPort: 3000
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -309,31 +301,21 @@ metadata:
   name: vault-auth
   namespace: kutt
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: kutt
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# kutt-secrets: synced from OpenBao secret/cluster/kutt-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: kutt-secrets
   namespace: kutt
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/kutt-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: kutt-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/kutt-secrets

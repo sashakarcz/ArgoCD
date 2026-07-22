@@ -3,47 +3,31 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: eve-notifier
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: eve-notifier
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: eve-notifier
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-# Vault secret must contain:
-#   git-pat  - Personal access token for pulling the private config repo
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# eve-notifier-secrets: synced from OpenBao secret/cluster/eve-notifier-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: eve-notifier-secrets
   namespace: eve-notifier
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/eve-notifier-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: eve-notifier-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/eve-notifier-secrets
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -59,7 +43,6 @@ spec:
   resources:
     requests:
       storage: 1Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -5,7 +5,6 @@ metadata:
   name: homepage
   labels:
     app.kubernetes.io/name: homepage
-
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -14,7 +13,6 @@ metadata:
   namespace: homepage
   labels:
     app.kubernetes.io/name: homepage
-
 ---
 apiVersion: v1
 kind: Secret
@@ -24,7 +22,6 @@ metadata:
   annotations:
     kubernetes.io/service-account.name: homepage
 type: kubernetes.io/service-account-token
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -75,7 +72,6 @@ rules:
     verbs:
       - get
       - list
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -91,7 +87,6 @@ subjects:
   - kind: ServiceAccount
     name: homepage
     namespace: homepage
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -203,7 +198,6 @@ data:
   docker.yaml: ""
   custom.css: ""
   custom.js: ""
-
 ---
 apiVersion: v1
 kind: Service
@@ -226,7 +220,6 @@ spec:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -328,7 +321,6 @@ spec:
             name: homepage
         - name: logs
           emptyDir: {}
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -364,31 +356,21 @@ metadata:
   name: vault-auth
   namespace: homepage
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: homepage
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# homepage-secrets: synced from OpenBao secret/cluster/homepage-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: homepage-secrets
   namespace: homepage
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/homepage-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: homepage-secrets
-    create: true
-  refreshAfter: 1h
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/homepage-secrets

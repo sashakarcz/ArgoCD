@@ -7,7 +7,6 @@ metadata:
   name: jellyfin
   labels:
     name: jellyfin
-
 ---
 # 2. PersistentVolumes (NFS)
 # Defines all the NFS volumes for Jellyfin's configuration and media libraries.
@@ -27,7 +26,6 @@ spec:
   nfs:
     server: "192.168.1.75"
     path: "/mnt/Store/nomad/jellyfin/config"
-
 ---
 # Jellyfin config on Longhorn (3 replicas, RWO, dynamically provisioned).
 # Config lives on a STATIC Longhorn PV (not dynamic) so it survives a PVC delete.
@@ -76,7 +74,6 @@ spec:
   resources:
     requests:
       storage: 20Gi
-
 ---
 # Series Volume
 apiVersion: v1
@@ -92,7 +89,6 @@ spec:
   nfs:
     server: "192.168.1.86"
     path: "/media/completed/Series"
-
 ---
 # Movies Volume
 apiVersion: v1
@@ -108,7 +104,6 @@ spec:
   nfs:
     server: "192.168.1.86"
     path: "/media/completed/Movies"
-
 ---
 # Old TV Volume
 apiVersion: v1
@@ -124,7 +119,6 @@ spec:
   nfs:
     server: "192.168.1.75"
     path: "/mnt/Store/Videos/torrents/TV"
-
 ---
 # Old Movies Volume
 apiVersion: v1
@@ -140,7 +134,6 @@ spec:
   nfs:
     server: "192.168.1.75"
     path: "/mnt/Store/Videos/torrents/Movies"
-
 ---
 # Music Volume
 apiVersion: v1
@@ -156,7 +149,6 @@ spec:
   nfs:
     server: "192.168.1.75"
     path: "/mnt/Store/Music"
-
 ---
 # New Music Volume
 apiVersion: v1
@@ -172,7 +164,6 @@ spec:
   nfs:
     server: "192.168.1.86"
     path: "/media/completed/Music"
-
 ---
 # 3. PersistentVolumeClaims
 # Claims for each of the NFS volumes.
@@ -192,7 +183,6 @@ spec:
       storage: 5Gi
   volumeName: jellyfin-config-pv
   storageClassName: ""
-
 ---
 # Series Claim
 apiVersion: v1
@@ -208,7 +198,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-series-pv
   storageClassName: ""
-
 ---
 # Movies Claim
 apiVersion: v1
@@ -224,7 +213,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-movies-pv
   storageClassName: ""
-
 ---
 # Old TV Claim
 apiVersion: v1
@@ -240,7 +228,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-old-tv-pv
   storageClassName: ""
-
 ---
 # Old Movies Claim
 apiVersion: v1
@@ -256,7 +243,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-old-movies-pv
   storageClassName: ""
-
 ---
 # Music Claim
 apiVersion: v1
@@ -272,7 +258,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-music-pv
   storageClassName: ""
-
 ---
 # New Music Claim
 apiVersion: v1
@@ -288,7 +273,6 @@ spec:
       storage: 100Gi
   volumeName: jellyfin-new-music-pv
   storageClassName: ""
-
 ---
 # 4. Deployment
 # Manages the Jellyfin application pod.
@@ -427,7 +411,6 @@ spec:
     targetPort: 8096
     protocol: TCP
     name: http
-
 ---
 # 6. Ingress (Traefik)
 apiVersion: networking.k8s.io/v1
@@ -464,7 +447,6 @@ spec:
   - hosts:
     - jellyfin.starnix.net
     secretName: jellyfin-tls
-
 ---
 # Vault integration for Jellyfin API key
 apiVersion: v1
@@ -472,62 +454,44 @@ kind: ServiceAccount
 metadata:
   name: vault-auth
   namespace: jellyfin
-
 ---
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-  namespace: jellyfin
-spec:
-  method: jwt
-  mount: kubernetes
-  jwt:
-    role: cluster
-    serviceAccount: vault-auth
-    audiences:
-      - vault
-
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# jellyfin-secrets: synced from OpenBao secret/cluster/jellyfin-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: jellyfin-secrets
   namespace: jellyfin
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/jellyfin-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: jellyfin-secrets
-    create: true
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/jellyfin-secrets
 ---
-# Derived secret for Prometheus scraping. Jellyfin 10.10+ requires
-# "Authorization: MediaBrowser Token=<key>" on the /metrics endpoint.
-# VSO templates format the key from jellyfin-secrets into the right shape.
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
+# jellyfin-metrics-auth: synced from OpenBao secret/cluster/jellyfin-secrets via ESO (ClusterSecretStore 'openbao').
+# Migrated from a VSO VaultStaticSecret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: jellyfin-metrics-auth
   namespace: jellyfin
 spec:
-  type: kv-v2
-  mount: secret
-  path: cluster/jellyfin-secrets
-  vaultAuthRef: default
-  destination:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
     name: jellyfin-metrics-auth
-    create: true
-    transformation:
-      excludeRaw: true
-      templates:
-        token:
-          text: 'Token={{ get .Secrets "JELLYFIN_API_KEY" }}'
-  refreshAfter: 1h
-
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: cluster/jellyfin-secrets
 ---
 # ConfigMap: prometheus-json-exporter module template.
 # ${JELLYFIN_API_KEY} is substituted at pod start by the init container.
@@ -561,7 +525,6 @@ data:
             session_id: '{ .Id }'
           values:
             is_paused: '{ .PlayState.IsPaused }'
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -616,7 +579,6 @@ spec:
           name: jellyfin-json-exporter-config
       - name: config
         emptyDir: {}
-
 ---
 apiVersion: v1
 kind: Service
@@ -632,7 +594,6 @@ spec:
   - name: metrics
     port: 7979
     targetPort: 7979
-
 ---
 # Native Jellyfin /metrics (enabled via system.xml EnableMetrics=true)
 # Jellyfin 10.10+ requires "Authorization: MediaBrowser Token=<key>".
@@ -657,7 +618,6 @@ spec:
       credentials:
         name: jellyfin-metrics-auth
         key: token
-
 ---
 # Playback session metrics via prometheus-json-exporter + Jellyfin Sessions API
 apiVersion: monitoring.coreos.com/v1
