@@ -4,12 +4,6 @@ kind: Namespace
 metadata:
   name: cloudflare
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: cloudflare
----
 # cloudflare-secrets: synced from OpenBao secret/cluster/cloudflared-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

@@ -96,12 +96,6 @@ spec:
             cpu: 200m
             memory: 128Mi
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: external-dns
----
 # external-dns-secrets: synced from OpenBao secret/cluster/external-dns-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

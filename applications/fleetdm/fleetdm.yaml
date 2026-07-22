@@ -320,12 +320,6 @@ spec:
     - fleet.starnix.net
     secretName: fleet-tls
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: fleetdm
----
 # fleetdm-secrets: synced from OpenBao secret/cluster/fleetdm-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

@@ -4,12 +4,6 @@ kind: Namespace
 metadata:
   name: unifi-poller
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: unifi-poller
----
 # unifi-poller-secrets: synced from OpenBao secret/cluster/unifi-poller-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

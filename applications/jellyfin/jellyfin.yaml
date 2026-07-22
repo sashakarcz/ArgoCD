@@ -448,13 +448,6 @@ spec:
     - jellyfin.starnix.net
     secretName: jellyfin-tls
 ---
-# Vault integration for Jellyfin API key
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: jellyfin
----
 # jellyfin-secrets: synced from OpenBao secret/cluster/jellyfin-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

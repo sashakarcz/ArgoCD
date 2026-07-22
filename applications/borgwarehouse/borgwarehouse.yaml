@@ -248,12 +248,6 @@ spec:
                   key: CRONJOB_KEY
           restartPolicy: OnFailure
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: borgwarehouse
----
 # borgwarehouse-secrets: synced from OpenBao secret/cluster/borgwarehouse-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

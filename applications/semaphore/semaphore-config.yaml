@@ -4,12 +4,6 @@ kind: Namespace
 metadata:
   name: semaphore
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: semaphore
----
 # semaphore-secrets: synced from OpenBao secret/cluster/semaphore-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

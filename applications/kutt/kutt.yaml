@@ -295,12 +295,6 @@ spec:
             port:
               number: 80
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: kutt
----
 # kutt-secrets: synced from OpenBao secret/cluster/kutt-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

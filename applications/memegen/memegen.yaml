@@ -402,12 +402,6 @@ spec:
             port:
               number: 8181
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: memegen
----
 # memegen-secrets: synced from OpenBao secret/cluster/memegen-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

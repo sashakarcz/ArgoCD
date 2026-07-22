@@ -82,13 +82,6 @@ spec:
     server: 192.168.1.75
     path: /mnt/Store/monitoring/loki
 ---
-# Vault Integration
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: monitoring
----
 # monitoring-secrets: synced from OpenBao secret/cluster/monitoring-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

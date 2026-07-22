@@ -107,12 +107,6 @@ spec:
         persistentVolumeClaim:
           claimName: comet-nfs-pvc
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: cometdb
----
 # cometdb-secret: synced from OpenBao secret/cluster/cometdb-secret via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

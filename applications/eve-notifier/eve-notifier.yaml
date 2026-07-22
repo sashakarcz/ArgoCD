@@ -4,12 +4,6 @@ kind: Namespace
 metadata:
   name: eve-notifier
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: eve-notifier
----
 # eve-notifier-secrets: synced from OpenBao secret/cluster/eve-notifier-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

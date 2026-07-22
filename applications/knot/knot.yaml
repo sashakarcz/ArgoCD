@@ -243,12 +243,6 @@ spec:
     targetPort: 53
     protocol: UDP
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vault-auth
-  namespace: knot
----
 # knot-secrets: synced from OpenBao secret/cluster/knot-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1
