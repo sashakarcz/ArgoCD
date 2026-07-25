@@ -37,7 +37,11 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: manual
   mountOptions:
-    - nfsvers=4.1
+    # NFSv3, not v4.1: TrueNAS's NFSv4 idmapper rejects numeric-owner SETATTR
+    # (BADOWNER -> "Invalid argument"), which crashed borgwarehouse's chown steps
+    # (init and the image entrypoint). v3 carries numeric UIDs in-protocol, so
+    # chown 1000:1000 works. /mnt/Backup is borgwarehouse-only, so this is contained.
+    - nfsvers=3
     - hard
     - timeo=600
     - retrans=2
