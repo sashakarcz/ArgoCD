@@ -97,7 +97,19 @@ spec:
       initContainers:
       - name: chown-volumes
         image: busybox:latest
-        command: ['sh', '-c', 'chown -R 1000:1000 /mnt/config /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp']
+        command:
+          - sh
+          - -c
+          - |
+            # /mnt/config is a Longhorn ext4 RWO volume -- chown works here.
+            chown -R 1000:1000 /mnt/config || true
+            # The NFS dirs live on 192.168.1.75:/mnt/Backup (NFSv4.1, sec=sys). That
+            # server rejects a numeric-owner SETATTR (BADOWNER -> "Invalid argument")
+            # even for a no-op chown, so `chown -R` here always failed and crashed the
+            # init container. Ownership is already correct (managed NAS-side; files are
+            # created as 1000), so do a best-effort top-level chown only, tolerate the
+            # NFSv4 rejection, and skip the pointless 2 TiB recursive walk over repos.
+            chown 1000:1000 /mnt/ssh /mnt/ssh_host /mnt/repos /mnt/logs /mnt/tmp 2>/dev/null || true
         volumeMounts:
         - name: config-storage
           mountPath: /mnt/config
