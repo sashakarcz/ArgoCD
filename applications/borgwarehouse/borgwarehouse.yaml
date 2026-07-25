@@ -37,11 +37,13 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: manual
   mountOptions:
-    # NFSv3, not v4.1: TrueNAS's NFSv4 idmapper rejects numeric-owner SETATTR
-    # (BADOWNER -> "Invalid argument"), which crashed borgwarehouse's chown steps
-    # (init and the image entrypoint). v3 carries numeric UIDs in-protocol, so
-    # chown 1000:1000 works. /mnt/Backup is borgwarehouse-only, so this is contained.
-    - nfsvers=3
+    # NFSv4.1. NOTE: this requires `vfs.nfsd.enable_stringtouid=1` on the NAS
+    # (mimir, FreeBSD 15). Stock FreeBSD 15 defaults it to 0, so its NFSv4 idmapper
+    # rejected the numeric owner IDs Linux clients send (BADOWNER -> chown "Invalid
+    # argument"), which crashed borgwarehouse's chown steps. Fixed server-side
+    # 2026-07-25 (set + persisted in /etc/sysctl.conf); if it ever regresses,
+    # re-check that sysctl or fall back to nfsvers=3.
+    - nfsvers=4.1
     - hard
     - timeo=600
     - retrans=2
