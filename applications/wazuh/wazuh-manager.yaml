@@ -86,7 +86,10 @@ data:
       <indexer>
         <enabled>yes</enabled>
         <hosts>
-          <host>https://wazuh-indexer:9200</host>
+          <!-- Use wazuh.indexer (matches the node cert SAN); the indexer
+               connector does full TLS hostname verification, unlike filebeat.
+               wazuh.indexer resolves via the pod hostAliases below. -->
+          <host>https://wazuh.indexer:9200</host>
         </hosts>
         <ssl>
           <certificate_authorities>
@@ -424,6 +427,13 @@ spec:
       labels:
         app: wazuh-manager
     spec:
+      # Map wazuh.indexer (the indexer node cert's SAN) to the indexer Service
+      # ClusterIP so the modulesd indexer connector passes TLS hostname
+      # verification. The Service clusterIP is pinned in wazuh-indexer.yaml.
+      hostAliases:
+      - ip: "10.98.203.221"
+        hostnames:
+        - "wazuh.indexer"
       initContainers:
       - name: seed-agent-groups
         image: busybox
@@ -492,7 +502,7 @@ spec:
         - containerPort: 55000
         env:
         - name: INDEXER_URL
-          value: "https://wazuh-indexer:9200"
+          value: "https://wazuh.indexer:9200"
         - name: INDEXER_USERNAME
           value: "admin"
         - name: INDEXER_PASSWORD

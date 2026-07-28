@@ -86,6 +86,9 @@ metadata:
   name: wazuh-indexer
   namespace: wazuh
 spec:
+  # Pinned so the manager pod's hostAliases (wazuh.indexer -> this IP) stays
+  # valid across restarts. This is the IP already assigned; pinning is a no-op.
+  clusterIP: 10.98.203.221
   selector:
     app: wazuh-indexer
   ports:
