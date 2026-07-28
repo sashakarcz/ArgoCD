@@ -130,6 +130,12 @@ data:
       <global>
         <white_list>127.0.0.1</white_list>
         <white_list>^localhost.localdomain$</white_list>
+        <!-- Never auto-ban trusted internal ranges (prevents self-lockout):
+             LAN, k8s/UniFi, and the Nebula/CGNAT mesh. -->
+        <white_list>192.168.0.0/16</white_list>
+        <white_list>172.16.0.0/12</white_list>
+        <white_list>10.0.0.0/8</white_list>
+        <white_list>100.64.0.0/10</white_list>
       </global>
 
       <command>
@@ -157,6 +163,18 @@ data:
         <command>last -n 20</command>
         <frequency>360</frequency>
       </localfile>
+
+      <!-- Active Response: auto-ban attacking IPs on the agent that is being
+           attacked (firewall-drop = iptables on Linux) for 30 min. Triggers on
+           brute-force auth failures (SSH, etc.). Internal ranges are whitelisted
+           above, so only external/untrusted IPs are ever dropped. firewall-drop
+           enforces on Linux agents; non-Linux agents log but do not enforce. -->
+      <active-response>
+        <command>firewall-drop</command>
+        <location>local</location>
+        <rules_group>authentication_failures,</rules_group>
+        <timeout>1800</timeout>
+      </active-response>
 
       <ruleset>
         <decoder_dir>ruleset/decoders</decoder_dir>
