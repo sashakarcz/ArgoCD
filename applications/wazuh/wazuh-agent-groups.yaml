@@ -44,6 +44,13 @@ data:
           <max_interval>1h</max_interval>
           <max_eps>10</max_eps>
         </synchronization>
+        <!-- Real-time, who-changed-it monitoring of security-critical paths.
+             whodata uses auditd; falls back to realtime if auditd is absent. -->
+        <directories realtime="yes" whodata="yes" report_changes="yes">/etc/ssh/sshd_config</directories>
+        <directories realtime="yes" whodata="yes" report_changes="yes">/etc/sudoers</directories>
+        <directories realtime="yes" whodata="yes">/etc/sudoers.d,/etc/pam.d</directories>
+        <directories realtime="yes" whodata="yes">/root/.ssh</directories>
+        <directories realtime="yes" whodata="yes">/etc/cron.d,/etc/crontab</directories>
       </syscheck>
 
       <wodle name="syscollector">
@@ -130,6 +137,13 @@ data:
           <max_interval>1h</max_interval>
           <max_eps>10</max_eps>
         </synchronization>
+        <!-- Real-time, who-changed-it monitoring of security-critical paths.
+             whodata uses auditd; falls back to realtime if auditd is absent. -->
+        <directories realtime="yes" whodata="yes" report_changes="yes">/etc/ssh/sshd_config</directories>
+        <directories realtime="yes" whodata="yes" report_changes="yes">/etc/sudoers</directories>
+        <directories realtime="yes" whodata="yes">/etc/sudoers.d,/etc/pam.d</directories>
+        <directories realtime="yes" whodata="yes">/root/.ssh</directories>
+        <directories realtime="yes" whodata="yes">/etc/cron.d,/etc/crontab</directories>
       </syscheck>
 
       <wodle name="syscollector">
@@ -212,6 +226,12 @@ data:
           <max_interval>1h</max_interval>
           <max_eps>10</max_eps>
         </synchronization>
+        <!-- Real-time monitoring of security-critical paths (whodata is Linux-only,
+             so FreeBSD uses realtime without who-changed-it attribution). -->
+        <directories realtime="yes" report_changes="yes">/etc/ssh/sshd_config</directories>
+        <directories realtime="yes" report_changes="yes">/etc/rc.conf</directories>
+        <directories realtime="yes">/root/.ssh</directories>
+        <directories realtime="yes">/usr/local/etc/sudoers,/usr/local/etc/sudoers.d</directories>
       </syscheck>
 
       <wodle name="syscollector">
@@ -370,6 +390,11 @@ data:
           <max_interval>1h</max_interval>
           <max_eps>10</max_eps>
         </synchronization>
+        <!-- Real-time monitoring of security-critical paths (whodata is Linux-only,
+             so macOS uses realtime without who-changed-it attribution). -->
+        <directories realtime="yes" report_changes="yes">/etc/ssh/sshd_config</directories>
+        <directories realtime="yes" report_changes="yes">/etc/sudoers</directories>
+        <directories realtime="yes">/private/etc/sudoers.d</directories>
       </syscheck>
 
       <wodle name="syscollector">
