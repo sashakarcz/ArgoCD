@@ -464,6 +464,12 @@ spec:
             cp /agent-groups/$group.conf /var/ossec/etc/shared/$group/agent.conf
             chown 101:101 /var/ossec/etc/shared/$group/agent.conf
             chmod 660 /var/ossec/etc/shared/$group/agent.conf
+            # The group DIR must be wazuh-writable too: wazuh-remoted (uid/gid
+            # 101) generates merged.mg inside it to push shared config to agents.
+            # mkdir leaves it root:wazuh 0755 (no group write) -> "Permission
+            # denied" building merged.mg -> agents never get the shared config.
+            chown 101:101 /var/ossec/etc/shared/$group
+            chmod 770 /var/ossec/etc/shared/$group
           done
         volumeMounts:
         - name: wazuh-etc
