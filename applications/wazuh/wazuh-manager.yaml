@@ -237,6 +237,17 @@ data:
         <level>12</level>
         <alert_format>json</alert_format>
       </integration>
+      <!-- Also notify on brute-force attacks and Active-Response bans, which sit
+           below the level-12 threshold above: authentication_failures (brute
+           force, L10) and active_response (rule 651 "Host Blocked", L3). Sent
+           regardless of level so you see attacks + bans without lowering the
+           global threshold (which would flood Discord with all L10+ alerts). -->
+      <integration>
+        <name>custom-discord</name>
+        <hook_url>https://localhost/managed-via-env</hook_url>
+        <group>authentication_failures,active_response</group>
+        <alert_format>json</alert_format>
+      </integration>
       <!-- VirusTotal: on FIM (syscheck) file changes, hash-lookup against VT.
            API key comes from the VIRUSTOTAL_API_KEY env var (Vault secret
            cluster/wazuh-secrets); the api_key below is an ignored placeholder,
