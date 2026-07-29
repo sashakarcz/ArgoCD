@@ -128,14 +128,13 @@ data:
       </syscheck>
 
       <global>
+        <!-- Only loopback is exempt from auto-ban; internal (LAN/k8s/mesh)
+             source IPs ARE subject to firewall-drop so lateral movement and a
+             compromised internal host brute-forcing an agent get banned too.
+             Trade-off: repeated failed SSH from an internal IP (e.g. a mistyped
+             password) will ban that IP on the attacked host for the AR timeout. -->
         <white_list>127.0.0.1</white_list>
         <white_list>^localhost.localdomain$</white_list>
-        <!-- Never auto-ban trusted internal ranges (prevents self-lockout):
-             LAN, k8s/UniFi, and the Nebula/CGNAT mesh. -->
-        <white_list>192.168.0.0/16</white_list>
-        <white_list>172.16.0.0/12</white_list>
-        <white_list>10.0.0.0/8</white_list>
-        <white_list>100.64.0.0/10</white_list>
       </global>
 
       <command>
