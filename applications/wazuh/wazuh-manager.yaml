@@ -151,6 +151,14 @@ data:
         <executable>firewall-drop</executable>
         <timeout_allowed>yes</timeout_allowed>
       </command>
+      <!-- FreeBSD equivalent of firewall-drop (which is iptables-only): a
+           custom pf-based AR deployed to FreeBSD agents via IaC. Agents without
+           the custom-pf-drop script (Linux) just log "command not present". -->
+      <command>
+        <name>pf-drop</name>
+        <executable>custom-pf-drop</executable>
+        <timeout_allowed>yes</timeout_allowed>
+      </command>
 
       <localfile>
         <log_format>command</log_format>
@@ -170,6 +178,14 @@ data:
            enforces on Linux agents; non-Linux agents log but do not enforce. -->
       <active-response>
         <command>firewall-drop</command>
+        <location>local</location>
+        <rules_group>authentication_failures,</rules_group>
+        <timeout>1800</timeout>
+      </active-response>
+      <!-- Same trigger, pf backend, for FreeBSD agents. Linux agents lack the
+           custom-pf-drop script and skip it; FreeBSD agents enforce via pf. -->
+      <active-response>
+        <command>pf-drop</command>
         <location>local</location>
         <rules_group>authentication_failures,</rules_group>
         <timeout>1800</timeout>
