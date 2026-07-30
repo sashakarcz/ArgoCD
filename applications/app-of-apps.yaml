@@ -554,28 +554,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: metabase
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/usenix17/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/metabase
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: metabase
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: metrics
   namespace: argocd
 spec:
@@ -587,28 +565,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: nocodb
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/usenix17/ArgoCD.git
-    targetRevision: HEAD
-    path: applications/nocodb
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: nocodb
   syncPolicy:
     automated:
       prune: true
