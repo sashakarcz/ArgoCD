@@ -172,22 +172,6 @@ data:
           - "[STATUS] == 200"
         alerts:
           - type: discord
-      - name: "Metabase"
-        group: Services
-        url: "https://metabase.starnix.net"
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
-      - name: "NocoDB"
-        group: Services
-        url: "https://db.bairlabs.org"
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-        alerts:
-          - type: discord
       - name: "PrivateBin"
         group: Services
         url: "https://privatebin.starnix.net"
