@@ -56,6 +56,9 @@ spec:
         app: eve-notifier
     spec:
       enableServiceLinks: false
+      # Lets the config-gate sidecar signal the eve-notifier process to restart
+      # in-place (pkill -x eve-notifier) when a validated config is promoted.
+      shareProcessNamespace: true
       initContainers:
       - name: validate-state
         image: alpine:latest
@@ -92,6 +95,25 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /git
+      # Seed the live (blue) slot from the first pull so eve-notifier always boots
+      # with a config. Steady-state promotion to /live is gated by config-gate.
+      - name: seed-config
+        image: alpine:latest
+        command:
+        - sh
+        - -c
+        - |
+          if [ -f /git/current/config.yaml ]; then
+            cp /git/current/config.yaml /live/config.yaml
+            echo "seeded /live/config.yaml from git HEAD"
+          else
+            echo "WARNING: /git/current/config.yaml missing at seed time"
+          fi
+        volumeMounts:
+        - name: config
+          mountPath: /git
+        - name: live
+          mountPath: /live
       containers:
       - name: git-sync
         image: registry.k8s.io/git-sync/git-sync:v4.4.0
@@ -119,8 +141,18 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /git
-      - name: config-notifier
-        image: alpine:latest
+      # config-gate: blue/green validation gate for the git-synced config.
+      # Runs from the eve-notifier image so it can boot the REAL parser as the
+      # authoritative schema check. On each candidate change:
+      #   1. yamllint (syntax, relaxed)
+      #   2. boot /app/eve-notifier against the candidate with webhook tokens
+      #      neutered + a throwaway state dir, killed after 8s (survives = OK)
+      #   3. pass -> promote candidate to /live + restart eve-notifier + Discord OK
+      #      fail -> keep last-good /live untouched + Discord alert (why)
+      # Alerts always use the last-good /live webhook, so a broken candidate that
+      # lacks/breaks its own webhook still reaches Discord.
+      - name: config-gate
+        image: registry.starnix.net/library/eve-notifier:latest
         env:
         - name: TZ
           value: US/Central
@@ -128,42 +160,87 @@ spec:
         - /bin/sh
         - -c
         - |
-          until apk add --no-cache curl jq; do sleep 5; done
-          LAST=""
+          set -u
+          until apk add --no-cache yamllint jq curl coreutils >/dev/null 2>&1; do
+            echo "waiting for apk (yamllint/jq/curl/coreutils)..."; sleep 5
+          done
+
+          BIN=/app/eve-notifier
+          CAND=/config/current/config.yaml
+          LIVE=/live/config.yaml
+          # Relaxed yamllint: only genuine syntax breakage / duplicate keys are
+          # errors. The authoritative schema check is the real parser below.
+          YLCONF='{extends: relaxed, rules: {line-length: disable, comments: disable, comments-indentation: disable, trailing-spaces: disable, empty-lines: disable, document-start: disable, truthy: disable, indentation: disable, brackets: disable, colons: disable, commas: disable, new-line-at-end-of-file: disable, new-lines: disable}}'
+
+          notify() {
+            WH=$(grep -m1 '^alert_webhook_url:' "$LIVE" 2>/dev/null | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d "\"' " | tr -d '\r')
+            case "$WH" in
+              https://discord.com/*) ;;
+              *) echo "no valid live webhook; skipping discord notify"; return ;;
+            esac
+            BODY=$(jq -n --arg c "$1" '{content: $c}')
+            curl -s -X POST "$WH" -H 'Content-Type: application/json' -d "$BODY" >/dev/null 2>&1 || true
+          }
+
+          REASON=""
+          validate() {
+            REASON=""
+            # 1) syntax
+            YL=$(yamllint --no-warnings -d "$YLCONF" "$CAND" 2>&1)
+            if [ $? -ne 0 ]; then
+              REASON="yamllint (syntax):
+          $YL"
+              return 1
+            fi
+            # 2) real parser, side-effect-free: neuter webhook tokens (keep the
+            #    discord.com host so any host validation still passes), throwaway
+            #    state dir, kill after 8s. Surviving to the timeout (rc 124) means
+            #    config + rules loaded clean.
+            TMPD=$(mktemp -d)
+            sed -E 's#(https://discord\.com/api/webhooks/)[^"'"'"' ]+#\10/blackhole#g' "$CAND" > "$TMPD/config.yaml"
+            ( cd "$TMPD" && timeout 8 "$BIN" -config "$TMPD/config.yaml" >"$TMPD/out.log" 2>&1 )
+            RC=$?
+            if [ "$RC" != "124" ] && [ "$RC" != "0" ]; then
+              REASON="parser (rc=$RC):
+          $(tail -n 15 "$TMPD/out.log")"
+              rm -rf "$TMPD"
+              return 1
+            fi
+            rm -rf "$TMPD"
+            return 0
+          }
+
+          LAST=$(readlink /config/current 2>/dev/null)
+          echo "config-gate started (LAST=$LAST)"
           while true; do
-            CURRENT=$(readlink /config/current 2>/dev/null)
-            if [ -n "$CURRENT" ] && [ "$CURRENT" != "$LAST" ]; then
-              if [ -n "$LAST" ]; then
-                echo "Config changed, sending notification..."
-                WEBHOOK=$(grep -m1 '^alert_webhook_url:' /config/current/config.yaml | sed 's/^alert_webhook_url:[[:space:]]*//' | tr -d '"'"'"'' | tr -d '\r')
-                if [ -n "$WEBHOOK" ]; then
-                  CONFIG=$(cat /config/current/config.yaml 2>/dev/null)
-                  # Truncate to 1800 chars to stay within Discord limits
-                  if [ ${#CONFIG} -gt 1800 ]; then
-                    CONFIG=$(printf '%s\n(truncated)' "$(printf '%s' "$CONFIG" | head -c 1800)")
-                  fi
-                  BODY=$(jq -n --arg msg "$(printf '⚙️ **eve-notifier config reloaded**\n```yaml\n%s\n```' "$CONFIG")" '{"content": $msg}')
-                  curl -s -X POST "$WEBHOOK" \
-                    -H "Content-Type: application/json" \
-                    -d "$BODY" || true
-                else
-                  echo "alert_webhook_url not set in config, skipping notification"
-                fi
+            CUR=$(readlink /config/current 2>/dev/null)
+            if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
+              echo "candidate changed -> $CUR ; validating"
+              if validate; then
+                cp "$CAND" "$LIVE"
+                pkill -x eve-notifier || true
+                notify "$(printf '✅ **eve-notifier config promoted**\nValidated (yamllint + parser) and rolled out `%s`.' "$CUR")"
+                echo "PROMOTED $CUR"
+              else
+                notify "$(printf '❌ **eve-notifier config REJECTED** (`%s`)\nKept the previous good config.\n```\n%s\n```' "$CUR" "$(printf '%s' "$REASON" | head -c 1500)")"
+                echo "REJECTED $CUR: $REASON"
               fi
-              LAST="$CURRENT"
+              LAST="$CUR"
             fi
             sleep 5
           done
         resources:
           requests:
-            cpu: 5m
-            memory: 16Mi
+            cpu: 10m
+            memory: 32Mi
           limits:
-            cpu: 50m
-            memory: 64Mi
+            cpu: 250m
+            memory: 192Mi
         volumeMounts:
         - name: config
           mountPath: /config
+        - name: live
+          mountPath: /live
       - name: eve-notifier
         image: registry.starnix.net/library/eve-notifier:latest
         env:
@@ -171,7 +248,7 @@ spec:
           value: US/Central
         args:
         - --config
-        - /config/current/config.yaml
+        - /live/config.yaml
         workingDir: /app/state
         resources:
           requests:
@@ -181,12 +258,14 @@ spec:
             cpu: 500m
             memory: 256Mi
         volumeMounts:
-        - name: config
-          mountPath: /config
+        - name: live
+          mountPath: /live
         - name: state
           mountPath: /app/state
       volumes:
       - name: config
+        emptyDir: {}
+      - name: live
         emptyDir: {}
       - name: state
         persistentVolumeClaim:
