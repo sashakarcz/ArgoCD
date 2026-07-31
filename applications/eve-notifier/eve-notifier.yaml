@@ -56,9 +56,6 @@ spec:
         app: eve-notifier
     spec:
       enableServiceLinks: false
-      # Lets the config-gate sidecar signal the eve-notifier process to restart
-      # in-place (pkill -x eve-notifier) when a validated config is promoted.
-      shareProcessNamespace: true
       initContainers:
       - name: validate-state
         image: alpine:latest
@@ -147,7 +144,8 @@ spec:
       #   1. yamllint (syntax, relaxed)
       #   2. boot /app/eve-notifier against the candidate with webhook tokens
       #      neutered + a throwaway state dir, killed after 8s (survives = OK)
-      #   3. pass -> promote candidate to /live + restart eve-notifier + Discord OK
+      #   3. pass -> promote candidate to /live (eve-notifier watches /live and
+      #      hot-reloads it) + Discord OK
       #      fail -> keep last-good /live untouched + Discord alert (why)
       # Alerts always use the last-good /live webhook, so a broken candidate that
       # lacks/breaks its own webhook still reaches Discord.
@@ -217,9 +215,10 @@ spec:
             if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
               echo "candidate changed -> $CUR ; validating"
               if validate; then
+                # eve-notifier watches /live and hot-reloads on write, so the cp
+                # alone rolls the new config out -- no restart/signal needed.
                 cp "$CAND" "$LIVE"
-                pkill -x eve-notifier || true
-                notify "$(printf '✅ **eve-notifier config promoted**\nValidated (yamllint + parser) and rolled out `%s`.' "$CUR")"
+                notify "$(printf '✅ **eve-notifier config promoted**\nValidated (yamllint + parser) and hot-reloaded `%s`.' "$CUR")"
                 echo "PROMOTED $CUR"
               else
                 notify "$(printf '❌ **eve-notifier config REJECTED** (`%s`)\nKept the previous good config.\n```\n%s\n```' "$CUR" "$(printf '%s' "$REASON" | head -c 1500)")"
