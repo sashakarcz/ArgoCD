@@ -550,3 +550,9 @@ data:
       - name: plasma-foreground-booster-dmemcg
         approved: false
         note: explicit [held 2026-06-26 -- no standalone PKGBUILD/split-pkg]
+      - name: python-torrequest
+        approved: true
+        note: dependency
+      - name: sherlock
+        approved: true
+        note: explicit
