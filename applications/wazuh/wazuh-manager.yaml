@@ -362,7 +362,7 @@ data:
       <!-- ROOT-policy token used: the root token should almost never appear. -->
       <rule id="100652" level="12">
         <if_sid>100650</if_sid>
-        <field name="auth.policies" type="pcre2">(?:^|[,\[\s"])root(?:$|[,\]\s"])</field>
+        <field name="auth.policies" type="pcre2">\broot\b</field>
         <description>OpenBao: ROOT-policy token used on $(request.path)</description>
         <group>gdpr_IV_35.7.d,pci_dss_10.2.5,</group>
       </rule>
