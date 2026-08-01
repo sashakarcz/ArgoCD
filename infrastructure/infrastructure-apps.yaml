@@ -424,9 +424,24 @@ spec:
         accessLog:
           enabled: true
           # JSON so Wazuh (via the Fluent Bit syslog output) can decode request
-          # fields (DownstreamStatus, RequestPath, ClientHost) into data.* for
-          # the traefik,web rules. Default fields are all kept.
+          # fields into data.* for the traefik,web rules. Keep ONLY the fields
+          # the rules need -- the full Traefik record is ~900 chars and gets
+          # truncated over UDP syslog, breaking JSON decode. Slimmed it fits.
           format: json
+          fields:
+            general:
+              defaultMode: drop
+              names:
+                ClientHost: keep
+                RequestHost: keep
+                RequestMethod: keep
+                RequestPath: keep
+                RequestProtocol: keep
+                DownstreamStatus: keep
+                OriginStatus: keep
+                RouterName: keep
+            headers:
+              defaultMode: drop
 
         metrics:
           prometheus:
