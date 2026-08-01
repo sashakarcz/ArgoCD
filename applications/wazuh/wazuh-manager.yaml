@@ -338,6 +338,58 @@ data:
       </rule>
     </group>
 
+    <group name="openbao,vault,">
+      <!-- OpenBao/Vault file audit device (JSON), tailed on vault.starnix.net
+           (openbao agent group). No native ruleset ships for Vault, so these
+           are first-party. Fields are the flattened audit JSON (request.path,
+           request.operation, type, auth.policies, error). -->
+      <rule id="100650" level="0">
+        <decoded_as>json</decoded_as>
+        <field name="request.path" type="pcre2">.+</field>
+        <field name="type" type="pcre2">^(request|response)$</field>
+        <description>OpenBao audit event (base)</description>
+        <options>no_full_log</options>
+      </rule>
+      <!-- Denied request: an audit response carrying an error (permission
+           denied, missing capability, etc.). -->
+      <rule id="100651" level="7">
+        <if_sid>100650</if_sid>
+        <field name="type">^response$</field>
+        <field name="error" type="pcre2">.+</field>
+        <description>OpenBao: request DENIED on $(request.path) -- $(error)</description>
+        <group>gdpr_IV_35.7.d,pci_dss_10.2.4,</group>
+      </rule>
+      <!-- ROOT-policy token used: the root token should almost never appear. -->
+      <rule id="100652" level="12">
+        <if_sid>100650</if_sid>
+        <field name="auth.policies" type="pcre2">(?:^|[,\[\s"])root(?:$|[,\]\s"])</field>
+        <description>OpenBao: ROOT-policy token used on $(request.path)</description>
+        <group>gdpr_IV_35.7.d,pci_dss_10.2.5,</group>
+      </rule>
+      <!-- Security-config changes: policies, auth methods, mounts, audit devices. -->
+      <rule id="100653" level="10">
+        <if_sid>100650</if_sid>
+        <field name="request.operation" type="pcre2">^(create|update|delete)$</field>
+        <field name="request.path" type="pcre2">^sys/(policies|policy|auth|mounts|audit)/</field>
+        <description>OpenBao: config change -- $(request.operation) $(request.path)</description>
+        <group>pci_dss_10.2.5,pci_dss_10.2.7,</group>
+      </rule>
+      <!-- Critical lifecycle ops: seal/unseal/step-down/rekey/generate-root. -->
+      <rule id="100654" level="12">
+        <if_sid>100650</if_sid>
+        <field name="request.path" type="pcre2">^sys/(seal|unseal|step-down|rekey|generate-root|rotate)</field>
+        <description>OpenBao: critical operation -- $(request.path)</description>
+        <group>pci_dss_10.2.7,</group>
+      </rule>
+      <!-- Token creation (audit trail of new credentials). -->
+      <rule id="100655" level="5">
+        <if_sid>100650</if_sid>
+        <field name="type">^response$</field>
+        <field name="request.path" type="pcre2">^auth/token/create</field>
+        <description>OpenBao: token created via $(request.path)</description>
+      </rule>
+    </group>
+
   # Wazuh -> Discord integration scripts, seeded onto the integrations PVC by
   # the seed-integrations initContainer. Webhook URL comes from the env var
   # DISCORD_WEBHOOK_URL (Vault secret/cluster/wazuh-secrets).
@@ -504,7 +556,7 @@ spec:
         - sh
         - -c
         - |
-          for group in arch debian freebsd kubernetes-node macos; do
+          for group in arch debian freebsd kubernetes-node macos openbao; do
             mkdir -p /var/ossec/etc/shared/$group
             cp /agent-groups/$group.conf /var/ossec/etc/shared/$group/agent.conf
             chown 101:101 /var/ossec/etc/shared/$group/agent.conf

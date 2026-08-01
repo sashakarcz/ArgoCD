@@ -433,3 +433,13 @@ data:
       </rootcheck>
 
     </agent_config>
+  # Mirror of shared/openbao/agent.conf -- keep in sync. ADDITIVE group for the
+  # OpenBao/Vault host only (vault.starnix.net is a member of debian + openbao).
+  # Kept out of 'debian' so bork/hecate don't ERROR on a missing vault_audit.log.
+  openbao.conf: |
+    <agent_config>
+      <localfile>
+        <log_format>json</log_format>
+        <location>/var/log/vault_audit.log</location>
+      </localfile>
+    </agent_config>
