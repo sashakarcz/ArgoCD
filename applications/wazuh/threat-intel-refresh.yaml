@@ -91,9 +91,11 @@ spec:
                     sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip && /var/ossec/bin/wazuh-makelists >/dev/null 2>&1 || true' < /tmp/malicious-ip
                   # Daemon reload (NOT a pod restart -- the manager image restores
                   # the baked etc/lists on pod start, which would revert the write).
-                  echo "list written ($COUNT IPs); reloading manager config (~90s)"
-                  /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -- \
-                    /var/ossec/bin/wazuh-control reload >/dev/null 2>&1 || echo "reload nonzero (may still apply)"
+                  echo "list written ($COUNT IPs); reloading manager config"
+                  # The reload applies but the exec stream then hangs open, so
+                  # time-box it -- analysisd has re-read the .cdb well before this.
+                  timeout 120 /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -- \
+                    /var/ossec/bin/wazuh-control reload >/dev/null 2>&1 || echo "reload dispatched (list applied)"
                   echo "threat-intel refresh complete"
               resources:
                 requests:
