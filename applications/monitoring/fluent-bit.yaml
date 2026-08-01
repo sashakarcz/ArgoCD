@@ -106,7 +106,11 @@ spec:
                 Host                192.168.7.220
                 Port                514
                 Mode                udp
-                Syslog_Format       rfc5424
+                # RFC3164: Wazuh's remote-syslog predecoder parses the 3164
+                # header and sets program_name from the tag (wazuh_ident=k8sjson),
+                # which the k8sjson decoder matches. rfc5424 is not parsed the
+                # same way, so the JSON never gets decoded.
+                Syslog_Format       rfc3164
                 Syslog_Hostname_Key host
                 Syslog_Appname_Key  wazuh_ident
                 Syslog_Message_Key  log
