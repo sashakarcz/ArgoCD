@@ -59,18 +59,17 @@ spec:
           restartPolicy: OnFailure
           securityContext:
             runAsNonRoot: true
-            runAsUser: 65534
             seccompProfile:
               type: RuntimeDefault
           containers:
             - name: refresh
-              image: alpine:3.20
+              # curl pre-installed + runs non-root; no apk (which needs root).
+              image: curlimages/curl:8.11.1
               command:
                 - /bin/sh
                 - -c
                 - |
                   set -eu
-                  apk add --no-cache curl >/dev/null
                   KREL=$(curl -sfL https://dl.k8s.io/release/stable.txt)
                   curl -sfLo /tmp/kubectl "https://dl.k8s.io/release/${KREL}/bin/linux/amd64/kubectl"
                   chmod +x /tmp/kubectl
