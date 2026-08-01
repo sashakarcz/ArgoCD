@@ -383,10 +383,10 @@ data:
            timeout (auto-re-enable) so a mistaken disable self-heals, and the
            <global><white_list> internal ranges never trigger AR. -->
       <rule id="100680" level="10" frequency="6" timeframe="120">
-        <if_matched_group>authentication_failures</if_matched_group>
-        <match>sudo|su:|su\[</match>
+        <if_matched_sid>5503</if_matched_sid>
+        <match>sudo</match>
         <same_user />
-        <description>Privilege escalation: 6+ sudo/su failures for the same user</description>
+        <description>Privilege escalation: 6+ sudo auth failures for the same user</description>
         <group>pci_dss_10.2.4,pci_dss_10.2.5,gdpr_IV_35.7.d,</group>
       </rule>
     </group>
