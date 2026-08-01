@@ -867,7 +867,10 @@ spec:
         persistentVolumeClaim:
           claimName: wazuh-manager-logs
       - name: wazuh-queue
-        emptyDir: {}
+        # Longhorn (block) so global.db (agent group memberships) + the queue
+        # sockets persist across manager restarts. NFS cannot hold either.
+        persistentVolumeClaim:
+          claimName: wazuh-manager-queue
       - name: wazuh-var-multigroups
         emptyDir: {}
       - name: wazuh-integrations

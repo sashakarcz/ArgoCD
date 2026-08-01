@@ -301,3 +301,21 @@ spec:
   resources:
     requests:
       storage: 1Gi
+---
+# Manager /var/ossec/queue on Longhorn (block), NOT NFS: it holds unix sockets
+# and the SQLite agent DB (global.db = agent group memberships), neither of which
+# works over NFS. Persisting it makes agent_groups assignments (e.g. vault's
+# openbao group) survive manager restarts instead of resetting to the enrollment
+# group. Longhorn default class = 3 replicas.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wazuh-manager-queue
+  namespace: wazuh
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
