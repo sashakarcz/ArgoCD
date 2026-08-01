@@ -59,6 +59,7 @@ spec:
           restartPolicy: OnFailure
           securityContext:
             runAsNonRoot: true
+            runAsUser: 100          # curl_user in curlimages/curl
             seccompProfile:
               type: RuntimeDefault
           containers:
