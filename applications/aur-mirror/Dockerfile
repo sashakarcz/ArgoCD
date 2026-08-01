@@ -38,6 +38,21 @@ RUN su - builder -c ' \
     && makepkg -si --noconfirm \
     && rm -rf /tmp/aurutils'
 
+# Trust the aur-mirror signing key and register the mirror as a pacman repo so
+# `makepkg -s` can install already-published mirror packages as build deps
+# (e.g. sherlock depends on the AUR package python-torrequest). The build phase
+# mounts the repo db read-only at /repo, so file:///repo needs no network; the
+# packages and db are signed by the mirror key (repo-add --sign), verified via
+# SigLevel against the key trusted here.
+COPY aur-mirror-signing-key.asc /etc/pacman.d/aur-mirror-signing-key.asc
+# pacman-key --init creates the local signing key that --lsign-key needs (the
+# Arch base image ships without it); --populate re-trusts the Arch keyring.
+RUN pacman-key --init \
+    && pacman-key --populate archlinux \
+    && pacman-key --add /etc/pacman.d/aur-mirror-signing-key.asc \
+    && pacman-key --lsign-key 8280184D29B65F3C5002A6603959B28BA0CE2B53 \
+    && printf '\n[aur-mirror]\nSigLevel = Required\nServer = file:///repo\n' >> /etc/pacman.conf
+
 # aur-build-all runs all three phases (scan / build / sign). The scan phase
 # does the Claude PKGBUILD scan, which is why the anthropic SDK is installed
 # above; the key is mounted only in the scan container.
