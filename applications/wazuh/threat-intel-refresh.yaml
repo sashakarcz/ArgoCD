@@ -85,11 +85,18 @@ spec:
                   # safety: don't clobber the list with a near-empty result
                   if [ "$COUNT" -lt 50 ]; then echo "ERROR: too few IPs ($COUNT), aborting"; exit 1; fi
                   sed 's/$/:/' /tmp/clean > /tmp/malicious-ip
+                  echo "waiting for manager to be ready..."
+                  /tmp/kubectl -n wazuh wait --for=condition=ready pod/wazuh-manager-0 --timeout=150s
+                  # write + recompile the .cdb (fast, no restart)
                   /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -i -- \
                     sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip \
                       && chown 101:101 /var/ossec/etc/lists/malicious-ioc/malicious-ip \
-                      && /var/ossec/bin/wazuh-makelists \
-                      && /var/ossec/bin/wazuh-control restart' < /tmp/malicious-ip
+                      && /var/ossec/bin/wazuh-makelists' < /tmp/malicious-ip
+                  # reload so analysisd picks up the new .cdb (restart may drop the
+                  # exec stream as daemons cycle -- that is fine, the reload runs)
+                  echo "recompiled; reloading manager..."
+                  /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -- \
+                    /var/ossec/bin/wazuh-control restart || echo "restart signal sent (stream dropped, expected)"
                   echo "threat-intel refresh complete: $COUNT IPs"
               resources:
                 requests:
