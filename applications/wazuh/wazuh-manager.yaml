@@ -700,9 +700,17 @@ spec:
         command:
         - sh
         - -c
-        # Recursive: subdirs (indexer/vd/router/...) created during a prior
-        # root-owned start would otherwise stay root:root and block wazuh-db.
-        - "chown -R 101:101 /var/ossec/queue && chmod 770 /var/ossec/queue"
+        - |
+          # A fresh ext4 (Longhorn) volume ships a lost+found that fools the
+          # manager entrypoint's "populate queue if empty" check, so it never
+          # creates queue/db and wazuh-db can't bind queue/db/wdb. Wipe an
+          # UNINITIALIZED queue (no global.db) to truly-empty so it repopulates;
+          # NEVER wipe an initialized one -- that persistence is the whole point.
+          if [ ! -e /var/ossec/queue/db/global.db ]; then
+            rm -rf /var/ossec/queue/* /var/ossec/queue/.[!.]* 2>/dev/null || true
+          fi
+          chown -R 101:101 /var/ossec/queue 2>/dev/null || true
+          chmod 770 /var/ossec/queue
         volumeMounts:
         - name: wazuh-queue
           mountPath: /var/ossec/queue
