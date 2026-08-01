@@ -126,36 +126,6 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: wazuh-manager-queue-pv
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
-  nfs:
-    server: 192.168.1.75
-    path: /mnt/Store/wazuh/manager/queue
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: wazuh-manager-queue
-  namespace: wazuh
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ""
-  volumeName: wazuh-manager-queue-pv
-  resources:
-    requests:
-      storage: 5Gi
-
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
   name: wazuh-manager-var-multigroups-pv
 spec:
   capacity:
