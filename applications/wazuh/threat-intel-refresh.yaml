@@ -24,10 +24,6 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create", "get"]
-  # rollout restart = patch the StatefulSet pod-template annotation.
-  - apiGroups: ["apps"]
-    resources: ["statefulsets"]
-    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -93,8 +89,11 @@ spec:
                   # write the list onto the manager's RWO etc PVC, recompile .cdb
                   /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -i -- \
                     sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip && /var/ossec/bin/wazuh-makelists >/dev/null 2>&1 || true' < /tmp/malicious-ip
-                  echo "list written ($COUNT IPs); rolling manager to load the new .cdb"
-                  /tmp/kubectl rollout restart -n wazuh statefulset/wazuh-manager
+                  # Daemon reload (NOT a pod restart -- the manager image restores
+                  # the baked etc/lists on pod start, which would revert the write).
+                  echo "list written ($COUNT IPs); reloading manager config (~90s)"
+                  /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -- \
+                    /var/ossec/bin/wazuh-control reload >/dev/null 2>&1 || echo "reload nonzero (may still apply)"
                   echo "threat-intel refresh complete"
               resources:
                 requests:
