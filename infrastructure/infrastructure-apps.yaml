@@ -423,24 +423,12 @@ spec:
           level: INFO
         accessLog:
           enabled: true
-          # JSON so Wazuh (via the Fluent Bit syslog output) can decode request
-          # fields into data.* for the traefik,web rules. Keep ONLY the fields
-          # the rules need -- the full Traefik record is ~900 chars and gets
-          # truncated over UDP syslog, breaking JSON decode. Slimmed it fits.
+          # JSON so Wazuh (via the Fluent Bit syslog output) decodes request
+          # fields into data.* for the traefik,web rules. The full record is
+          # ~1.1KB; the Fluent Bit syslog output raises Syslog_Maxsize above the
+          # rfc3164 1024-byte default so it isn't truncated (chart 41 ignores
+          # accessLog.fields, so slimming there does not work).
           format: json
-          fields:
-            defaultMode: drop
-            names:
-              ClientHost: keep
-              RequestHost: keep
-              RequestMethod: keep
-              RequestPath: keep
-              RequestProtocol: keep
-              DownstreamStatus: keep
-              OriginStatus: keep
-              RouterName: keep
-            headers:
-              defaultMode: drop
 
         metrics:
           prometheus:

@@ -114,6 +114,9 @@ spec:
                 Syslog_Hostname_Key host
                 Syslog_Appname_Key  wazuh_ident
                 Syslog_Message_Key  log
+                # rfc3164 defaults to a 1024-byte message cap; Traefik's JSON is
+                # ~1.1KB, so raise it or the JSON gets truncated and won't decode.
+                Syslog_Maxsize      4096
                 Retry_Limit         2
 
   destination:
