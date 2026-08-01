@@ -85,9 +85,9 @@ spec:
                   # safety: don't clobber the list with a near-empty result
                   if [ "$COUNT" -lt 50 ]; then echo "ERROR: too few IPs ($COUNT), aborting"; exit 1; fi
                   sed 's/$/:/' /tmp/clean > /tmp/malicious-ip
-                  echo "waiting for manager to be ready..."
-                  /tmp/kubectl -n wazuh wait --for=condition=ready pod/wazuh-manager-0 --timeout=150s
-                  # write + recompile the .cdb (fast, no restart)
+                  # write + recompile the .cdb (fast, no restart). kubectl exec
+                  # itself waits for the container, so no separate readiness wait.
+                  # A brief unavailability just fails the Job and backoffLimit retries.
                   /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -i -- \
                     sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip \
                       && chown 101:101 /var/ossec/etc/lists/malicious-ioc/malicious-ip \
