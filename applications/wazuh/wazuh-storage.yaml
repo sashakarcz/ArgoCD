@@ -277,6 +277,9 @@ spec:
 # works over NFS. Persisting it makes agent_groups assignments (e.g. vault's
 # openbao group) survive manager restarts instead of resetting to the enrollment
 # group. Longhorn default class = 3 replicas.
+# Sized for the Vulnerability Detection database (queue/vd): the multi-distro CVE
+# feed is several GB and grows over time. 5Gi filled to 100% and wedged wazuh-db
+# ("SQLite: database or disk is full"), so 20Gi gives VD real headroom.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -288,4 +291,4 @@ spec:
   storageClassName: longhorn
   resources:
     requests:
-      storage: 5Gi
+      storage: 20Gi
