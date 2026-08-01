@@ -209,6 +209,17 @@ data:
         <location>local</location>
         <rules_group>syscheck,</rules_group>
       </active-response>
+      <!-- Escalating response: on a narrow privilege-escalation trigger (rule
+           100680), temporarily disable the targeted account on the affected
+           agent. TIMEOUT (10 min) auto-re-enables so a mistaken disable heals
+           itself; internal source IPs are whitelisted above and never fire AR.
+           disable-account enforces on Linux agents. -->
+      <active-response>
+        <command>disable-account</command>
+        <location>local</location>
+        <rules_id>100680</rules_id>
+        <timeout>600</timeout>
+      </active-response>
 
       <ruleset>
         <decoder_dir>ruleset/decoders</decoder_dir>
@@ -362,6 +373,21 @@ data:
         <field name="priority" type="pcre2">^(Error|Critical|Alert|Emergency)$</field>
         <description>Falco $(priority): $(rule)</description>
         <group>falco_high,</group>
+      </rule>
+    </group>
+
+    <group name="privilege_escalation,">
+      <!-- Narrow, high-confidence trigger for the disable-account response:
+           repeated sudo/su authentication failures by the SAME user = a
+           targeted privilege-escalation attempt. Wired to disable-account with a
+           timeout (auto-re-enable) so a mistaken disable self-heals, and the
+           <global><white_list> internal ranges never trigger AR. -->
+      <rule id="100680" level="10" frequency="6" timeframe="120">
+        <if_matched_group>authentication_failures</if_matched_group>
+        <match>sudo|su:|su\[</match>
+        <same_user />
+        <description>Privilege escalation: 6+ sudo/su failures for the same user</description>
+        <group>pci_dss_10.2.4,pci_dss_10.2.5,gdpr_IV_35.7.d,</group>
       </rule>
     </group>
 
