@@ -390,6 +390,95 @@ data:
       </rule>
     </group>
 
+    <group name="traefik,web,">
+      <!-- Traefik JSON access log, shipped from the cluster via Fluent Bit
+           syslog (appname 'k8sjson', JSON-decoded by the local_decoder). NB:
+           ClientHost is often the internal tunnel/pod IP, so path/status
+           patterns are the reliable signal, not the source IP. -->
+      <rule id="100700" level="0">
+        <decoded_as>json</decoded_as>
+        <field name="DownstreamStatus" type="pcre2">^\d{3}$</field>
+        <field name="RequestPath" type="pcre2">.</field>
+        <description>Traefik access (base)</description>
+        <options>no_full_log</options>
+      </rule>
+      <rule id="100701" level="3">
+        <if_sid>100700</if_sid>
+        <field name="DownstreamStatus" type="pcre2">^4\d\d$</field>
+        <description>Traefik 4xx: $(RequestMethod) $(RequestPath) -> $(DownstreamStatus)</description>
+        <group>pci_dss_6.5,</group>
+      </rule>
+      <rule id="100702" level="5">
+        <if_sid>100700</if_sid>
+        <field name="DownstreamStatus" type="pcre2">^40[13]$</field>
+        <description>Traefik auth failure ($(DownstreamStatus)) on $(RequestPath)</description>
+        <group>authentication_failures,pci_dss_10.2.4,</group>
+      </rule>
+      <rule id="100703" level="5">
+        <if_sid>100700</if_sid>
+        <field name="DownstreamStatus" type="pcre2">^5\d\d$</field>
+        <description>Traefik 5xx: $(RequestMethod) $(RequestPath) -> $(DownstreamStatus)</description>
+      </rule>
+      <rule id="100704" level="10">
+        <if_sid>100700</if_sid>
+        <field name="RequestPath" type="pcre2">(?i)(\.\./|/etc/passwd|/\.env|/\.git|wp-login|wp-admin|/actuator|/phpmyadmin|/vendor/|/boaform|/cgi-bin/|union\s+select|&lt;script)</field>
+        <description>Traefik: suspicious request path -- $(RequestPath)</description>
+        <group>web_scan,attack,pci_dss_6.5,</group>
+      </rule>
+      <rule id="100705" level="10" frequency="15" timeframe="60">
+        <if_matched_sid>100701</if_matched_sid>
+        <same_field>ClientHost</same_field>
+        <description>Traefik: possible web scan -- 15+ 4xx from $(ClientHost) in 60s</description>
+        <group>web_scan,attack,</group>
+      </rule>
+    </group>
+
+    <group name="authentik,">
+      <!-- Authentik structured JSON (logger authentik.*), same Fluent Bit path.
+           Request logs carry level/event/remote/status/user. Note: the richest
+           auth events live in Authentik's Events model; stdout covers request +
+           warning/error + the failure strings matched below. -->
+      <rule id="100720" level="0">
+        <decoded_as>json</decoded_as>
+        <field name="logger" type="pcre2">^authentik\.</field>
+        <description>Authentik event (base)</description>
+        <options>no_full_log</options>
+      </rule>
+      <rule id="100721" level="6">
+        <if_sid>100720</if_sid>
+        <field name="level">^warning$</field>
+        <description>Authentik warning: $(event) ($(logger))</description>
+      </rule>
+      <rule id="100722" level="10">
+        <if_sid>100720</if_sid>
+        <field name="level" type="pcre2">^(error|critical)$</field>
+        <description>Authentik error: $(event) ($(logger))</description>
+      </rule>
+      <rule id="100723" level="7">
+        <if_sid>100720</if_sid>
+        <field name="event" type="pcre2">(?i)(invalid.credential|failed.login|authentication.failed|permission.denied|invalid.password|login.failed)</field>
+        <description>Authentik: auth failure -- $(event) (user=$(user) remote=$(remote))</description>
+        <group>authentication_failures,pci_dss_10.2.4,gdpr_IV_35.7.d,</group>
+      </rule>
+      <rule id="100724" level="10" frequency="8" timeframe="120">
+        <if_matched_sid>100723</if_matched_sid>
+        <same_field>remote</same_field>
+        <description>Authentik: possible brute force -- 8+ auth failures from $(remote) in 120s</description>
+        <group>authentication_failures,attack,</group>
+      </rule>
+    </group>
+
+  # Custom decoders (git-managed), seeded to /var/ossec/etc/decoders by the
+  # seed-rules initContainer (etc/decoders is already in <ruleset>).
+  local_decoder.xml: |
+    <!-- k8s app logs arrive via the Fluent Bit syslog output with appname
+         'k8sjson'; JSON-decode the message so Traefik/Authentik fields land in
+         data.* for rules 100700+/100720+. -->
+    <decoder name="k8sjson">
+      <program_name>^k8sjson$</program_name>
+      <plugin_decoder>JSON_Decoder</plugin_decoder>
+    </decoder>
+
   # Wazuh -> Discord integration scripts, seeded onto the integrations PVC by
   # the seed-integrations initContainer. Webhook URL comes from the env var
   # DISCORD_WEBHOOK_URL (Vault secret/cluster/wazuh-secrets).
@@ -581,10 +670,13 @@ spec:
         - sh
         - -c
         - |
-          mkdir -p /var/ossec/etc/rules
+          mkdir -p /var/ossec/etc/rules /var/ossec/etc/decoders
           cp /rules-src/local_rules.xml /var/ossec/etc/rules/local_rules.xml
           chown 101:101 /var/ossec/etc/rules/local_rules.xml
           chmod 660 /var/ossec/etc/rules/local_rules.xml
+          cp /rules-src/local_decoder.xml /var/ossec/etc/decoders/local_decoder.xml
+          chown 101:101 /var/ossec/etc/decoders/local_decoder.xml
+          chmod 660 /var/ossec/etc/decoders/local_decoder.xml
         volumeMounts:
         - name: wazuh-etc
           mountPath: /var/ossec/etc
