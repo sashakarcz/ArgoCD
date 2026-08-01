@@ -36,6 +36,17 @@ spec:
       ports:
         - protocol: TCP
           port: 8096
+    # Home Assistant webhook notification (media request events -> HA). HA runs
+    # in the homeassistant namespace and is reached by its pod/ClusterIP (10.x,
+    # excepted below), so allow it by namespaceSelector -- an ipBlock on 10.x
+    # can't match the pod identity Cilium enforces against (same as Jellyfin).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homeassistant
+      ports:
+        - protocol: TCP
+          port: 8123
     # LAN + public internet; block only the cluster (pods/svc/API = 10/8),
     # the cluster node subnet + MetalLB (192.168.7.0/24), Tailscale, link-local
     - to:
