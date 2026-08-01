@@ -429,17 +429,16 @@ spec:
           # truncated over UDP syslog, breaking JSON decode. Slimmed it fits.
           format: json
           fields:
-            general:
-              defaultMode: drop
-              names:
-                ClientHost: keep
-                RequestHost: keep
-                RequestMethod: keep
-                RequestPath: keep
-                RequestProtocol: keep
-                DownstreamStatus: keep
-                OriginStatus: keep
-                RouterName: keep
+            defaultMode: drop
+            names:
+              ClientHost: keep
+              RequestHost: keep
+              RequestMethod: keep
+              RequestPath: keep
+              RequestProtocol: keep
+              DownstreamStatus: keep
+              OriginStatus: keep
+              RouterName: keep
             headers:
               defaultMode: drop
 
