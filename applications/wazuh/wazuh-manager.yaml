@@ -38,6 +38,9 @@ data:
         <port>514</port>
         <protocol>udp</protocol>
         <allowed-ips>192.168.0.0/16</allowed-ips>
+        <!-- Pod CIDR: in-cluster senders (Fluent Bit -> Authentik/Traefik logs)
+             reach the LB with their pod source IP preserved, not a node IP. -->
+        <allowed-ips>10.244.0.0/16</allowed-ips>
       </remote>
 
       <rootcheck>
