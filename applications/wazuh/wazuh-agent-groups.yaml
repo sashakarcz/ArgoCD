@@ -51,6 +51,12 @@ data:
         <directories realtime="yes" whodata="yes">/etc/sudoers.d,/etc/pam.d</directories>
         <directories realtime="yes" whodata="yes">/root/.ssh</directories>
         <directories realtime="yes" whodata="yes">/etc/cron.d,/etc/crontab</directories>
+        <!-- Broadened for the yara Active Response: watch where dropped payloads
+             land. realtime (not whodata) to bound load; caches/tempfiles ignored. -->
+        <directories realtime="yes">/tmp,/var/tmp</directories>
+        <directories realtime="yes">/home</directories>
+        <ignore type="sregex">/\.(cache|npm|cargo|rustup|gradle|mozilla|thunderbird)/</ignore>
+        <ignore type="sregex">\.(swp|swx|part|crdownload|lock|pid|sock)$</ignore>
       </syscheck>
 
       <wodle name="syscollector">
@@ -144,6 +150,12 @@ data:
         <directories realtime="yes" whodata="yes">/etc/sudoers.d,/etc/pam.d</directories>
         <directories realtime="yes" whodata="yes">/root/.ssh</directories>
         <directories realtime="yes" whodata="yes">/etc/cron.d,/etc/crontab</directories>
+        <!-- Broadened for the yara Active Response: watch where dropped payloads
+             land. realtime (not whodata) to bound load; caches/tempfiles ignored. -->
+        <directories realtime="yes">/tmp,/var/tmp</directories>
+        <directories realtime="yes">/home</directories>
+        <ignore type="sregex">/\.(cache|npm|cargo|rustup|gradle|mozilla|thunderbird)/</ignore>
+        <ignore type="sregex">\.(swp|swx|part|crdownload|lock|pid|sock)$</ignore>
       </syscheck>
 
       <wodle name="syscollector">

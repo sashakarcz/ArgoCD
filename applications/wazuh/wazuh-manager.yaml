@@ -162,6 +162,14 @@ data:
         <executable>custom-pf-drop</executable>
         <timeout_allowed>yes</timeout_allowed>
       </command>
+      <!-- YARA malware scan on FIM events. yara.sh + the yara binary are
+           deployed to agents via IaC (roles/wazuh_yara); agents without it just
+           log "command not present". Fire-once scan, so no timeout. -->
+      <command>
+        <name>yara</name>
+        <executable>yara.sh</executable>
+        <timeout_allowed>no</timeout_allowed>
+      </command>
 
       <localfile>
         <log_format>command</log_format>
@@ -192,6 +200,14 @@ data:
         <location>local</location>
         <rules_group>authentication_failures,</rules_group>
         <timeout>1800</timeout>
+      </active-response>
+      <!-- YARA-scan every FIM add/modify (broadened to /tmp, /var/tmp, /home in
+           the shared agent.conf). yara.sh scans the changed file on the agent and
+           quarantines matches. Runs where the yara.sh script exists (IaC role). -->
+      <active-response>
+        <command>yara</command>
+        <location>local</location>
+        <rules_group>syscheck,</rules_group>
       </active-response>
 
       <ruleset>
