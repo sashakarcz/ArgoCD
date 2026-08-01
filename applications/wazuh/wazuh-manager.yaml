@@ -399,7 +399,7 @@ data:
            ClientHost is often the internal tunnel/pod IP, so path/status
            patterns are the reliable signal, not the source IP. -->
       <rule id="100700" level="0">
-        <decoded_as>json</decoded_as>
+        <decoded_as>k8sjson</decoded_as>
         <field name="DownstreamStatus" type="pcre2">^\d{3}$</field>
         <field name="RequestPath" type="pcre2">.</field>
         <description>Traefik access (base)</description>
@@ -442,7 +442,7 @@ data:
            auth events live in Authentik's Events model; stdout covers request +
            warning/error + the failure strings matched below. -->
       <rule id="100720" level="0">
-        <decoded_as>json</decoded_as>
+        <decoded_as>k8sjson</decoded_as>
         <field name="logger" type="pcre2">^authentik\.</field>
         <description>Authentik event (base)</description>
         <options>no_full_log</options>
