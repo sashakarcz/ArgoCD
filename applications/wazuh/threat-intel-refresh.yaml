@@ -1,0 +1,100 @@
+---
+# Daily threat-intel refresh: pulls abuse.ch Feodo + FireHOL level1, keeps only
+# individual IPv4 (the stock rules use CDB match_key = exact match, so CIDRs are
+# skipped), and writes /var/ossec/etc/lists/malicious-ioc/malicious-ip on the
+# manager, recompiling the .cdb. The manager's etc PVC is RWO (bound to the
+# manager pod), so this updates it via `kubectl exec` rather than a mount.
+# Activates the stock rules 99901-99920 (declared in wazuh-manager.yaml ruleset).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wazuh-threatintel
+  namespace: wazuh
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wazuh-threatintel
+  namespace: wazuh
+rules:
+  # Exec into the manager pod to write the list + recompile. Scoped to this ns.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wazuh-threatintel
+  namespace: wazuh
+subjects:
+  - kind: ServiceAccount
+    name: wazuh-threatintel
+    namespace: wazuh
+roleRef:
+  kind: Role
+  name: wazuh-threatintel
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wazuh-threat-intel-refresh
+  namespace: wazuh
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: wazuh-threatintel
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: refresh
+              image: alpine:3.20
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  apk add --no-cache curl >/dev/null
+                  KREL=$(curl -sfL https://dl.k8s.io/release/stable.txt)
+                  curl -sfLo /tmp/kubectl "https://dl.k8s.io/release/${KREL}/bin/linux/amd64/kubectl"
+                  chmod +x /tmp/kubectl
+                  TMP=/tmp/ips; : > "$TMP"
+                  echo "fetching feeds..."
+                  curl -sfL --max-time 60 https://feodotracker.abuse.ch/downloads/ipblocklist.txt >> "$TMP" || echo "WARN: feodo fetch failed"
+                  curl -sfL --max-time 60 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset >> "$TMP" || echo "WARN: firehol fetch failed"
+                  # individual IPv4 only (match_key is exact; CIDRs skipped), dedupe
+                  grep -oE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' "$TMP" | sort -u > /tmp/clean
+                  COUNT=$(wc -l < /tmp/clean)
+                  echo "prepared $COUNT malicious IPs"
+                  # safety: don't clobber the list with a near-empty result
+                  if [ "$COUNT" -lt 50 ]; then echo "ERROR: too few IPs ($COUNT), aborting"; exit 1; fi
+                  sed 's/$/:/' /tmp/clean > /tmp/malicious-ip
+                  /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -i -- \
+                    sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip \
+                      && chown 101:101 /var/ossec/etc/lists/malicious-ioc/malicious-ip \
+                      && /var/ossec/bin/wazuh-makelists \
+                      && /var/ossec/bin/wazuh-control restart' < /tmp/malicious-ip
+                  echo "threat-intel refresh complete: $COUNT IPs"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi

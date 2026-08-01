@@ -201,6 +201,14 @@ data:
         <list>etc/lists/audit-keys</list>
         <list>etc/lists/amazon/aws-eventnames</list>
         <list>etc/lists/security-eventchannel</list>
+        <!-- Threat-intel CDB lists. These ship in the image but were never
+             declared, so the stock rules 99901-99920 that reference them via
+             match_key ("could not be loaded") were dormant. Declaring them
+             compiles the .cdb (ossec-makelists on start) and activates those
+             rules; the threat-intel-refresh CronJob keeps malicious-ip current. -->
+        <list>etc/lists/malicious-ioc/malicious-ip</list>
+        <list>etc/lists/malicious-ioc/malware-hashes</list>
+        <list>etc/lists/malicious-ioc/malicious-domains</list>
         <decoder_dir>etc/decoders</decoder_dir>
         <rule_dir>etc/rules</rule_dir>
       </ruleset>
