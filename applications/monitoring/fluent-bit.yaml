@@ -73,6 +73,19 @@ spec:
                 Name    grep
                 Match   kube.*
                 Exclude log longhorn-(instance-manager|manager).*level=(info|debug)
+            # Fan out ONLY the Authentik + Traefik app containers to a second
+            # tag (keep=true, so the original kube.* record still reaches
+            # Graylog). The Wazuh syslog output below matches wazuh.k8s.
+            [FILTER]
+                Name          rewrite_tag
+                Match         kube.*
+                Rule          $kubernetes['container_name'] ^(authentik-server|authentik-worker|traefik)$ wazuh.k8s true
+                Emitter_Name  re_wazuh
+            # Stable syslog appname so the manager's k8sjson decoder matches.
+            [FILTER]
+                Name    modify
+                Match   wazuh.k8s
+                Add     wazuh_ident k8sjson
 
           outputs: |
             [OUTPUT]
@@ -84,6 +97,20 @@ spec:
                 Gelf_Short_Message_Key log
                 Gelf_Host_Key          host
                 Retry_Limit            3
+            # Second output: only the re-tagged Authentik/Traefik records to the
+            # Wazuh manager syslog input. rfc5424; message = the app JSON log
+            # line ('log'), appname 'k8sjson' -> manager k8sjson decoder.
+            [OUTPUT]
+                Name                syslog
+                Match               wazuh.k8s
+                Host                192.168.7.220
+                Port                514
+                Mode                udp
+                Syslog_Format       rfc5424
+                Syslog_Hostname_Key host
+                Syslog_Appname_Key  wazuh_ident
+                Syslog_Message_Key  log
+                Retry_Limit         2
 
   destination:
     server: https://kubernetes.default.svc

@@ -423,6 +423,10 @@ spec:
           level: INFO
         accessLog:
           enabled: true
+          # JSON so Wazuh (via the Fluent Bit syslog output) can decode request
+          # fields (DownstreamStatus, RequestPath, ClientHost) into data.* for
+          # the traefik,web rules. Default fields are all kept.
+          format: json
 
         metrics:
           prometheus:
