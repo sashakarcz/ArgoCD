@@ -1,10 +1,11 @@
 ---
-# Daily threat-intel refresh: pulls abuse.ch Feodo + FireHOL level1, keeps only
-# individual IPv4 (the stock rules use CDB match_key = exact match, so CIDRs are
-# skipped), and writes /var/ossec/etc/lists/malicious-ioc/malicious-ip on the
-# manager, recompiling the .cdb. The manager's etc PVC is RWO (bound to the
-# manager pod), so this updates it via `kubectl exec` rather than a mount.
-# Activates the stock rules 99901-99920 (declared in wazuh-manager.yaml ruleset).
+# Daily threat-intel refresh: pulls individual-IP blocklists (CINS Army,
+# blocklist.de, abuse.ch Feodo), writes /var/ossec/etc/lists/malicious-ioc/
+# malicious-ip on the manager, and rolls the manager so analysisd recompiles +
+# loads the .cdb. The etc PVC is RWO (bound to the manager), so the write goes
+# through `kubectl exec`; the reload is a clean `rollout restart` (exec-ing
+# wazuh-control restart hangs the exec stream). Feeds are exact-match individual
+# IPs because the stock rules 99901-99920 look them up with CDB match_key.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -17,13 +18,16 @@ metadata:
   name: wazuh-threatintel
   namespace: wazuh
 rules:
-  # Exec into the manager pod to write the list + recompile. Scoped to this ns.
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create", "get"]
+  # rollout restart = patch the StatefulSet pod-template annotation.
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -64,7 +68,6 @@ spec:
               type: RuntimeDefault
           containers:
             - name: refresh
-              # curl pre-installed + runs non-root; no apk (which needs root).
               image: curlimages/curl:8.11.1
               command:
                 - /bin/sh
@@ -74,30 +77,25 @@ spec:
                   KREL=$(curl -sfL https://dl.k8s.io/release/stable.txt)
                   curl -sfLo /tmp/kubectl "https://dl.k8s.io/release/${KREL}/bin/linux/amd64/kubectl"
                   chmod +x /tmp/kubectl
-                  TMP=/tmp/ips; : > "$TMP"
-                  echo "fetching feeds..."
-                  curl -sfL --max-time 60 https://feodotracker.abuse.ch/downloads/ipblocklist.txt >> "$TMP" || echo "WARN: feodo fetch failed"
-                  curl -sfL --max-time 60 https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset >> "$TMP" || echo "WARN: firehol fetch failed"
-                  # individual IPv4 only (match_key is exact; CIDRs skipped), dedupe
-                  grep -oE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' "$TMP" | sort -u > /tmp/clean
+                  : > /tmp/ips
+                  for u in \
+                    "https://cinsscore.com/list/ci-badguys.txt" \
+                    "https://lists.blocklist.de/lists/all.txt" \
+                    "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"; do
+                    curl -sfL --max-time 60 "$u" >> /tmp/ips || echo "WARN: fetch failed: $u"
+                  done
+                  # leading individual IPv4 per line, deduped (CDB match_key = exact)
+                  grep -oE '^[0-9]{1,3}(\.[0-9]{1,3}){3}' /tmp/ips | sort -u > /tmp/clean
                   COUNT=$(wc -l < /tmp/clean)
                   echo "prepared $COUNT malicious IPs"
-                  # safety: don't clobber the list with a near-empty result
-                  if [ "$COUNT" -lt 50 ]; then echo "ERROR: too few IPs ($COUNT), aborting"; exit 1; fi
+                  if [ "$COUNT" -lt 100 ]; then echo "ERROR: too few IPs ($COUNT), aborting"; exit 1; fi
                   sed 's/$/:/' /tmp/clean > /tmp/malicious-ip
-                  # write + recompile the .cdb (fast, no restart). kubectl exec
-                  # itself waits for the container, so no separate readiness wait.
-                  # A brief unavailability just fails the Job and backoffLimit retries.
+                  # write the list onto the manager's RWO etc PVC, recompile .cdb
                   /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -i -- \
-                    sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip \
-                      && chown 101:101 /var/ossec/etc/lists/malicious-ioc/malicious-ip \
-                      && /var/ossec/bin/wazuh-makelists' < /tmp/malicious-ip
-                  # reload so analysisd picks up the new .cdb (restart may drop the
-                  # exec stream as daemons cycle -- that is fine, the reload runs)
-                  echo "recompiled; reloading manager..."
-                  /tmp/kubectl exec -n wazuh wazuh-manager-0 -c wazuh-manager -- \
-                    /var/ossec/bin/wazuh-control restart || echo "restart signal sent (stream dropped, expected)"
-                  echo "threat-intel refresh complete: $COUNT IPs"
+                    sh -c 'cat > /var/ossec/etc/lists/malicious-ioc/malicious-ip && /var/ossec/bin/wazuh-makelists >/dev/null 2>&1 || true' < /tmp/malicious-ip
+                  echo "list written ($COUNT IPs); rolling manager to load the new .cdb"
+                  /tmp/kubectl rollout restart -n wazuh statefulset/wazuh-manager
+                  echo "threat-intel refresh complete"
               resources:
                 requests:
                   cpu: 50m
