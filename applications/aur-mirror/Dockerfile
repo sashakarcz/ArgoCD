@@ -20,8 +20,16 @@ RUN useradd -m -G wheel builder \
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
     | sh -s -- -b /usr/local/bin
 
-# Install Anthropic SDK for Claude PKGBUILD scanning
-RUN python -m pip install anthropic --break-system-packages
+# Install the Anthropic SDK for Claude PKGBUILD scanning in an ISOLATED venv.
+# Installing it into the system site-packages (pip --break-system-packages) drags
+# in certifi/idna/urllib3/charset-normalizer as files pacman does not own, which
+# then collide with python-certifi/python-idna when building any package that
+# needs python-requests ("failed to commit transaction (conflicting files)").
+# The venv keeps those files out of /usr/lib/pythonX.Y/site-packages; only the
+# scan phase runs under /opt/scan-venv/bin/python3 (see builder*.yaml). The build
+# phase keeps the system python so python package install-paths resolve to /usr.
+RUN python -m venv --system-site-packages /opt/scan-venv \
+    && /opt/scan-venv/bin/pip install --no-cache-dir anthropic
 
 # Install aurutils
 RUN su - builder -c ' \

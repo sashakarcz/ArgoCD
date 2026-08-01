@@ -68,10 +68,14 @@ spec:
         # writing verdicts to the state PV. ONLY container with ANTHROPIC_API_KEY;
         # never runs makepkg, mounts neither repo nor GPG key. Always exits 0.
         - name: scan
-          image: registry.starnix.net/library/aur-builder@sha256:b53ed001581e7b99f8c2a56fd78996fabb326cbd780c7fd6ecb02ba21dd08ef0
+          image: registry.starnix.net/library/aur-builder@sha256:0ecec4968b6224e6d7230dc2ef237d28e55259da50c47cdb085367623d2d76f5
           command:
             - flock
             - /lock/.build.lock
+            # Scan runs under the isolated anthropic venv (see Dockerfile); the
+            # build/sign phases use the system python so package install-paths
+            # resolve to /usr, not the venv prefix.
+            - /opt/scan-venv/bin/python3
             - /usr/local/bin/aur-build-all
           env:
             - name: BUILD_PHASE
@@ -110,7 +114,7 @@ spec:
         # build can exfiltrate neither. Vetted artifacts are staged on build-dir
         # for the sign phase. Runs after scan so verdicts exist before it builds.
         - name: build
-          image: registry.starnix.net/library/aur-builder@sha256:b53ed001581e7b99f8c2a56fd78996fabb326cbd780c7fd6ecb02ba21dd08ef0
+          image: registry.starnix.net/library/aur-builder@sha256:0ecec4968b6224e6d7230dc2ef237d28e55259da50c47cdb085367623d2d76f5
           # flock: blocks until the nightly cron (if running) releases the lock,
           # then builds -- so the two never build concurrently.
           command:
@@ -163,7 +167,7 @@ spec:
         # Phase 2 prep: import the GPG key into gpg-home (only the signer mounts
         # it), after the untrusted build init container has finished.
         - name: gpg-init
-          image: registry.starnix.net/library/aur-builder@sha256:b53ed001581e7b99f8c2a56fd78996fabb326cbd780c7fd6ecb02ba21dd08ef0
+          image: registry.starnix.net/library/aur-builder@sha256:0ecec4968b6224e6d7230dc2ef237d28e55259da50c47cdb085367623d2d76f5
           command:
             - sh
             - -c
@@ -192,7 +196,7 @@ spec:
         # Phase 2: sign + publish. Only container holding the key; runs no
         # PKGBUILD code. Reads staged artifacts, signs, repo-adds, pushes metrics.
         - name: signer
-          image: registry.starnix.net/library/aur-builder@sha256:b53ed001581e7b99f8c2a56fd78996fabb326cbd780c7fd6ecb02ba21dd08ef0
+          image: registry.starnix.net/library/aur-builder@sha256:0ecec4968b6224e6d7230dc2ef237d28e55259da50c47cdb085367623d2d76f5
           command:
             - flock
             - /lock/.build.lock
