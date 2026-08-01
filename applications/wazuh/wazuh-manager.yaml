@@ -309,7 +309,10 @@ data:
       <integration>
         <name>custom-virustotal</name>
         <api_key>managed-via-env</api_key>
-        <group>syscheck</group>
+        <!-- Only NEW files of interest (rule 100690), NOT every syscheck event,
+             so the broad FIM scan doesn't blow the VT rate limit. Local YARA +
+             malware-hashes CDB still cover all FIM events for free. -->
+        <group>virustotal_candidate</group>
         <alert_format>json</alert_format>
       </integration>
     </ossec_config>
@@ -388,6 +391,22 @@ data:
         <same_user />
         <description>Privilege escalation: 6+ sudo auth failures for the same user</description>
         <group>pci_dss_10.2.4,pci_dss_10.2.5,gdpr_IV_35.7.d,</group>
+      </rule>
+    </group>
+
+    <group name="virustotal_candidate,">
+      <!-- Gate VirusTotal to NEW files of interest only (executables, scripts,
+           archives, office docs). The broad FIM scan still covers EVERYTHING for
+           the local YARA AR + the malware-hashes CDB (both free); this just keeps
+           the rate-limited VT cloud API from firing on every /tmp,/home file
+           touch. The custom-virustotal integration is bound to this group instead
+           of raw syscheck. Child of 554 (file added), so modifies/deletes and
+           benign types never reach VT. -->
+      <rule id="100690" level="3">
+        <if_sid>554</if_sid>
+        <field name="file" type="pcre2">(?i)\.(exe|dll|sys|scr|com|pif|bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|jar|py|pl|rb|sh|bash|elf|bin|so|zip|rar|7z|tar|t?gz|bz2|xz|cab|iso|img|vhd|apk|ipa|msi|msix|deb|rpm|pkg|dmg|doc|docx|docm|dotm|xls|xlsx|xlsm|xlsb|ppt|pptx|pptm|rtf|pdf|lnk|chm|reg|swf)$</field>
+        <description>FIM: new file of interest added -- VirusTotal candidate: $(file)</description>
+        <group>virustotal_candidate,</group>
       </rule>
     </group>
 
