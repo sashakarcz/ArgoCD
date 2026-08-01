@@ -692,6 +692,18 @@ spec:
         hostnames:
         - "wazuh.indexer"
       initContainers:
+      # The queue is now a Longhorn PVC (was emptyDir). A fresh block volume
+      # mounts root:root, but wazuh-db (uid 101) must create queue/db + the wdb
+      # socket, so make it wazuh-owned before the daemons start.
+      - name: chown-queue
+        image: busybox
+        command:
+        - sh
+        - -c
+        - "chown 101:101 /var/ossec/queue && chmod 770 /var/ossec/queue"
+        volumeMounts:
+        - name: wazuh-queue
+          mountPath: /var/ossec/queue
       - name: seed-agent-groups
         image: busybox
         command:
