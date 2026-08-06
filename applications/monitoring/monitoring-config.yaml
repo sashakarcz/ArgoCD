@@ -64,24 +64,6 @@ spec:
     server: 192.168.1.75
     path: /mnt/Store/monitoring/alertmanager
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: loki-data-pv
-spec:
-  capacity:
-    storage: 50Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  claimRef:
-    name: storage-loki-0
-    namespace: monitoring
-  nfs:
-    server: 192.168.1.75
-    path: /mnt/Store/monitoring/loki
----
 # monitoring-secrets: synced from OpenBao secret/cluster/monitoring-secrets via ESO (ClusterSecretStore 'openbao').
 # Migrated from a VSO VaultStaticSecret.
 apiVersion: external-secrets.io/v1

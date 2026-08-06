@@ -12,21 +12,6 @@ metadata:
 # Defines all the NFS volumes for Jellyfin's configuration and media libraries.
 # --------------------------------------------------------------------------
 
-# Config Volume
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: jellyfin-config-pv
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  nfs:
-    server: "192.168.1.75"
-    path: "/mnt/Store/nomad/jellyfin/config"
----
 # Jellyfin config on Longhorn (3 replicas, RWO, dynamically provisioned).
 # Config lives on a STATIC Longhorn PV (not dynamic) so it survives a PVC delete.
 # Restored 2026-06-27 from the 02:00 backup after an ArgoCD prune+selfHeal during
@@ -169,21 +154,6 @@ spec:
 # Claims for each of the NFS volumes.
 # --------------------------------------------------------------------------
 
-# Config Claim
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jellyfin-config-pvc
-  namespace: jellyfin
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-  volumeName: jellyfin-config-pv
-  storageClassName: ""
----
 # Series Claim
 apiVersion: v1
 kind: PersistentVolumeClaim
