@@ -556,3 +556,6 @@ data:
       - name: sherlock
         approved: true
         note: explicit
+      - name: kpatch
+        approved: true
+        note: explicit
