@@ -393,6 +393,11 @@ spec:
                 entryPoint:
                   to: websecure
                   scheme: https
+                  # Default redirect priority is MaxInt64-1, which is above the max
+                  # user-router priority -- so nothing can be exempted from it. Lower it
+                  # to 1000 (all real routers are priority 41-52, so they still redirect)
+                  # so a per-router priority can opt a host out (e.g. kutt's bare "go").
+                  priority: 1000
           websecure:
             port: 443
             exposedPort: 443
