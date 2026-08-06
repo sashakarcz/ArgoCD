@@ -25,12 +25,15 @@ spec:
     # within its own namespace (app <-> its database/cache)
     - to:
         - podSelector: {}
-    # Authentik OIDC login: OIDC_ISSUER https://auth.starnix.net resolves to the
-    # Traefik ingress LoadBalancer VIP 192.168.7.207. Cilium runs WITHOUT kube-proxy
-    # replacement, so kube-proxy (iptables) does the DNAT and Cilium's egress hook
-    # sees the raw external VIP -- a namespaceSelector to traefik can't match it (that
-    # only works for ClusterIP 10.x targets). Allow the VIP /32 explicitly.
+    # Authentik OIDC login: OIDC_ISSUER https://auth.starnix.net -> the Traefik ingress
+    # (LB VIP 192.168.7.207 -> traefik pods -> Authentik). Cilium runs WITHOUT kube-proxy
+    # replacement, so the egress destination can appear as either the external LB VIP or
+    # the traefik pod depending on where the iptables DNAT lands -- allow both on 443 so
+    # Kutt's server-side OIDC discovery/token calls reach Authentik-behind-Traefik.
     - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
         - ipBlock:
             cidr: 192.168.7.207/32
       ports:
