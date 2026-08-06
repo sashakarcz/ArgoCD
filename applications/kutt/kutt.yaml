@@ -287,10 +287,11 @@ spec:
 ---
 # Bare "go" host served over plain HTTP (no TLS). Traefik's global web->websecure
 # redirect would 308 http://go -> https://go, but the LE cert only covers
-# go.starnix.net (not the bare "go"), so HTTPS breaks with a cert/SAN error. This
-# router's priority 2147483647 (MaxInt32) out-prioritizes the entrypoint redirection
-# (Traefik v3 default MaxInt32-1), so http://go serves Kutt directly with no redirect.
-# go.starnix.net keeps its normal HTTPS + http->https redirect (above).
+# go.starnix.net (not the bare "go"), so HTTPS breaks with a cert/SAN error.
+# Traefik v3 uses int64 router priorities and its entrypoint redirect router
+# (web-to-443@internal) sits at MaxInt64-1 (9223372036854775806), so this router uses
+# MaxInt64 (9223372036854775807) to out-prioritize it -- http://go then serves Kutt
+# directly with no redirect. go.starnix.net keeps normal HTTPS + redirect (above).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -298,7 +299,7 @@ metadata:
   namespace: kutt
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.priority: "2147483647"
+    traefik.ingress.kubernetes.io/router.priority: "9223372036854775807"
 spec:
   ingressClassName: traefik
   rules:
