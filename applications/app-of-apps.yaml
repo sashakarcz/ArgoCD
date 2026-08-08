@@ -1039,6 +1039,41 @@ spec:
             filename: /var/log/falco/events.json
           stdout_output:
             enabled: true
+          # The image's config.d/falco.container_plugin.yaml unconditionally adds
+          # `load_plugins: [container]` but ships NO definition. collectors:false
+          # avoids a duplicate load; this supplies the single definition so the
+          # plugin resolves and loads exactly once. On Talos the runtime sockets
+          # are unreachable, so the plugin loads without enriching (alerts keep
+          # full syscall/process/file/network context, minus k8s pod names).
+          plugins:
+            - name: container
+              library_path: libcontainer.so
+              init_config:
+                label_max_len: 100
+                with_size: false
+                hooks:
+                  - create
+                engines:
+                  containerd:
+                    enabled: true
+                    sockets:
+                      - /run/host-containerd/containerd.sock
+                  cri:
+                    enabled: true
+                    sockets:
+                      - /run/containerd/containerd.sock
+                      - /run/k3s/containerd/containerd.sock
+                      - /run/host-containerd/containerd.sock
+                  docker:
+                    enabled: false
+                  podman:
+                    enabled: false
+                  lxc:
+                    enabled: false
+                  libvirt_lxc:
+                    enabled: false
+                  bpm:
+                    enabled: false
 
         # hostPath so the co-located wazuh-agent-falco DaemonSet can read events.
         mounts:
