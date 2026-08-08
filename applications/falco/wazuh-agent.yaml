@@ -17,13 +17,17 @@ data:
     <ossec_config>
       <client>
         <server>
-          <address>192.168.7.220</address>
+          <!-- In-cluster ClusterIP DNS, NOT the wazuh-manager-lb VIP: that LB is
+               externalTrafficPolicy:Local, so pod->VIP only routes on the manager's
+               node. The wazuh-manager ClusterIP exposes 1514/1515 and routes from
+               any node. -->
+          <address>wazuh-manager.wazuh.svc.cluster.local</address>
           <port>1514</port>
           <protocol>tcp</protocol>
         </server>
         <enrollment>
           <enabled>yes</enabled>
-          <manager_address>192.168.7.220</manager_address>
+          <manager_address>wazuh-manager.wazuh.svc.cluster.local</manager_address>
           <port>1515</port>
           <agent_name>CHANGEE_AGENT_NAME</agent_name>
           <groups>falco</groups>

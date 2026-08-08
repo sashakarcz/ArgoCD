@@ -648,6 +648,16 @@ spec:
   - name: api
     port: 55000
     targetPort: 55000
+  # In-cluster agents (e.g. the Falco DaemonSet) must reach 1514/1515 via this
+  # ClusterIP, NOT wazuh-manager-lb: that LoadBalancer is externalTrafficPolicy:
+  # Local, so pod->VIP only routes on the node running the manager pod. A
+  # ClusterIP routes from any node.
+  - name: agents
+    port: 1514
+    targetPort: 1514
+  - name: enrollment
+    port: 1515
+    targetPort: 1515
 
 ---
 apiVersion: v1
