@@ -776,13 +776,6 @@ spec:
     name: argocd-initial-admin-secret
     jsonPointers:
     - /data
-  # argocd-notifications-cm is rendered by this chart, but the notifications
-  # controller annotates it at runtime; ignore /data so selfHeal doesn't flap.
-  - group: ""
-    kind: ConfigMap
-    name: argocd-notifications-cm
-    jsonPointers:
-    - /data
 
 ---
 apiVersion: argoproj.io/v1alpha1
