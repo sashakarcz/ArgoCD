@@ -749,7 +749,7 @@ spec:
                 send: [app-health-degraded]
           subscriptions:
             - recipients:
-                - apprise:
+                - "apprise:"
               triggers:
                 - on-sync-succeeded
                 - on-sync-failed
