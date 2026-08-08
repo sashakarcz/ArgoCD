@@ -253,6 +253,16 @@ data:
         <use_source_ip>no</use_source_ip>
         <purge>yes</purge>
         <use_password>no</use_password>
+        <!-- Replace an existing same-name agent on re-enrollment. Required for
+             ephemeral/containerized agents (e.g. the Falco DaemonSet) that
+             re-enroll on every pod restart; without it the manager rejects them
+             with "Duplicate agent name" and they stay Disconnected. -->
+        <force>
+          <enabled>yes</enabled>
+          <key_mismatch>yes</key_mismatch>
+          <disconnected_time enabled="yes">1h</disconnected_time>
+          <after_registration_time>0</after_registration_time>
+        </force>
         <ciphers>HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH</ciphers>
         <ssl_verify_host>no</ssl_verify_host>
         <ssl_manager_cert>etc/sslmanager.cert</ssl_manager_cert>
