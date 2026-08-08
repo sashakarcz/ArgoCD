@@ -391,6 +391,21 @@ data:
         <description>Falco $(priority): $(rule)</description>
         <group>falco_high,</group>
       </rule>
+      <!-- Tune-down for a known Falco false positive. "Drop and execute new
+           binary in container" (Critical) fires on any benign binary that lives
+           on the container's writable overlay layer (exe_flags
+           EXE_WRITABLE|EXE_UPPER_LAYER), e.g. coreutils running `readlink`. It
+           carries no k8s attribution on Talos (container plugin can't reach the
+           runtime socket), so it can't be scoped by namespace and floods Discord
+           via the level-12 integration. Drop it below the level-12 Discord
+           threshold so it stays visible in the dashboard but stops paging.
+           Genuine Falco criticals still match 100603 and still page Discord. -->
+      <rule id="100610" level="5">
+        <if_sid>100603</if_sid>
+        <field name="rule" type="pcre2">^Drop and execute new binary in container$</field>
+        <description>Falco (tuned-down, overlay FP): $(rule)</description>
+        <group>falco_low,</group>
+      </rule>
     </group>
 
     <group name="privilege_escalation,">
