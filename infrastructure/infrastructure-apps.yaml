@@ -706,7 +706,7 @@ spec:
                   body: |
                     {
                       "title": "{{.app.metadata.name}}",
-                      "body": "✅ **{{.app.metadata.name}}** synced successfully.\nRevision: `{{.app.status.sync.revision | trunc 7}}`\nHealth: {{.app.status.health.status}}"
+                      "body": "✅ **{{.app.metadata.name}}** synced successfully.\nRevision: `{{.app.status.sync.revision | default \"n/a\" | trunc 7}}`\nHealth: {{.app.status.health.status}}"
                     }
             template.app-sync-failed: |
               webhook:
