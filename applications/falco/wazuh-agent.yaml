@@ -1,0 +1,87 @@
+---
+# Containerized Wazuh agent that ships Falco runtime-security events into the
+# Wazuh SIEM. One per node (DaemonSet), co-located with the Falco DaemonSet
+# (deployed by the falco-helm chart). Falco writes JSON alerts to the per-node
+# hostPath /var/log/falco/events.json; this agent tails that file and forwards
+# over the secure 1514 channel to the manager. The <localfile> that reads the
+# file is pushed by the manager as the "falco" agent-group shared config
+# (applications/wazuh/shared/falco/agent.conf); manager rules 100600-100603 map
+# Falco priority -> Wazuh alert level.
+#
+# Talos is immutable, so a host-installed agent is impossible -- this runs as a
+# pod that only needs the hostPath read mount, not host privileges.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: wazuh-agent-falco
+  namespace: falco
+  labels:
+    app: wazuh-agent-falco
+spec:
+  selector:
+    matchLabels:
+      app: wazuh-agent-falco
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: wazuh-agent-falco
+    spec:
+      # Run on every node, including control-plane, to match the Falco DaemonSet.
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: wazuh-agent
+        # Must match the manager version (wazuh-manager is v4.14.1).
+        image: wazuh/wazuh-agent:4.14.1
+        imagePullPolicy: IfNotPresent
+        env:
+        # k8s expands $(NODE_NAME) in a later env var that references an earlier
+        # one, giving each agent a stable, unique per-node name.
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: WAZUH_MANAGER
+          value: "192.168.7.220"
+        - name: WAZUH_MANAGER_PORT
+          value: "1514"
+        - name: WAZUH_REGISTRATION_SERVER
+          value: "192.168.7.220"
+        - name: WAZUH_REGISTRATION_PORT
+          value: "1515"
+        - name: WAZUH_AGENT_GROUP
+          value: "falco"
+        - name: WAZUH_AGENT_NAME
+          value: "falco-$(NODE_NAME)"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 300m
+            memory: 384Mi
+        volumeMounts:
+        # Falco's per-node event stream, written by the Falco DaemonSet.
+        - name: falco-events
+          mountPath: /var/log/falco
+          readOnly: true
+        livenessProbe:
+          exec:
+            command: ["/var/ossec/bin/wazuh-control", "status"]
+          initialDelaySeconds: 40
+          periodSeconds: 60
+          timeoutSeconds: 15
+          failureThreshold: 3
+      volumes:
+      - name: falco-events
+        hostPath:
+          path: /var/log/falco
+          type: DirectoryOrCreate

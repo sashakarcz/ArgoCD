@@ -195,6 +195,21 @@ data:
 
     </agent_config>
 
+  falco.conf: |
+    <agent_config>
+
+      <!-- Falco runtime-security events (modern eBPF) are written by the Falco
+           DaemonSet to a per-node hostPath; the containerized wazuh-agent-falco
+           DaemonSet (this "falco" group) tails the JSON and ships it. Manager
+           rules 100600-100603 map Falco priority -> Wazuh level. No syscheck/
+           syscollector: this agent monitors Falco output, not a host. -->
+      <localfile>
+        <log_format>json</log_format>
+        <location>/var/log/falco/events.json</location>
+      </localfile>
+
+    </agent_config>
+
   freebsd.conf: |
     <agent_config>
 

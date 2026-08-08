@@ -969,3 +969,117 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
+---
+# Falco runtime security via the modern eBPF (CO-RE) driver -- the only clean
+# option on immutable Talos: no kernel module, no driver build, no host headers
+# (BTF is present). Rules are the ones bundled in the Falco image; falcoctl's
+# external OCI rule-fetch is disabled so startup has no egress dependency behind
+# the Cilium lockdown. Falco writes JSON to the per-node hostPath
+# /var/log/falco/events.json, which the wazuh-agent-falco DaemonSet
+# (applications/falco/wazuh-agent.yaml, "falco" agent group) tails into Wazuh.
+# This app owns the falco namespace (PSA=privileged via managedNamespaceMetadata,
+# required for the privileged eBPF DaemonSet).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falco-helm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://falcosecurity.github.io/charts
+    chart: falco
+    targetRevision: 9.1.0
+    helm:
+      releaseName: falco
+      values: |
+        driver:
+          kind: modern_ebpf
+
+        # No egress dependency at startup: use the rules bundled in the Falco
+        # image instead of falcoctl pulling from an external OCI registry (which
+        # the Cilium egress lockdown would block, hanging the init container).
+        # Update rules by bumping the chart/image.
+        falcoctl:
+          artifact:
+            install:
+              enabled: false
+            follow:
+              enabled: false
+
+        collectors:
+          enabled: true
+
+        controller:
+          kind: daemonset
+
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+            effect: NoSchedule
+
+        falco:
+          json_output: true
+          json_include_output_property: true
+          json_include_tags_property: true
+          file_output:
+            enabled: true
+            keep_alive: false
+            filename: /var/log/falco/events.json
+          stdout_output:
+            enabled: true
+
+        # hostPath so the co-located wazuh-agent-falco DaemonSet can read events.
+        mounts:
+          volumes:
+            - name: falco-events
+              hostPath:
+                path: /var/log/falco
+                type: DirectoryOrCreate
+          volumeMounts:
+            - name: falco-events
+              mountPath: /var/log/falco
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: falco
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/audit: privileged
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+
+---
+# Raw manifests for the Falco->Wazuh bridge: the containerized wazuh-agent
+# DaemonSet that tails Falco's per-node event file. Namespace is owned by
+# falco-helm (above).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falco
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/usenix17/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/falco
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: falco
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

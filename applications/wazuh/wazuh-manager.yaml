@@ -739,7 +739,7 @@ spec:
         - sh
         - -c
         - |
-          for group in arch debian freebsd kubernetes-node macos openbao; do
+          for group in arch debian falco freebsd kubernetes-node macos openbao; do
             mkdir -p /var/ossec/etc/shared/$group
             cp /agent-groups/$group.conf /var/ossec/etc/shared/$group/agent.conf
             chown 101:101 /var/ossec/etc/shared/$group/agent.conf
