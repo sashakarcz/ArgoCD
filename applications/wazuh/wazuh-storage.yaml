@@ -278,8 +278,11 @@ spec:
 # openbao group) survive manager restarts instead of resetting to the enrollment
 # group. Longhorn default class = 3 replicas.
 # Sized for the Vulnerability Detection database (queue/vd): the multi-distro CVE
-# feed is several GB and grows over time. 5Gi filled to 100% and wedged wazuh-db
-# ("SQLite: database or disk is full"), so 20Gi gives VD real headroom.
+# feed is several GB and grows over time. Peak usage during a feed update is the
+# installed feed (queue/vd/feed ~11Gi) PLUS the updater scratch space
+# (queue/vd_updater/tmp ~7.5Gi) PLUS wazuh-db/indexer (~2Gi). 5Gi then 20Gi both
+# filled to 100% and wedged the daemons with "No space left on device", so 40Gi
+# gives ~2x headroom over the ~20Gi update peak. CANNOT go on NFS (sockets+SQLite).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -291,4 +294,4 @@ spec:
   storageClassName: longhorn
   resources:
     requests:
-      storage: 20Gi
+      storage: 40Gi
