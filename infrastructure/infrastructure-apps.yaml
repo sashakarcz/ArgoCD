@@ -693,12 +693,18 @@ spec:
 
         notifications:
           enabled: true
-          cm:
+          # Chart 10.x builds argocd-notifications-cm from these STRUCTURED keys
+          # (notifiers/templates/triggers/subscriptions), NOT a freeform
+          # notifications.cm.* passthrough. The 7.x->10.x upgrade silently orphaned
+          # the old notifications.cm block, so every config edit was a no-op until
+          # moved here. See tasks/argocd-v3-upgrade-plan.md.
+          notifiers:
             service.webhook.apprise: |
               url: http://apprise.apprise.svc:8000/notify/argocd
               headers:
               - name: Content-Type
                 value: application/json
+          templates:
             template.app-sync-succeeded: |
               webhook:
                 apprise:
@@ -726,6 +732,7 @@ spec:
                       "title": "{{.app.metadata.name}}",
                       "body": "⚠️ **{{.app.metadata.name}}** health is **Degraded**."
                     }
+          triggers:
             trigger.on-sync-succeeded: |
               - when: app.status.operationState.phase in ['Succeeded'] and app.metadata.name not in ['root', 'applications']
                 # oncePer keys dedup to the synced git revision. Without it the
@@ -740,14 +747,10 @@ spec:
             trigger.on-health-degraded: |
               - when: app.status.health.status == 'Degraded'
                 send: [app-health-degraded]
-            defaultTriggers: |
-              - on-sync-succeeded
-              - on-sync-failed
-              - on-health-degraded
-            subscriptions: |
-              - recipients:
+          subscriptions:
+            - recipients:
                 - apprise:
-                triggers:
+              triggers:
                 - on-sync-succeeded
                 - on-sync-failed
                 - on-health-degraded
