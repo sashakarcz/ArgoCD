@@ -1,15 +1,50 @@
 ---
-# Containerized Wazuh agent that ships Falco runtime-security events into the
-# Wazuh SIEM. One per node (DaemonSet), co-located with the Falco DaemonSet
-# (deployed by the falco-helm chart). Falco writes JSON alerts to the per-node
-# hostPath /var/log/falco/events.json; this agent tails that file and forwards
-# over the secure 1514 channel to the manager. The <localfile> that reads the
-# file is pushed by the manager as the "falco" agent-group shared config
-# (applications/wazuh/shared/falco/agent.conf); manager rules 100600-100603 map
-# Falco priority -> Wazuh alert level.
-#
-# Talos is immutable, so a host-installed agent is impossible -- this runs as a
-# pod that only needs the hostPath read mount, not host privileges.
+# Custom ossec.conf for the Falco-shipping agents. The wazuh/wazuh-agent image's
+# documented pattern is to mount a full ossec.conf at $WAZUH_CONFIG_MOUNT/etc/
+# (its env-var templating only fills CHANGE* placeholders and has no group
+# handling). This config connects to the manager, enrolls into the "falco" group
+# (so the manager pushes the shared <localfile> for /var/log/falco/events.json --
+# see applications/wazuh/shared/falco/agent.conf), and keeps the CHANGEE_AGENT_NAME
+# placeholder so the image seds in the per-node name from WAZUH_AGENT_NAME.
+# No syscheck/rootcheck/syscollector here: these agents only ship Falco events.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-agent-falco-conf
+  namespace: falco
+data:
+  ossec.conf: |
+    <ossec_config>
+      <client>
+        <server>
+          <address>192.168.7.220</address>
+          <port>1514</port>
+          <protocol>tcp</protocol>
+        </server>
+        <enrollment>
+          <enabled>yes</enabled>
+          <manager_address>192.168.7.220</manager_address>
+          <port>1515</port>
+          <agent_name>CHANGEE_AGENT_NAME</agent_name>
+          <groups>falco</groups>
+        </enrollment>
+        <crypto_method>aes</crypto_method>
+        <notify_time>10</notify_time>
+        <time-reconnect>60</time-reconnect>
+        <auto_restart>yes</auto_restart>
+      </client>
+
+      <client_buffer>
+        <disabled>no</disabled>
+        <queue_size>5000</queue_size>
+        <events_per_second>500</events_per_second>
+      </client_buffer>
+
+      <logging>
+        <log_format>plain</log_format>
+      </logging>
+    </ossec_config>
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -28,7 +63,6 @@ spec:
       labels:
         app: wazuh-agent-falco
     spec:
-      # Run on every node, including control-plane, to match the Falco DaemonSet.
       tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
@@ -43,24 +77,18 @@ spec:
         image: wazuh/wazuh-agent:4.14.1
         imagePullPolicy: IfNotPresent
         env:
-        # k8s expands $(NODE_NAME) in a later env var that references an earlier
-        # one, giving each agent a stable, unique per-node name.
+        # k8s expands $(NODE_NAME) in a later env var referencing an earlier one,
+        # giving each agent a stable, unique per-node name. The image seds this
+        # into the CHANGEE_AGENT_NAME placeholder in the mounted ossec.conf.
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        - name: WAZUH_MANAGER
-          value: "192.168.7.220"
-        - name: WAZUH_MANAGER_PORT
-          value: "1514"
-        - name: WAZUH_REGISTRATION_SERVER
-          value: "192.168.7.220"
-        - name: WAZUH_REGISTRATION_PORT
-          value: "1515"
-        - name: WAZUH_AGENT_GROUP
-          value: "falco"
         - name: WAZUH_AGENT_NAME
           value: "falco-$(NODE_NAME)"
+        # Tell the image to copy our custom ossec.conf into place on start.
+        - name: WAZUH_CONFIG_MOUNT
+          value: "/wazuh-config-mount"
         resources:
           requests:
             cpu: 50m
@@ -69,6 +97,10 @@ spec:
             cpu: 300m
             memory: 384Mi
         volumeMounts:
+        - name: config
+          mountPath: /wazuh-config-mount/etc/ossec.conf
+          subPath: ossec.conf
+          readOnly: true
         # Falco's per-node event stream, written by the Falco DaemonSet.
         - name: falco-events
           mountPath: /var/log/falco
@@ -76,11 +108,14 @@ spec:
         livenessProbe:
           exec:
             command: ["/var/ossec/bin/wazuh-control", "status"]
-          initialDelaySeconds: 40
+          initialDelaySeconds: 60
           periodSeconds: 60
           timeoutSeconds: 15
           failureThreshold: 3
       volumes:
+      - name: config
+        configMap:
+          name: wazuh-agent-falco-conf
       - name: falco-events
         hostPath:
           path: /var/log/falco
