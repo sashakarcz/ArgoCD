@@ -728,9 +728,14 @@ spec:
                     }
             trigger.on-sync-succeeded: |
               - when: app.status.operationState.phase in ['Succeeded'] and app.metadata.name not in ['root', 'applications']
+                # oncePer keys dedup to the synced git revision. Without it the
+                # trigger fires once per app ever (or silently skips fast syncs the
+                # 60s poll never catches mid-sync), so subsequent deploys go unnotified.
+                oncePer: app.status.sync.revision
                 send: [app-sync-succeeded]
             trigger.on-sync-failed: |
               - when: app.status.operationState.phase in ['Error', 'Failed']
+                oncePer: app.status.operationState.syncResult.revision
                 send: [app-sync-failed]
             trigger.on-health-degraded: |
               - when: app.status.health.status == 'Degraded'
