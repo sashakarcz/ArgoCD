@@ -1008,8 +1008,15 @@ spec:
             follow:
               enabled: false
 
+        # Falco 0.44's image auto-loads the "container" plugin via a baked-in
+        # config.d file. The chart's collectors (enabled:true) would load it a
+        # SECOND time -> "found another plugin with name container" crash. Disable
+        # them so the image plugin loads exactly once. NOTE: on Talos the container
+        # plugin can't reach the runtime socket (non-standard, locked-down path),
+        # so alerts carry full syscall/process/file/network context but limited
+        # k8s pod-name attribution. Revisit socket mounting to restore it.
         collectors:
-          enabled: true
+          enabled: false
 
         controller:
           kind: daemonset
