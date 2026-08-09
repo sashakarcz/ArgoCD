@@ -252,9 +252,7 @@ metadata:
   name: authentik-server
   namespace: authentik
 spec:
-  # Temporarily 0 during the NFS->Longhorn DB migration (restored to 1 once the
-  # Postgres dump is loaded into the new Longhorn volume).
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: authentik-server
@@ -334,10 +332,7 @@ metadata:
   name: authentik-worker
   namespace: authentik
 spec:
-  # Temporarily 0 during the NFS->Longhorn DB migration. The worker runs DB
-  # migrations on startup, so it must stay down until the dump is restored,
-  # otherwise it would create a fresh empty schema that clashes with the restore.
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: authentik-worker
