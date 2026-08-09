@@ -40,37 +40,10 @@ data:
 #   --from-literal=AUTHENTIK_SECRET_KEY="..." \
 #   --from-literal=AUTHENTIK_EMAIL__PASSWORD="..."
 ---
-# Persistent Volumes (NFS)
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgresql-data-pv
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  nfs:
-    server: 192.168.1.75
-    path: /mnt/Store/authentik/database/_data
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: redis-data-pv
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  nfs:
-    server: 192.168.1.75
-    path: /mnt/Store/authentik/redis/_data
----
+# Persistent Volumes (NFS) -- media + templates only. Postgres and Redis data
+# were moved off NFS onto Longhorn (block storage) to eliminate the NFS
+# file-locking / fsync-durability corruption risk for the databases; see the
+# postgresql-data-lh / redis-data-lh PVCs below.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -102,10 +75,13 @@ spec:
     path: /mnt/Store/authentik/custom-templates
 ---
 # Persistent Volume Claims
+# Postgres + Redis data on Longhorn (dynamically provisioned, 3 replicas via the
+# default longhorn StorageClass) instead of NFS -- proper POSIX locking + honest
+# fsync for the databases. media + templates stay on NFS (shared RWM files).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgresql-data
+  name: postgresql-data-lh
   namespace: authentik
 spec:
   accessModes:
@@ -113,12 +89,12 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: manual
+  storageClassName: longhorn
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: redis-data
+  name: redis-data-lh
   namespace: authentik
 spec:
   accessModes:
@@ -126,7 +102,7 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: manual
+  storageClassName: longhorn
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -189,6 +165,13 @@ spec:
             name: authentik-config
         - secretRef:
             name: authentik-secrets
+        env:
+        # Longhorn volumes are ext4 and carry a lost+found dir at the mount
+        # root, which makes Postgres initdb refuse ("directory not empty").
+        # Point PGDATA at a subdirectory so initdb owns an empty dir. (NFS did
+        # not have this problem; ext4 block storage does.)
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         ports:
         - containerPort: 5432
         volumeMounts:
@@ -197,7 +180,7 @@ spec:
       volumes:
       - name: postgresql-data
         persistentVolumeClaim:
-          claimName: postgresql-data
+          claimName: postgresql-data-lh
 ---
 apiVersion: v1
 kind: Service
@@ -248,7 +231,7 @@ spec:
       volumes:
       - name: redis-data
         persistentVolumeClaim:
-          claimName: redis-data
+          claimName: redis-data-lh
 ---
 apiVersion: v1
 kind: Service
@@ -269,7 +252,9 @@ metadata:
   name: authentik-server
   namespace: authentik
 spec:
-  replicas: 1
+  # Temporarily 0 during the NFS->Longhorn DB migration (restored to 1 once the
+  # Postgres dump is loaded into the new Longhorn volume).
+  replicas: 0
   selector:
     matchLabels:
       app: authentik-server
@@ -349,7 +334,10 @@ metadata:
   name: authentik-worker
   namespace: authentik
 spec:
-  replicas: 1
+  # Temporarily 0 during the NFS->Longhorn DB migration. The worker runs DB
+  # migrations on startup, so it must stay down until the dump is restored,
+  # otherwise it would create a fresh empty schema that clashes with the restore.
+  replicas: 0
   selector:
     matchLabels:
       app: authentik-worker
