@@ -555,9 +555,21 @@ data:
         <field name="level" type="pcre2">^(error|critical)$</field>
         <description>Authentik error: $(event) ($(logger))</description>
       </rule>
+      <!-- Match GENUINE auth failures only. Authentik's HTTP access logs
+           (logger authentik.asgi) put the request URL in the `event` field, so
+           the admin dashboard polling
+           /api/v3/events/events/volume/?actions=...&amp;actions=login_failed
+           made this rule fire on every page refresh (a status-200 GET); and
+           because it sits in authentication_failures it paged Discord and
+           tripped the firewall-drop Active Response (a no-op, since `remote` is
+           never mapped to srcip, but still noisy). Genuine failures come from
+           the events/stage loggers, never authentik.asgi, and their `event` is
+           a phrase, not a URL. So exclude authentik.asgi and any URL-shaped
+           event (leading slash). -->
       <rule id="100723" level="7">
         <if_sid>100720</if_sid>
-        <field name="event" type="pcre2">(?i)(invalid.credential|failed.login|authentication.failed|permission.denied|invalid.password|login.failed)</field>
+        <field name="logger" type="pcre2">^authentik\.(?!asgi(?:\.|$))</field>
+        <field name="event" type="pcre2">(?i)^(?!/)(?=.*(?:invalid.credential|failed.login|authentication.failed|permission.denied|invalid.password|login.failed))</field>
         <description>Authentik: auth failure -- $(event) (user=$(user) remote=$(remote))</description>
         <group>authentication_failures,pci_dss_10.2.4,gdpr_IV_35.7.d,</group>
       </rule>
