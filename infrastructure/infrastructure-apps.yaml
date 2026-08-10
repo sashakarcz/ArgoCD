@@ -393,11 +393,13 @@ spec:
           web:
             port: 80
             exposedPort: 80
-            # Same connector-scoped XFF trust as websecure (below), for the brief
-            # window before the :80->:443 redirect.
+            # Same RFC1918 XFF trust as websecure (below), for the brief window
+            # before the :80->:443 redirect.
             forwardedHeaders:
               trustedIPs:
-                - 172.16.4.67/32
+                - 10.0.0.0/8
+                - 172.16.0.0/12
+                - 192.168.0.0/16
             http:
               redirections:
                 entryPoint:
@@ -413,17 +415,21 @@ spec:
             exposedPort: 443
             http3:
               enabled: false
-            # Trust X-Forwarded-For ONLY from the cloudflared tunnel connector
-            # (172.16.4.67). Traefik then preserves the real client IP that
-            # Cloudflare puts in the forwarded headers and passes it to backends
-            # (Authentik logs the real client, not the Traefik pod IP). Any other
-            # source -- e.g. a LAN host hitting the VIP directly, bypassing
-            # Cloudflare -- is untrusted, so it cannot forge its client IP.
-            # Safe only because externalTrafficPolicy is Local (the true peer IP
-            # is visible); do not widen this without preserving that.
+            # Trust X-Forwarded-For from any RFC1918 (private) source. Cloudflare
+            # puts the real (public) client IP in the forwarded headers, and the
+            # tunnel connector reaches Traefik from a private address, so trusting
+            # the private ranges lets Authentik log the real client instead of the
+            # Traefik pod IP. Direct LAN clients also get their real IP.
+            # TRADEOFF: any private-LAN host that hits the MetalLB VIP directly
+            # (bypassing Cloudflare) can forge its client IP -- accepted, the LAN
+            # is trusted. Real external clients arrive as PUBLIC IPs and are never
+            # implicitly trusted; externalTrafficPolicy: Local keeps the true peer
+            # visible.
             forwardedHeaders:
               trustedIPs:
-                - 172.16.4.67/32
+                - 10.0.0.0/8
+                - 172.16.0.0/12
+                - 192.168.0.0/16
           metrics:
             port: 9100
             expose:
