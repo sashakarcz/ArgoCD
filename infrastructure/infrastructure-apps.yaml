@@ -382,7 +382,12 @@ spec:
             metallb.universe.tf/loadBalancerIPs: "192.168.7.207"
           spec:
             type: LoadBalancer
-            externalTrafficPolicy: Cluster
+            # Local preserves the real client source IP; Cluster SNATs it to a
+            # node IP before Traefik sees it. Needed so Traefik can forward a
+            # true X-Forwarded-For to backends (e.g. Authentik logging the real
+            # client instead of the Traefik pod IP). With MetalLB L2 the VIP is
+            # announced from whichever node runs a ready Traefik endpoint.
+            externalTrafficPolicy: Local
 
         ports:
           web:
