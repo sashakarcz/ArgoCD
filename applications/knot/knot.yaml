@@ -45,6 +45,29 @@ data:
         # source of truth for static records.
         zonefile-sync: -1
         acl: [externaldns-update]
+
+      # Automatic reverse DNS. Knot 3.4's native reverse-generate synthesises
+      # PTR records from every A record in starnix.net whose address falls in
+      # 192.168.0.0/16 (covers the 192.168.1.0/24 LAN + the 192.168.7.0/24
+      # MetalLB range, and any future 192.168.x subnet with no extra config).
+      # The generated PTRs live in the journal and are re-generated on any
+      # change to starnix.net, including ExternalDNS RFC2136 updates.
+      #
+      # A seed zone file (SOA + NS apex only) is REQUIRED: with zonefile-load
+      # none the zone never bootstraps and fails "not exists". difference-no-
+      # serial merges the generated PTRs on top of the seed apex; zonefile-sync
+      # -1 never writes back. The seed lives in the dns.git repo alongside
+      # starnix.net.zone.
+      #
+      # Constraint: knot requires a single uniform TTL per reverse name, so any
+      # private IP with two A records at different TTLs fails the WHOLE reverse
+      # zone to load. Keep A-record TTLs consistent per IP in starnix.net.
+      - domain: 168.192.in-addr.arpa
+        file: 168.192.in-addr.arpa.zone
+        zonefile-load: difference-no-serial
+        journal-content: all
+        zonefile-sync: -1
+        reverse-generate: [starnix.net]
 ---
 apiVersion: apps/v1
 kind: Deployment
