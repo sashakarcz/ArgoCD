@@ -12,6 +12,13 @@ data:
         # public Cloudflare tunnel. fallthrough = all other names still forward to Knot.
         hosts {
             100.69.0.45 vault.starnix.net
+            # Pin auth.starnix.net to the Traefik ClusterIP for in-cluster OIDC
+            # clients (e.g. krampus doing server-side OIDC discovery). Traefik is
+            # externalTrafficPolicy:Local, so a pod only reaches the MetalLB VIP
+            # (192.168.7.207) when co-scheduled with the single Traefik pod;
+            # the ClusterIP is node-independent. External clients still resolve
+            # to the VIP via split-horizon DNS on Knot.
+            10.98.136.152 auth.starnix.net
             fallthrough
         }
         # Primary: in-cluster KnotDNS LB. Fallbacks: the Unbound resolvers
