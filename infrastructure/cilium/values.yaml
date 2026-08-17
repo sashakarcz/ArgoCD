@@ -7,10 +7,10 @@
 # Values follow the official Sidero "Cilium on Talos" guide:
 #   https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium
 #
-# Pass 1 keeps kube-proxy (kubeProxyReplacement: false) to limit blast radius.
-# Pass 2 (later) switches to Cilium kube-proxy replacement: set
-# cluster.proxy.disabled: true in the Omni machine config and uncomment the
-# kubeProxyReplacement / k8sServiceHost(KubePrism) block below.
+# Pass 1 (kube-proxy retained) is complete; Pass 2 (KPR) is now enabled:
+# kubeProxyReplacement: true here + cluster.proxy.disabled: true in the Omni
+# machine config (ConfigPatch 400-disable-kube-proxy) so Talos removes the
+# kube-proxy DaemonSet and Cilium handles all service load-balancing in eBPF.
 
 # Reuse the CIDRs Talos already allocates per node (10.244.0.0/16) -- no
 # renumbering, no conflict with the outgoing Flannel ranges.
@@ -29,20 +29,18 @@ loadBalancer:
 bgpControlPlane:
   enabled: false          # no Cilium BGP
 
-kubeProxyReplacement: false
-# Point the Cilium AGENT's apiserver connection at Talos KubePrism (the
-# node-local apiserver LB on localhost:7445, which health-checks all control
-# planes and fails over in ~1s). Without this the agent reaches the apiserver
-# via the kubernetes ClusterIP -> kube-proxy -> a specific apiserver, so when
-# that control-plane node reboots the endpoint lingers, the agent's watch
-# breaks, it restarts (node.cilium.io/agent-not-ready taint), and the node
-# flaps NotReady for ~1-2 min. This is independent of kubeProxyReplacement --
-# it only changes the agent's own control connection, not the datapath, so it
-# is safe to set while kube-proxy stays (the rest of Pass 2 / KPR is separate).
+# Pass 2 (KPR): Cilium fully replaces kube-proxy in eBPF. Paired with
+# cluster.proxy.disabled: true in the Talos/Omni machine config (Talos then
+# removes the kube-proxy DaemonSet). MetalLB still owns LoadBalancer IP
+# announcement (its speaker is hostNetwork); Cilium KPR only handles the
+# service datapath, including externalTrafficPolicy:Local source-IP preservation.
+kubeProxyReplacement: true
+# The agent's apiserver connection uses KubePrism (node-local LB, ~1s failover).
+# This is required for KPR (the agent must reach the apiserver without kube-proxy)
+# and is also what stopped control-plane reboots from flapping peer nodes (the
+# agent's watch used to break via the kube-proxy ClusterIP path).
 k8sServiceHost: localhost
 k8sServicePort: 7445
-# --- Pass 2 (KPR) -- uncomment together with cluster.proxy.disabled: true ---
-# kubeProxyReplacement: true
 
 # Talos-specific: Talos forbids workloads from loading kernel modules, so
 # SYS_MODULE is DROPPED from Cilium's default agent capability set. Use this
