@@ -5,6 +5,26 @@ DONE and verified green: Cilium 1.19.4 on all 5 nodes, 0 not-ready pods,
 Longhorn 37/37 healthy, MetalLB all 10 LB IPs intact, ArgoCD apps Healthy,
 Hubble UI live at https://hubble.starnix.net. kube-proxy retained (KPR = future).
 
+## PASS 2 (KPR) — completed 2026-08-17
+Switched to Cilium kube-proxy replacement. Steps: (1) `kubeProxyReplacement: true`
+in infrastructure/cilium/values.yaml (commit 5f7da84) — prereqs already present
+(k8sServiceHost localhost:7445 KubePrism, cgroup.hostRoot, BPF caps); ArgoCD
+updated cilium-config but the agents needed a manual `kubectl -n kube-system
+rollout restart ds/cilium` to reload it. Verified KubeProxyReplacement: True.
+(2) `cluster.proxy.disabled: true` was already in the Omni `200-talos-default`
+config patch — but Talos does NOT auto-delete an already-running kube-proxy DS
+(it ran 233d despite the flag); a standalone `400-*` ConfigPatch created via
+`omnictl apply` did NOT get incorporated into the rendered config (must live in
+the 200 patch the cluster is actually built from). (3) Manually
+`kubectl -n kube-system delete ds kube-proxy` — with KPR active + proxy.disabled
+set, Talos did not recreate it. Validated under pure KPR: DNS/apiserver/all LB
+IPs green, etp:Local source-IP preservation intact (Traefik logs show real
+192.168.1.x client IPs, not masqueraded). 119 services programmed in eBPF.
+Caveat: kube-proxy's old iptables rules linger on nodes until next reboot —
+inert under Cilium socket-LB. KubePrism was already enabled (Talos 1.12 default);
+no `machine.features.kubePrism` patch needed. Rollback: revert 5f7da84 + rollout
+restart cilium + set proxy.disabled:false in 200 to get kube-proxy back.
+
 ### What went wrong + the key lesson
 The cutover wedged Longhorn for ~30 min. Root cause: a mass
 `kubectl rollout restart deploy,sts,ds` does NOT cover operator-managed
