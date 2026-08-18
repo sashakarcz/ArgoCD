@@ -833,12 +833,17 @@ spec:
         - -c
         - |
           mkdir -p /var/ossec/etc/rules /var/ossec/etc/decoders
+          # Own as the wazuh user (999) that the manager daemons run as, NOT
+          # 101 (the ossec UID from older Wazuh images). analysisd drops to the
+          # wazuh user to read the ruleset; 101:101 0660 is unreadable by 999,
+          # so analysisd fails to start ("Could not open ... Permission denied")
+          # and the whole manager stays down on restart.
           cp /rules-src/local_rules.xml /var/ossec/etc/rules/local_rules.xml
-          chown 101:101 /var/ossec/etc/rules/local_rules.xml
-          chmod 660 /var/ossec/etc/rules/local_rules.xml
+          chown 999:999 /var/ossec/etc/rules/local_rules.xml
+          chmod 640 /var/ossec/etc/rules/local_rules.xml
           cp /rules-src/local_decoder.xml /var/ossec/etc/decoders/local_decoder.xml
-          chown 101:101 /var/ossec/etc/decoders/local_decoder.xml
-          chmod 660 /var/ossec/etc/decoders/local_decoder.xml
+          chown 999:999 /var/ossec/etc/decoders/local_decoder.xml
+          chmod 640 /var/ossec/etc/decoders/local_decoder.xml
         volumeMounts:
         - name: wazuh-etc
           mountPath: /var/ossec/etc
