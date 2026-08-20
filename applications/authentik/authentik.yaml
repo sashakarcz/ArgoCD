@@ -274,7 +274,7 @@ spec:
         command: ["/bin/sh", "-c", "until pg_isready -h postgresql -U authentik; do echo waiting for db; sleep 2; done"]
       containers:
       - name: authentik-server
-        image: ghcr.io/goauthentik/server:2026.5.6
+        image: ghcr.io/goauthentik/server:2026.8.0
         args: ["server"]
         envFrom:
         - configMapRef:
@@ -353,7 +353,7 @@ spec:
         runAsGroup: 1000
       containers:
       - name: authentik-worker
-        image: ghcr.io/goauthentik/server:2026.5.6
+        image: ghcr.io/goauthentik/server:2026.8.0
         args: ["worker"]
         envFrom:
         - configMapRef:
