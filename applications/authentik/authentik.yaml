@@ -31,6 +31,10 @@ data:
   AUTHENTIK_WEB__TRUSTED_ORIGINS: "https://auth.starnix.net"
   AUTHENTIK_WEB__ALLOWED_HOSTS: "auth.starnix.net"
   AUTHENTIK_WEB__CSRF_TRUSTED_ORIGINS: "https://auth.starnix.net"
+  # Base URL of this instance (scheme+host, no path). On restart authentik
+  # copies this into the new Base URL system setting when it is unset -- required
+  # from 2026.11, recommended now (added during the 2026.8.0 upgrade).
+  AUTHENTIK_WEB__BASE_URL: "https://auth.starnix.net"
 
 # Secrets managed externally (not in git):
 # kubectl create secret generic authentik-secrets -n authentik \
@@ -251,6 +255,10 @@ kind: Deployment
 metadata:
   name: authentik-server
   namespace: authentik
+  annotations:
+    # Restart when authentik-config changes (envFrom is read only at start), so
+    # AUTHENTIK_WEB__BASE_URL and future config edits take effect on sync.
+    configmap.reloader.stakater.com/reload: "authentik-config"
 spec:
   replicas: 1
   selector:
@@ -331,6 +339,10 @@ kind: Deployment
 metadata:
   name: authentik-worker
   namespace: authentik
+  annotations:
+    # Restart when authentik-config changes (envFrom is read only at start), so
+    # AUTHENTIK_WEB__BASE_URL and future config edits take effect on sync.
+    configmap.reloader.stakater.com/reload: "authentik-config"
 spec:
   replicas: 1
   selector:
