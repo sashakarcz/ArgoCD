@@ -909,3 +909,105 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpa
+  namespace: argocd
+  annotations:
+    # Vertical Pod Autoscaler -- RECOMMENDER ONLY (advise mode). Goldilocks reads
+    # its recommendations. updater + admissionController are disabled so nothing
+    # can ever mutate a running pod. Installs the VPA CRDs. Wave 8: after core
+    # infra, before goldilocks (wave 9) whose controller creates VPA objects.
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.fairwinds.com/stable
+    chart: vpa
+    targetRevision: 5.0.0
+    helm:
+      releaseName: vpa
+      values: |
+        # Advise-only: recommender computes targets from metrics-server; the
+        # updater and admission controller stay OFF so no pod is ever mutated.
+        recommender:
+          enabled: true
+        updater:
+          enabled: false
+        admissionController:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vpa
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: goldilocks
+  namespace: argocd
+  annotations:
+    # Goldilocks -- VPA-recommendation dashboard in ADVISE mode. Its controller
+    # creates VPAs with updateMode: Off (recommend only, never mutate). Reads the
+    # vpa recommender (wave 8). Dashboard is LAN-only at goldilocks.starnix.net
+    # (not in the Cloudflare tunnel). Opt a namespace in for recommendations with
+    # label goldilocks.fairwinds.com/enabled=true.
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.fairwinds.com/stable
+    chart: goldilocks
+    targetRevision: 11.0.0
+    helm:
+      releaseName: goldilocks
+      values: |
+        dashboard:
+          enabled: true
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-production"
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            hosts:
+              - host: goldilocks.starnix.net
+                paths:
+                  - path: /
+                    type: Prefix
+            tls:
+              - secretName: goldilocks-tls
+                hosts:
+                  - goldilocks.starnix.net
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: goldilocks
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
