@@ -978,8 +978,17 @@ spec:
     helm:
       releaseName: goldilocks
       values: |
+        # Opt-out model: watch ALL namespaces by default (on-by-default), so a
+        # namespace is monitored unless labeled
+        # goldilocks.fairwinds.com/enabled=false. Set on BOTH the controller
+        # (creates the VPAs) and the dashboard (renders all namespaces).
+        controller:
+          flags:
+            on-by-default: true
         dashboard:
           enabled: true
+          flags:
+            on-by-default: true
           ingress:
             enabled: true
             ingressClassName: traefik
