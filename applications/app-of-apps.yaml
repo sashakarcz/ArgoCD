@@ -554,6 +554,28 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: myspeed
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/usenix17/ArgoCD.git
+    targetRevision: HEAD
+    path: applications/myspeed
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: myspeed
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: metrics
   namespace: argocd
 spec:
