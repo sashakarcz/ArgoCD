@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: freeradius
+  labels: { name: freeradius }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: freeradius-secrets
+  namespace: freeradius
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: openbao, kind: ClusterSecretStore }
+  target: { name: freeradius-secrets }
+  data:
+    - secretKey: ldap_bind_password
+      remoteRef: { key: cluster/freeradius, property: ldap_bind_password }
+    - secretKey: radius_shared_secret
+      remoteRef: { key: cluster/freeradius, property: radius_shared_secret }
+---
+# RFC2136 TSIG key for cert-manager's dns-01 solver. The freeipa-acme Issuer is
+# namespaced in freeradius, so cert-manager resolves tsigSecretSecretRef in THIS
+# namespace. Reuse the same OpenBao value external-dns uses
+# (cluster/external-dns-secrets -> EXTERNAL_DNS_RFC2136_TSIG_SECRET) so both share
+# the one knot `externaldns` TSIG key.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: radius-rfc2136-tsig
+  namespace: freeradius
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: openbao, kind: ClusterSecretStore }
+  target: { name: radius-rfc2136-tsig }
+  data:
+    - secretKey: tsig-secret
+      remoteRef: { key: cluster/external-dns-secrets, property: EXTERNAL_DNS_RFC2136_TSIG_SECRET }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: freeradius
+  namespace: freeradius
+  annotations:
+    configmap.reloader.stakater.com/reload: "freeradius-raddb,freeradius-init"
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: freeradius } }
+  template:
+    metadata:
+      labels: { app: freeradius }
+    spec:
+      initContainers:
+        - name: assemble
+          image: freeradius/freeradius-server:3.2.7
+          command: ["/bin/sh", "/init/assemble.sh"]
+          env:
+            - name: LDAP_BIND_PASSWORD
+              valueFrom: { secretKeyRef: { name: freeradius-secrets, key: ldap_bind_password } }
+            - name: RADIUS_SHARED_SECRET
+              valueFrom: { secretKeyRef: { name: freeradius-secrets, key: radius_shared_secret } }
+          volumeMounts:
+            - { name: assembled, mountPath: /assembled }
+            - { name: tmpl, mountPath: /tmpl }
+            - { name: init, mountPath: /init }
+            - { name: eapcert, mountPath: /certs, readOnly: true }
+      containers:
+        - name: freeradius
+          image: freeradius/freeradius-server:3.2.7
+          args: ["-f", "-d", "/assembled"]
+          ports:
+            - { containerPort: 1812, protocol: UDP, name: auth }
+            - { containerPort: 1813, protocol: UDP, name: acct }
+          volumeMounts:
+            - { name: assembled, mountPath: /assembled }
+          readinessProbe:
+            exec: { command: ["/bin/sh","-c","radiusd -XCd /assembled >/dev/null 2>&1"] }
+            initialDelaySeconds: 5
+            periodSeconds: 30
+      volumes:
+        - { name: assembled, emptyDir: {} }
+        - name: tmpl
+          configMap:
+            name: freeradius-raddb
+            items:
+              - { key: clients.conf,   path: clients.conf }
+              - { key: mods-ldap,      path: mods-ldap }
+              - { key: eap-tls-config, path: eap-tls-config }
+              - { key: inner-authorize, path: inner-authorize }
+        - { name: init, configMap: { name: freeradius-init } }
+        - { name: eapcert, secret: { secretName: radius-eap-tls } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeradius
+  namespace: freeradius
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "192.168.7.214"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector: { app: freeradius }
+  ports:
+    - { name: auth, port: 1812, targetPort: 1812, protocol: UDP }
+    - { name: acct, port: 1813, targetPort: 1813, protocol: UDP }
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: freeradius
+  namespace: freeradius
+spec:
+  endpointSelector: { matchLabels: { app: freeradius } }
+  ingress:
+    - fromCIDR: ["192.168.1.0/24", "192.168.2.0/24"]
+      toPorts:
+        - ports:
+            - { port: "1812", protocol: UDP }
+            - { port: "1813", protocol: UDP }
+  egress:
+    - toEndpoints: [{ matchLabels: { "k8s:io.kubernetes.pod.namespace": kube-system, "k8s-app": kube-dns } }]
+      toPorts: [{ ports: [{ port: "53", protocol: UDP }] }]
+    - toCIDR: ["192.168.1.26/32"]     # ipa9
+      toPorts: [{ ports: [{ port: "636", protocol: TCP }] }]
