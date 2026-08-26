@@ -1,0 +1,44 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: freeipa-acme
+  namespace: freeradius
+spec:
+  acme:
+    server: https://ipa9.starnix.net/acme/directory
+    # FreeIPA's ACME uses the Dogtag CA; skip public-CA email requirements.
+    skipTLSVerify: false          # trust chain: ipa CA must be in the cluster trust or set caBundle
+    privateKeySecretRef:
+      name: freeipa-acme-account
+    solvers:
+      - dns01:
+          rfc2136:
+            nameserver: 192.168.7.211:53      # knot authoritative
+            tsigKeyName: externaldns
+            tsigAlgorithm: HMACSHA256
+            tsigSecretSecretRef:
+              # ESO-materialized in the freeradius ns (see radius-rfc2136-tsig
+              # ExternalSecret in freeradius.yaml); same knot `externaldns` key
+              # external-dns uses. cert-manager resolves this in the Issuer's ns.
+              name: radius-rfc2136-tsig
+              key: tsig-secret
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: radius-eap
+  namespace: freeradius
+spec:
+  secretName: radius-eap-tls
+  issuerRef:
+    name: freeipa-acme
+    kind: Issuer
+  commonName: radius.starnix.net
+  dnsNames:
+    - radius.starnix.net
+  duration: 2160h      # 90d
+  renewBefore: 720h    # 30d
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  # The IPA CA chain is delivered in the secret's ca.crt / tls.crt chain.
