@@ -19,23 +19,57 @@ spec:
     - secretKey: radius_shared_secret
       remoteRef: { key: cluster/freeradius, property: radius_shared_secret }
 ---
-# RFC2136 TSIG key for cert-manager's dns-01 solver. The freeipa-acme Issuer is
-# namespaced in freeradius, so cert-manager resolves tsigSecretSecretRef in THIS
-# namespace. Reuse the same OpenBao value external-dns uses
-# (cluster/external-dns-secrets -> EXTERNAL_DNS_RFC2136_TSIG_SECRET) so both share
-# the one knot `externaldns` TSIG key.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
+# EAP server cert: issued + auto-renewed by certmonger on ipa9 from the FreeIPA
+# Dogtag CA (split-horizon DNS makes cert-manager ACME dns-01 infeasible here --
+# cert-manager checks the public/Cloudflare view, FreeIPA validates the internal/
+# knot view, and one solver can't satisfy both). certmonger's post-save hook
+# writes the cert into the radius-eap-tls Secret using this tightly-scoped
+# ServiceAccount. radius-eap-tls itself is created/updated out-of-band by that
+# hook, so it is intentionally NOT in git.
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: radius-rfc2136-tsig
+  name: cert-pusher
   namespace: freeradius
-spec:
-  refreshInterval: 1h
-  secretStoreRef: { name: openbao, kind: ClusterSecretStore }
-  target: { name: radius-rfc2136-tsig }
-  data:
-    - secretKey: tsig-secret
-      remoteRef: { key: cluster/external-dns-secrets, property: EXTERNAL_DNS_RFC2136_TSIG_SECRET }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-pusher
+  namespace: freeradius
+rules:
+  # create cannot be resourceName-scoped; get/update/patch are locked to the one secret.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["radius-eap-tls"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-pusher
+  namespace: freeradius
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-pusher
+subjects:
+  - kind: ServiceAccount
+    name: cert-pusher
+    namespace: freeradius
+---
+# Non-expiring token for the certmonger hook on ipa9 (kubeconfig placed there).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-pusher-token
+  namespace: freeradius
+  annotations:
+    kubernetes.io/service-account.name: cert-pusher
+type: kubernetes.io/service-account-token
 ---
 apiVersion: apps/v1
 kind: Deployment
