@@ -109,7 +109,7 @@ spec:
           volumeMounts:
             - { name: assembled, mountPath: /assembled }
           readinessProbe:
-            exec: { command: ["/bin/sh","-c","radiusd -XCd /assembled >/dev/null 2>&1"] }
+            exec: { command: ["/bin/sh","-c","freeradius -XCd /assembled >/dev/null 2>&1"] }
             initialDelaySeconds: 5
             periodSeconds: 30
       volumes:
