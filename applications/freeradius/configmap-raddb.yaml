@@ -17,6 +17,23 @@ data:
         require_message_authenticator = yes
         nas_type = other
     }
+  eap-tls-config: |
+    # Included into mods-enabled/eap's tls-config block.
+    private_key_file = ${certdir}/radius-eap.key
+    certificate_file = ${certdir}/radius-eap.pem
+    ca_file          = ${certdir}/ipa-ca.pem
+    dh_file          = ${certdir}/dh
+    fragment_size    = 1024
+    check_cert_cn    =
+  inner-authorize: |2
+        # wifi-group members only (enforced by the ldap user filter); PAP verifies
+        # via LDAP bind, MSCHAPv2 via NT-Password (ipaNTHash) set by the ldap module.
+        ldap
+        if (&User-Password) {
+            update control {
+                Auth-Type := LDAP
+            }
+        }
   mods-ldap: |
     ldap {
         server = 'ldaps://ipa9.starnix.net'
@@ -31,38 +48,28 @@ data:
         }
         user {
             base_dn = "cn=users,cn=accounts,dc=starnix,dc=net"
-            filter  = "(uid=%{%{Stripped-User-Name}:-%{User-Name}})"
+            filter  = "(&(uid=%{%{Stripped-User-Name}:-%{User-Name}})(memberOf=cn=wifi,cn=groups,cn=accounts,dc=starnix,dc=net))"
         }
         group {
             base_dn = "cn=groups,cn=accounts,dc=starnix,dc=net"
             filter  = "(objectClass=ipausergroup)"
             membership_attribute = 'memberOf'
         }
-        options { chase_referrals = yes; rebind = yes }
+        options {
+            chase_referrals = yes
+            rebind = yes
+        }
         tls {
-            ca_file     = /etc/raddb/certs/ipa-ca.pem
+            ca_file     = ${certdir}/ipa-ca.pem
             require_cert = 'demand'
         }
-        pool { start = 2; min = 1; max = 8; spare = 2; idle_timeout = 60 }
-    }
-  eap-tls-config: |
-    # Included into mods-enabled/eap's tls-config block.
-    private_key_file = /etc/raddb/certs/radius-eap.key
-    certificate_file = /etc/raddb/certs/radius-eap.pem
-    ca_file          = /etc/raddb/certs/ipa-ca.pem
-    dh_file          = /etc/raddb/certs/dh
-    fragment_size    = 1024
-    check_cert_cn    =
-  inner-authorize: |
-    # Fragment spliced into sites-enabled/inner-tunnel `authorize`.
-    # 1) look the user up in FreeIPA + enforce wifi-group membership,
-    # 2) PAP -> LDAP bind; MSCHAPv2 -> mschap uses NT-Password from ldap.
-    ldap
-    if (!&LDAP-Group == "wifi") {
-        reject
-    }
-    if (&User-Password) {
-        update control { Auth-Type := ldap }
+        pool {
+            start = 2
+            min = 1
+            max = 8
+            spare = 2
+            idle_timeout = 60
+        }
     }
 ---
 apiVersion: v1
@@ -92,9 +99,10 @@ data:
     mv /assembled/sites-enabled/inner-tunnel.new /assembled/sites-enabled/inner-tunnel
     cp /tmpl/inner-authorize /assembled/inner-authorize
     # Ensure 'Auth-Type LDAP { ldap }' exists in inner-tunnel authenticate.
-    grep -q 'Auth-Type LDAP' /assembled/sites-enabled/inner-tunnel || \
-      sed -i '/^authenticate \{/a\    Auth-Type LDAP { ldap }' \
-        /assembled/sites-enabled/inner-tunnel
+    grep -qE '^[[:space:]]*Auth-Type LDAP[[:space:]]*[{]' /assembled/sites-enabled/inner-tunnel || \
+      awk '/^authenticate[[:space:]]*[{]/ && !x {print; print "    Auth-Type LDAP {"; print "        ldap"; print "    }"; x=1; next} {print}' \
+        /assembled/sites-enabled/inner-tunnel > /assembled/sites-enabled/inner-tunnel.new \
+      && mv /assembled/sites-enabled/inner-tunnel.new /assembled/sites-enabled/inner-tunnel
     # Certs from the mounted secret.
     cp /certs/tls.crt /assembled/certs/radius-eap.pem
     cp /certs/tls.key /assembled/certs/radius-eap.key
