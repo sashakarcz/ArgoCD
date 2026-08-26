@@ -78,6 +78,7 @@ metadata:
   namespace: freeradius
   annotations:
     configmap.reloader.stakater.com/reload: "freeradius-raddb,freeradius-init"
+    secret.reloader.stakater.com/reload: "radius-eap-tls"
 spec:
   replicas: 1
   selector: { matchLabels: { app: freeradius } }
