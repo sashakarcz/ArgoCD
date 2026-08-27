@@ -110,11 +110,12 @@ data:
     - hostname: ha.starnix.net
       service: https://traefik.traefik.svc.cluster.local
       originRequest:
-        noTLSVerify: false
+        noTLSVerify: true
         httpHostHeader: ha.service.starnix.net
     - hostname: privatebin.starnix.net
       service: https://traefik.traefik.svc.cluster.local
       originRequest:
+        noTLSVerify: true
         httpHostHeader: privatebin.starnix.net
     - hostname: go.starnix.net
       service: https://traefik.traefik.svc.cluster.local
@@ -125,8 +126,6 @@ data:
       service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
-        httpHostHeader: ouija.starnix.net
-      originRequest:
         httpHostHeader: ouija.service.starnix.net
     - hostname: help.starnix.net
       service: https://traefik.traefik.svc.cluster.local
@@ -136,13 +135,17 @@ data:
         httpHostHeader: help.starnix.net
     - hostname: fleet.starnix.net
       service: https://traefik.traefik.svc.cluster.local
+      originRequest:
+        noTLSVerify: true
     - hostname: tarot.starnix.net
       service: https://traefik.traefik.svc.cluster.local
       originRequest:
+        noTLSVerify: true
         httpHostHeader: tarot.starnix.net
     - hostname: radiacode.starnix.net
       service: https://traefik.traefik.svc.cluster.local
       originRequest:
+        noTLSVerify: true
         httpHostHeader: radiacode.starnix.net
     - hostname: repeater.starnix.net
       service: https://traefik.traefik.svc.cluster.local
@@ -248,6 +251,8 @@ spec:
             - name: TUNNEL_TOKEN
               valueFrom:
                 secretKeyRef: { name: cloudflare-secrets, key: TUNNEL_TOKEN }
+            - name: HOME
+              value: /tmp
           livenessProbe:
             httpGet: { path: /ready, port: 2000 }
             initialDelaySeconds: 10
