@@ -36,7 +36,7 @@ data:
   ingress.yaml: |
     # --- Jellyfin (direct to service IP, bypasses Traefik) ---
     - hostname: jellyfin.starnix.net
-      service: http://192.168.7.208:8096
+      service: http://jellyfin-service.jellyfin.svc.cluster.local:8096
       originRequest:
         noTLSVerify: true
         httpHostHeader: jellyfin.service.starnix.net
@@ -47,7 +47,7 @@ data:
 
     # --- AUR mirror ---
     - hostname: aur.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: aur.starnix.net
@@ -61,132 +61,114 @@ data:
 
     # --- Traefik ingress (192.168.7.207) ---
     - hostname: media.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: media.starnix.net
     - hostname: auth.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: auth.starnix.net
     - hostname: status.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: status.starnix.net
     - hostname: memegen.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         originServerName: memegen.starnix.net
     - hostname: matrix.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: matrix.starnix.net
     - hostname: db.bairlabs.org
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: db.bairlabs.org
     - hostname: nova.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: proxy.starnix.net
     - hostname: krampus.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: krampus.starnix.net
     - hostname: sanitydeclines.com
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: ghost.starnix.net
 
     # --- Self-hosted services with own ingress/TLS ---
     - hostname: ha.starnix.net
-      service: https://ha.service.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: false
         httpHostHeader: ha.service.starnix.net
     - hostname: privatebin.starnix.net
-      service: https://privatebin.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         httpHostHeader: privatebin.starnix.net
-    - hostname: ntfy.starnix.net
-      service: https://ntfy.service.starnix.net
-      originRequest:
-        noTLSVerify: true
-        httpHostHeader: ntfy.service.starnix.net
     - hostname: go.starnix.net
-      service: https://go.service.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: go.service.starnix.net
     - hostname: ouija.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: ouija.starnix.net
       originRequest:
         httpHostHeader: ouija.service.starnix.net
     - hostname: help.starnix.net
-      service: https://help.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         http2Origin: true
         noTLSVerify: true
         httpHostHeader: help.starnix.net
-    - hostname: data.bairlabs.org
-      service: https://metabase.starnix.net
-      originRequest:
-        httpHostHeader: metabase.starnix.net
     - hostname: fleet.starnix.net
-      service: https://fleet.starnix.net
-    - hostname: drop.starnix.net
-      service: https://drop.service.starnix.net
-      originRequest:
-        noTLSVerify: true
-        httpHostHeader: drop.service.starnix.net
-    - hostname: coturn.starnix.net
-      service: https://coturn.service.starnix.net
-      originRequest:
-        httpHostHeader: coturn.service.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
     - hostname: tarot.starnix.net
-      service: https://tarot.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         httpHostHeader: tarot.starnix.net
     - hostname: radiacode.starnix.net
-      service: https://radiacode.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         httpHostHeader: radiacode.starnix.net
     - hostname: repeater.starnix.net
-      service: https://repeater.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: repeater.starnix.net
     - hostname: argocd.starnix.net
-      service: https://argocd.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
     - hostname: project.starnix.net
-      service: https://project.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
     - hostname: seafile.starnix.net
-      service: https://seafile.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
     - hostname: clock.bairlabs.org
-      service: https://bair-sky.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: bair-sky.starnix.net
         originServerName: bair-sky.starnix.net
     - hostname: lofiweather.net
-      service: https://weather.starnix.net
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: weather.starnix.net
@@ -210,10 +192,6 @@ data:
       service: http://192.168.1.86:8888
       originRequest:
         httpHostHeader: python.starnix.net
-    - hostname: inv.bidetcams.com
-      service: https://vid.starnix.net
-      originRequest:
-        httpHostHeader: vid.starnix.net
     - hostname: gellyfin.starnix.net
       service: http://192.168.1.86:8889
     - hostname: sky.bairlabs.org
@@ -227,7 +205,7 @@ data:
 
     # --- CI/CD ---
     - hostname: semaphore.starnix.net
-      service: https://192.168.7.207
+      service: https://traefik.traefik.svc.cluster.local
       originRequest:
         noTLSVerify: true
         httpHostHeader: semaphore.starnix.net
@@ -238,6 +216,58 @@ data:
 
     # --- Catch-all ---
     - service: http_status:404
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflare
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: cloudflared }
+  template:
+    metadata:
+      labels: { app: cloudflared }
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector: { matchLabels: { app: cloudflared } }
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2025.11.1
+          args: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "--grace-period", "30s", "run"]
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef: { name: cloudflare-secrets, key: TUNNEL_TOKEN }
+          livenessProbe:
+            httpGet: { path: /ready, port: 2000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /ready, port: 2000 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - { name: tmp, emptyDir: {} }
 ---
 # Sync hook: applies ingress.yaml to Cloudflare on every ArgoCD sync.
 # Uses CF_API_TOKEN from Vault-managed cloudflare-secrets.
@@ -349,3 +379,22 @@ spec:
       - name: config
         configMap:
           name: tunnel-config
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cloudflared
+  namespace: cloudflare
+spec:
+  endpointSelector: { matchLabels: { app: cloudflared } }
+  egress:
+    - toEndpoints: [{ matchLabels: { "k8s:io.kubernetes.pod.namespace": kube-system, "k8s-app": kube-dns } }]
+      toPorts: [{ ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }] }]
+    - toEntities: ["world"]
+      toPorts:
+        - ports: [{ port: "7844", protocol: UDP }, { port: "7844", protocol: TCP }, { port: "443", protocol: TCP }]
+    - toEndpoints: [{ matchLabels: { "k8s:io.kubernetes.pod.namespace": traefik } }]
+      toPorts: [{ ports: [{ port: "443", protocol: TCP }, { port: "80", protocol: TCP }] }]
+    - toEndpoints: [{ matchLabels: { "k8s:io.kubernetes.pod.namespace": jellyfin } }]
+      toPorts: [{ ports: [{ port: "8096", protocol: TCP }] }]
+    - toCIDR: ["192.168.1.0/24", "192.168.7.0/24", "192.168.8.0/24", "172.16.5.0/24"]
