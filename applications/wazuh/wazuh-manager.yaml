@@ -665,6 +665,33 @@ data:
       </rule>
     </group>
 
+    <!-- OpenSnitch application-firewall events (selene). The opensnitch-wazuh
+         bridge (Ansible role opensnitch_wazuh) tails OpenSnitch's JSON SIEM
+         stream, drops process_env, and forwards only denies + first-seen
+         (process,dst) pairs to /var/log/opensnitch/events.json, read by a
+         host-local json localfile. Wazuh's json decoder flattens to
+         Event.* / Action / bridge_reason. -->
+    <group name="opensnitch,firewall,">
+      <rule id="100750" level="0">
+        <decoded_as>json</decoded_as>
+        <field name="bridge_reason">\.+</field>
+        <description>OpenSnitch event (base)</description>
+      </rule>
+      <rule id="100751" level="3">
+        <if_sid>100750</if_sid>
+        <field name="bridge_reason">^first_seen$</field>
+        <description>OpenSnitch: new egress $(Event.process_path) -> $(Event.dst_host):$(Event.dst_port) ($(Action))</description>
+      </rule>
+      <!-- Key on bridge_reason, not Action: 'action' is a reserved Wazuh
+           static field and <field name="Action"> fails to compile. The bridge
+           sets bridge_reason=deny exactly when Action is a block. -->
+      <rule id="100752" level="6">
+        <if_sid>100750</if_sid>
+        <field name="bridge_reason">^deny$</field>
+        <description>OpenSnitch DENY: $(Event.process_path) -> $(Event.dst_host):$(Event.dst_port)</description>
+      </rule>
+    </group>
+
   # Custom decoders (git-managed), seeded to /var/ossec/etc/decoders by the
   # seed-rules initContainer (etc/decoders is already in <ruleset>).
   local_decoder.xml: |
