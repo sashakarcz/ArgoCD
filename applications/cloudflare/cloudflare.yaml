@@ -246,7 +246,9 @@ spec:
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared:2025.11.1
-          args: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "--grace-period", "30s", "run"]
+          # http2 transport: QUIC (UDP 7844) fails ALPN through the cluster's
+          # egress NAT/CNI ("tls: no application protocol"); http2 over TCP 443 is reliable.
+          args: ["tunnel", "--no-autoupdate", "--protocol", "http2", "--metrics", "0.0.0.0:2000", "--grace-period", "30s", "run"]
           env:
             - name: TUNNEL_TOKEN
               valueFrom:
