@@ -598,6 +598,73 @@ data:
       </rule>
     </group>
 
+    <!-- Auditd keys deployed on Arch hosts by the Ansible arch role
+         (/etc/audit/rules.d/supplychain.rules), shipped via the arch group's
+         audit localfile. Give the supply-chain keys real severity; without
+         these they land as generic level-3 audit events. exec_shm (execution
+         from /dev/shm) is the only page-worthy one; /tmp exec and persistence
+         writes happen during legit AUR builds / systemctl enable, so log-only
+         at level 8 and tune up if a host proves quiet. -->
+    <group name="audit,audit_key,">
+      <rule id="100730" level="0">
+        <if_group>audit</if_group>
+        <field name="audit.key">\.+</field>
+        <description>Auditd event carrying a rule key (base)</description>
+      </rule>
+      <rule id="100731" level="12">
+        <if_sid>100730</if_sid>
+        <field name="audit.key">^exec_shm$</field>
+        <description>Auditd: execution from /dev/shm -- $(audit.exe) (auid=$(audit.auid))</description>
+        <group>exec_from_staging,gdpr_IV_35.7.d,</group>
+      </rule>
+      <rule id="100732" level="8">
+        <if_sid>100730</if_sid>
+        <field name="audit.key">^exec_tmp$</field>
+        <description>Auditd: execution from /tmp -- $(audit.exe) (auid=$(audit.auid))</description>
+        <group>exec_from_staging,</group>
+      </rule>
+      <rule id="100733" level="8">
+        <if_sid>100730</if_sid>
+        <field name="audit.key" type="pcre2">^persist_(systemd|user_systemd)$</field>
+        <description>Auditd: systemd unit path written ($(audit.key)) -- $(audit.exe)</description>
+        <group>persistence,</group>
+      </rule>
+      <rule id="100734" level="8">
+        <if_sid>100730</if_sid>
+        <field name="audit.key">^persist_shellrc$</field>
+        <description>Auditd: shell rc file modified -- $(audit.exe) (auid=$(audit.auid))</description>
+        <group>persistence,</group>
+      </rule>
+      <rule id="100735" level="8">
+        <if_sid>100730</if_sid>
+        <field name="audit.key">^persist_cron$</field>
+        <description>Auditd: cron path modified -- $(audit.exe) (auid=$(audit.auid))</description>
+        <group>persistence,</group>
+      </rule>
+    </group>
+
+    <!-- pacman.log is collected (arch group localfile) but arrives
+         unstructured; decode it (local_decoder pacman) and alert on package
+         changes. Removal of security tooling is the high-signal case. -->
+    <group name="pacman,software_management,">
+      <rule id="100740" level="3">
+        <decoded_as>pacman</decoded_as>
+        <description>pacman: $(pkgaction) $(pkg) ($(version))</description>
+      </rule>
+      <rule id="100741" level="5">
+        <if_sid>100740</if_sid>
+        <field name="pkgaction" type="pcre2">^(installed|removed|downgraded)$</field>
+        <description>pacman: package $(pkgaction) -- $(pkg) ($(version))</description>
+      </rule>
+      <rule id="100742" level="10">
+        <if_sid>100740</if_sid>
+        <field name="pkgaction">^removed$</field>
+        <field name="pkg" type="pcre2">^(audit|auditd|wazuh-agent|falco|opensnitch|nftables|iptables|ufw|firewalld|apparmor|sudo|openssh)$</field>
+        <description>pacman: SECURITY package REMOVED -- $(pkg) ($(version))</description>
+        <group>config_changed,</group>
+      </rule>
+    </group>
+
   # Custom decoders (git-managed), seeded to /var/ossec/etc/decoders by the
   # seed-rules initContainer (etc/decoders is already in <ruleset>).
   local_decoder.xml: |
@@ -607,6 +674,17 @@ data:
     <decoder name="k8sjson">
       <program_name>^k8sjson$</program_name>
       <plugin_decoder>JSON_Decoder</plugin_decoder>
+    </decoder>
+    <!-- pacman.log (arch group localfile) arrives unstructured. Lines look like:
+           [2026-08-27T10:15:30-0700] [ALPM] installed foo (1.2.3-1)
+           [2026-08-27T10:15:31-0700] [ALPM] upgraded bar (1.0-1 -> 1.1-1)
+         Extract action/package/version for rules 100740+. -->
+    <decoder name="pacman">
+      <prematch type="pcre2">\[ALPM\] (?:installed|removed|upgraded|downgraded|reinstalled) </prematch>
+      <regex type="pcre2">\[ALPM\] (\w+) (\S+) \((.+)\)</regex>
+      <!-- NB: 'action' is a reserved Wazuh static field (not rule-matchable via
+           <field>), so the operation is named 'pkgaction' to stay dynamic. -->
+      <order>pkgaction, pkg, version</order>
     </decoder>
 
   # Wazuh -> Discord integration scripts, seeded onto the integrations PVC by
